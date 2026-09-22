@@ -36,14 +36,14 @@ const SPORTS = { gym: "Gimnasio", bici: "Bicicleta", natacion: "Natación", cint
 const GROUPS = ["Pecho","Espalda","Piernas","Glúteo","Hombro","Bíceps","Tríceps","Core","Full body","Otro"];
 const EQUIP = ["Barra","Mancuernas","Máquina","Polea","Peso corporal","Kettlebell","Otro"];
 const CATALOG = {
-  "Press banca":"Pecho","Press inclinado con mancuernas":"Pecho","Press en máquina":"Pecho","Aperturas":"Pecho","Cruce de poleas":"Pecho","Fondos":"Pecho",
+  "Press banca":"Pecho","Press inclinado con barra":"Pecho","Press inclinado con mancuernas":"Pecho","Press en máquina":"Pecho","Aperturas":"Pecho","Cruce de poleas":"Pecho","Fondos":"Pecho",
   "Dominadas":"Espalda","Jalón al pecho":"Espalda","Remo con barra":"Espalda","Remo con mancuerna":"Espalda","Remo en polea baja":"Espalda","Peso muerto":"Espalda",
   "Sentadilla":"Piernas","Sentadilla búlgara":"Piernas","Prensa":"Piernas","Zancadas":"Piernas","Extensión de cuádriceps":"Piernas","Curl femoral":"Piernas","Gemelos":"Piernas",
   "Hip thrust":"Glúteo","Peso muerto rumano":"Glúteo",
   "Press militar":"Hombro","Elevaciones laterales":"Hombro","Pájaros":"Hombro","Face pull":"Hombro",
-  "Curl con barra":"Bíceps","Curl martillo":"Bíceps","Curl en banco Scott":"Bíceps",
+  "Curl con barra":"Bíceps","Curl martillo":"Bíceps","Curl en banco Scott":"Bíceps","Curl en polea":"Bíceps",
   "Extensión en polea":"Tríceps","Press francés":"Tríceps",
-  "Plancha":"Core","Crunch":"Core","Rueda abdominal":"Core","Elevación de piernas":"Core",
+  "Plancha":"Core","Crunch":"Core","Crunch en banco":"Core","Rueda abdominal":"Core","Elevación de piernas":"Core",
   "Flexiones":"Pecho","Remo invertido":"Espalda","Mountain climbers":"Core","Sentadilla sin peso":"Piernas","Pike push-up":"Hombro",
   "Burpee":"Full body","Puente de glúteo":"Glúteo","Fondos en banco":"Tríceps"
 };

@@ -16,7 +16,7 @@ function targetsFor(who){
 function renderDieta(){
   if (!dWho) dWho = me || "juan";
   const v = $("#view-dieta"), other = OTHER[dWho];
-  const { t, w } = targetsFor(dWho), o = targetsFor(other).t, pr = profileOf(dWho), saved = !!profiles[dWho];
+  const { t, w } = targetsFor(dWho), o = targetsFor(other).t, pr = profileOf(dWho), saved = !!(profiles[dWho] && profiles[dWho].height);
   const factor = Math.min(1.45, Math.max(0.7, t.kcal / 2400));
   const dp = me === dWho ? dietPlan() : dietPlan(dWho), pdd = dp && dp.dias.find(d => (parseISO(d.fecha).getDay() + 6) % 7 === dDay);
   const menu = pdd ? { desayuno: pdd.desayuno, media: pdd.media, comida: pdd.comida[dCirc] || [], merienda: pdd.merienda, cena: pdd.cena } : dayMenu(dDay, dCirc, factor);
@@ -101,7 +101,7 @@ async function saveProfile(){
   if (dbState !== "ready" || me !== dWho) return;
   const p = { height: num($("#p-height").value), age: num($("#p-age").value), goal: $("#p-goal").value, work: $("#p-work").value, alcoholGoal: num($("#p-alc").value) };
   if (p.height < 140 || p.height > 220 || p.age < 16 || p.age > 90) { toast("Revisa la altura y la edad"); return; }
-  try { await db.doc("perfiles/" + me).set({ ...p, updatedAt: Date.now() }); toast("Datos guardados"); }
+  try { await db.doc("perfiles/" + me).set({ ...profileDoc(me), ...p, updatedAt: Date.now() }); toast("Datos guardados"); }
   catch { toast("No se han podido guardar tus datos"); }
 }
 document.addEventListener("click", e => {

@@ -13,19 +13,21 @@ const EX_MUS = {
   "Peso muerto": [["gluteo", "isquios", "lumbar"], ["dorsal", "trapecio", "cuadriceps", "antebrazo"]], "Peso muerto rumano": [["isquios", "gluteo"], ["lumbar"]],
   "Press militar": [["deltoides"], ["triceps", "trapecio", "abdomen"]], "Remo con barra": [["dorsal"], ["biceps", "trapecio", "lumbar"]],
   "Dominadas": [["dorsal"], ["biceps", "antebrazo", "abdomen"]], "Jalón al pecho": [["dorsal"], ["biceps"]], "Curl con barra": [["biceps"], ["antebrazo"]],
-  "Curl martillo": [["biceps", "antebrazo"], []], "Curl en banco Scott": [["biceps"], ["antebrazo"]], "Extensión en polea": [["triceps"], []],
-  "Press francés": [["triceps"], []], "Fondos": [["pectoral", "triceps"], ["deltoides"]], "Press inclinado con mancuernas": [["pectoral"], ["deltoides", "triceps"]],
+  "Curl martillo": [["biceps", "antebrazo"], []], "Curl en banco Scott": [["biceps"], ["antebrazo"]], "Curl en polea": [["biceps"], ["antebrazo"]], "Extensión en polea": [["triceps"], []],
+  "Press francés": [["triceps"], []], "Fondos": [["pectoral", "triceps"], ["deltoides"]], "Press inclinado con mancuernas": [["pectoral"], ["deltoides", "triceps"]], "Press inclinado con barra": [["pectoral"], ["deltoides", "triceps"]],
   "Press en máquina": [["pectoral"], ["triceps"]], "Aperturas": [["pectoral"], ["deltoides"]], "Cruce de poleas": [["pectoral"], ["deltoides"]],
   "Elevaciones laterales": [["deltoides"], ["trapecio"]], "Pájaros": [["deltoides"], ["trapecio", "dorsal"]], "Face pull": [["deltoides", "trapecio"], []],
   "Prensa": [["cuadriceps", "gluteo"], ["isquios"]], "Zancadas": [["cuadriceps", "gluteo"], ["isquios", "gemelos"]], "Sentadilla búlgara": [["cuadriceps", "gluteo"], ["isquios"]],
   "Extensión de cuádriceps": [["cuadriceps"], []], "Curl femoral": [["isquios"], ["gemelos"]], "Gemelos": [["gemelos"], []], "Hip thrust": [["gluteo"], ["isquios"]],
-  "Plancha": [["abdomen"], ["oblicuos", "deltoides"]], "Crunch": [["abdomen"], []], "Rueda abdominal": [["abdomen"], ["dorsal", "oblicuos"]],
+  "Plancha": [["abdomen"], ["oblicuos", "deltoides"]], "Crunch": [["abdomen"], []], "Crunch en banco": [["abdomen"], ["oblicuos"]], "Rueda abdominal": [["abdomen"], ["dorsal", "oblicuos"]],
   "Elevación de piernas": [["abdomen"], ["oblicuos"]], "Remo con mancuerna": [["dorsal"], ["biceps", "trapecio"]], "Remo en polea baja": [["dorsal"], ["biceps", "trapecio"]],
   "Flexiones": [["pectoral"], ["triceps", "deltoides", "abdomen"]], "Remo invertido": [["dorsal"], ["biceps", "trapecio"]], "Mountain climbers": [["abdomen"], ["cuadriceps", "deltoides"]],
   "Sentadilla sin peso": [["cuadriceps", "gluteo"], []], "Pike push-up": [["deltoides"], ["triceps"]], "Burpee": [["cuadriceps", "pectoral"], ["deltoides", "abdomen"]],
   "Puente de glúteo": [["gluteo"], ["isquios"]], "Fondos en banco": [["triceps"], ["deltoides", "pectoral"]],
   "Crol": [["dorsal", "deltoides"], ["triceps", "abdomen"]], "Braza": [["pectoral", "cuadriceps"], ["gluteo"]], "Espalda": [["dorsal", "deltoides"], ["gluteo"]],
-  "Mariposa": [["pectoral", "deltoides"], ["dorsal", "abdomen"]], "Patada con tabla": [["cuadriceps", "gluteo"], ["gemelos"]], "Pull buoy": [["dorsal", "deltoides"], ["triceps"]]
+  "Mariposa": [["pectoral", "deltoides"], ["dorsal", "abdomen"]], "Patada con tabla": [["cuadriceps", "gluteo"], ["gemelos"]], "Pull buoy": [["dorsal", "deltoides"], ["triceps"]],
+  "Carrera en cinta": [["cuadriceps", "gemelos"], ["gluteo", "isquios"]], "Bici": [["cuadriceps", "gluteo"], ["gemelos", "isquios"]], "Elíptica": [["cuadriceps", "gluteo"], ["deltoides", "gemelos"]],
+  "Remo ergómetro": [["dorsal", "cuadriceps"], ["biceps", "gluteo", "lumbar"]], "Comba": [["gemelos"], ["cuadriceps", "deltoides"]], "Caminar en cinta inclinada": [["gluteo", "gemelos"], ["cuadriceps", "isquios"]]
 };
 const SPORT_MUS = { cinta: [["cuadriceps", "gemelos"], ["gluteo", "isquios"]], bici: [["cuadriceps", "gluteo"], ["gemelos", "isquios"]], natacion: [["dorsal", "deltoides"], ["triceps", "abdomen"]] };
 const GROUP_MUS = { "Pecho": "pectoral", "Espalda": "dorsal", "Piernas": "cuadriceps", "Glúteo": "gluteo", "Hombro": "deltoides", "Bíceps": "biceps", "Tríceps": "triceps", "Core": "abdomen" };

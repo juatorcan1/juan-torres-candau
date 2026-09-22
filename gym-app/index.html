@@ -469,7 +469,7 @@ body.playing{overflow:hidden}
 .pl-body.center{justify-items:center;text-align:center}
 .pl-goal{margin:0;font-size:15px;color:var(--ink-2)}
 .pl-block{display:grid;gap:8px}
-.pl-item{display:grid;grid-template-columns:64px 1fr;gap:10px;align-items:center;padding:8px;border-radius:9px;background:var(--surface);border:1px solid var(--line-2)}
+.pl-item{display:grid;grid-template-columns:64px minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px;border-radius:9px;background:var(--surface);border:1px solid var(--line-2)}
 .reto{font-size:13px;font-weight:600;color:var(--warn);margin-top:2px}
 .reto.big{font-size:15px;padding:8px 12px;border-radius:8px;background:var(--warn-bg)}
 .pl-ex{font-family:var(--display);font-weight:800;font-size:32px;text-transform:uppercase;letter-spacing:.02em;line-height:1}
@@ -532,6 +532,23 @@ body.playing{overflow:hidden}
 .chips.mus button{padding:5px 10px;font-size:12.5px}
 .ck-map{padding:6px;border-radius:12px;background:var(--surface-2)}
 .ck-map .bodymap{max-width:260px}
+
+/* swap sheet: another exercise for the same muscle */
+.swap-back{position:fixed;inset:0;z-index:70;background:rgba(0,0,0,.45)}
+.swap-sheet{position:fixed;z-index:71;left:0;right:0;bottom:0;margin-inline:auto;max-width:560px;max-height:86vh;overflow-y:auto;display:grid;gap:12px;
+  background:var(--surface);border-radius:16px 16px 0 0;padding:16px 16px calc(18px + env(safe-area-inset-bottom,0px));box-shadow:0 -8px 30px rgba(0,0,0,.25)}
+.swap-h{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:start}
+.swap-h b{font-size:18px}
+.swap-dis{display:flex;gap:8px;align-items:center;font-size:14px;font-weight:600;padding:10px 12px;border-radius:9px;background:var(--surface-2);cursor:pointer}
+.swap-dis input{width:20px;height:20px;accent-color:var(--muscle)}
+.swap-list{display:grid;gap:8px}
+.swap-opt{display:grid;grid-template-columns:64px minmax(0,1fr);gap:10px;align-items:center;text-align:left;padding:8px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;cursor:pointer}
+.swap-opt:hover,.swap-opt:focus-visible{border-color:var(--muscle)}
+.swap-opt b{display:block}
+.swap-opt small{display:block;color:var(--muted);font-size:13px}
+.swap-sheet .btn{justify-self:start}
+.plan-list{margin:2px 0 0;padding-left:18px;font-size:13.5px;color:var(--ink-2)}
+.pl-item .mus-chip{display:block}
 </style>
 <div class="wrap">
   <div class="brand">
@@ -640,14 +657,14 @@ const SPORTS = { gym: "Gimnasio", bici: "Bicicleta", natacion: "Natación", cint
 const GROUPS = ["Pecho","Espalda","Piernas","Glúteo","Hombro","Bíceps","Tríceps","Core","Full body","Otro"];
 const EQUIP = ["Barra","Mancuernas","Máquina","Polea","Peso corporal","Kettlebell","Otro"];
 const CATALOG = {
-  "Press banca":"Pecho","Press inclinado con mancuernas":"Pecho","Press en máquina":"Pecho","Aperturas":"Pecho","Cruce de poleas":"Pecho","Fondos":"Pecho",
+  "Press banca":"Pecho","Press inclinado con barra":"Pecho","Press inclinado con mancuernas":"Pecho","Press en máquina":"Pecho","Aperturas":"Pecho","Cruce de poleas":"Pecho","Fondos":"Pecho",
   "Dominadas":"Espalda","Jalón al pecho":"Espalda","Remo con barra":"Espalda","Remo con mancuerna":"Espalda","Remo en polea baja":"Espalda","Peso muerto":"Espalda",
   "Sentadilla":"Piernas","Sentadilla búlgara":"Piernas","Prensa":"Piernas","Zancadas":"Piernas","Extensión de cuádriceps":"Piernas","Curl femoral":"Piernas","Gemelos":"Piernas",
   "Hip thrust":"Glúteo","Peso muerto rumano":"Glúteo",
   "Press militar":"Hombro","Elevaciones laterales":"Hombro","Pájaros":"Hombro","Face pull":"Hombro",
-  "Curl con barra":"Bíceps","Curl martillo":"Bíceps","Curl en banco Scott":"Bíceps",
+  "Curl con barra":"Bíceps","Curl martillo":"Bíceps","Curl en banco Scott":"Bíceps","Curl en polea":"Bíceps",
   "Extensión en polea":"Tríceps","Press francés":"Tríceps",
-  "Plancha":"Core","Crunch":"Core","Rueda abdominal":"Core","Elevación de piernas":"Core",
+  "Plancha":"Core","Crunch":"Core","Crunch en banco":"Core","Rueda abdominal":"Core","Elevación de piernas":"Core",
   "Flexiones":"Pecho","Remo invertido":"Espalda","Mountain climbers":"Core","Sentadilla sin peso":"Piernas","Pike push-up":"Hombro",
   "Burpee":"Full body","Puente de glúteo":"Glúteo","Fondos en banco":"Tríceps"
 };
@@ -963,6 +980,8 @@ const GUIDE = {
     fig: { a: { hip: [92, 138], to: -8, ank: [132, 180], kb: "up", wr: [88, 34] }, b: { hip: [92, 138], to: -8, ank: [132, 180], kb: "up", wr: [86, 88] }, hl: ["torso", "ua"], props: [{ t: "bench", x: 70, y: 143, w: 44 }, { t: "cable", from: [88, -12] }, { t: "hbar", j: "wr" }] } },
   "Curl con barra": { m: "Bíceps", steps: ["De pie, codos pegados al cuerpo y agarre a la anchura de hombros.", "Sube la barra doblando solo el codo.", "Aprieta arriba y baja despacio hasta estirar."], ojo: "Balancear el cuerpo; adelantar los codos.",
     fig: { a: { hip: [100, 106], to: 0, ank: [100, 186], wr: [102, 106], eb: "fwd" }, b: { hip: [100, 106], to: 0, ank: [100, 186], wr: [112, 58] }, hl: ["fa"], props: [{ t: "plate", j: "wr", r: 9 }] } },
+  "Curl en polea": { m: "Bíceps", steps: ["De pie frente a la polea baja con la barra recta, codos pegados al cuerpo.", "Sube la barra doblando solo el codo.", "Aprieta arriba y baja despacio: la polea tira todo el recorrido."], ojo: "Echarte hacia atrás o adelantar los codos.",
+    fig: { a: { hip: [100, 106], to: 0, ank: [100, 186], wr: [102, 106], eb: "fwd" }, b: { hip: [100, 106], to: 0, ank: [100, 186], wr: [112, 58] }, hl: ["fa"], props: [{ t: "cable", from: [150, 184] }, { t: "handle", j: "wr" }] } },
   "Curl martillo": { m: "Bíceps y braquial", steps: ["Mancuernas con las palmas mirándose (agarre neutro).", "Sube sin girar la muñeca y con el codo quieto.", "Baja controlado."], ojo: "Mover el hombro para ayudar.",
     fig: { a: { hip: [100, 106], to: 0, ank: [100, 186], wr: [102, 106], eb: "fwd" }, b: { hip: [100, 106], to: 0, ank: [100, 186], wr: [112, 58] }, hl: ["fa"], props: [{ t: "db", j: "wr" }] } },
   "Curl en banco Scott": { m: "Bíceps", steps: ["Apoya la parte de atrás del brazo en el banco inclinado.", "Sube la barra sin despegar el brazo del apoyo.", "Baja casi hasta estirar, sin bloquear de golpe."], ojo: "Soltar el peso abajo: tensión en el tendón.",
@@ -975,6 +994,8 @@ const GUIDE = {
     fig: { a: { hip: [96, 110], to: 5, ank: [76, 164], wr: [100, 104], eb: "back" }, b: { hip: [95, 117], to: 25, ank: [74, 172], wr: [100, 104], eb: "back" }, hl: ["ua", "torso"], props: [{ t: "bar", x1: 78, y1: 104, x2: 142, y2: 104 }, { t: "line", x1: 136, y1: 104, x2: 136, y2: 188, w: 4 }] } },
   "Press inclinado con mancuernas": { m: "Pectoral superior y hombro", steps: ["Banco a unos 30°, mancuernas a los lados del pecho.", "Empuja hacia arriba juntándolas un poco.", "Baja controlado hasta notar el estiramiento."], ojo: "Banco demasiado inclinado: pasa a ser de hombro.",
     fig: { a: { hip: [110, 150], to: -55, ank: [150, 184], kb: "up", wr: [70, 67] }, b: { hip: [110, 150], to: -55, ank: [150, 184], kb: "up", wr: [88, 106] }, hl: ["torso"], props: [{ t: "line", x1: 114, y1: 158, x2: 60, y2: 122, w: 7 }, { t: "line", x1: 112, y1: 158, x2: 132, y2: 158, w: 7 }, { t: "line", x1: 100, y1: 158, x2: 100, y2: 188, w: 4 }, { t: "db", j: "wr" }] } },
+  "Press inclinado con barra": { m: "Pectoral superior, hombro y tríceps", steps: ["Banco a unos 30°, agarre algo más ancho que los hombros.", "Baja la barra controlada a la parte alta del pecho, codos a unos 45°.", "Empuja hasta estirar los brazos sin despegar la espalda del banco."], ojo: "Rebotar la barra o arquear mucho la espalda. La barra sola ya pesa unos 20 kg.",
+    fig: { a: { hip: [110, 150], to: -55, ank: [150, 184], kb: "up", wr: [70, 67] }, b: { hip: [110, 150], to: -55, ank: [150, 184], kb: "up", wr: [88, 106] }, hl: ["torso"], props: [{ t: "line", x1: 114, y1: 158, x2: 60, y2: 122, w: 7 }, { t: "line", x1: 112, y1: 158, x2: 132, y2: 158, w: 7 }, { t: "line", x1: 100, y1: 158, x2: 100, y2: 188, w: 4 }, { t: "plate", j: "wr" }] } },
   "Press en máquina": { m: "Pectoral y tríceps", steps: ["Sentado con la espalda pegada al respaldo, agarres a la altura del pecho.", "Empuja hasta casi estirar los brazos.", "Vuelve despacio sin dejar que el peso choque."], ojo: "Despegar la espalda del respaldo.",
     fig: { a: { hip: [80, 140], to: -5, ank: [122, 180], kb: "up", wr: [84, 100], eb: "back" }, b: { hip: [80, 140], to: -5, ank: [122, 180], kb: "up", wr: [128, 89] }, hl: ["torso", "fa"], props: [{ t: "bench", x: 62, y: 145, w: 40 }, { t: "line", x1: 70, y1: 146, x2: 64, y2: 80, w: 7 }, { t: "handle", j: "wr" }] } },
   "Aperturas": { m: "Pectoral", steps: ["Tumbado en banco plano, mancuernas arriba con los codos un poco doblados.", "Abre los brazos en arco hasta notar estiramiento en el pecho.", "Cierra abrazando un barril imaginario."], ojo: "Estirar los codos del todo o bajar demasiado.",
@@ -1005,6 +1026,8 @@ const GUIDE = {
     fig: { a: { hip: [95, 162], to: 85, hd: 90, ank: [16, 172], ft: 180, wr: [172, 184] }, b: { hip: [95, 160], to: 85, hd: 90, ank: [16, 172], ft: 180, wr: [172, 184] }, hl: ["torso"], props: [] } },
   "Crunch": { m: "Abdomen", steps: ["Tumbado boca arriba, rodillas dobladas y manos junto a la cabeza.", "Despega los hombros del suelo acercando las costillas a la cadera.", "Baja despacio sin apoyar del todo la cabeza."], ojo: "Tirar del cuello con las manos.",
     fig: { a: { hip: [100, 180], to: -90, ank: [140, 184], kb: "up", wr: [52, 170], eb: "up" }, b: { hip: [100, 180], to: -58, ank: [140, 184], kb: "up", wr: [60, 144], eb: "up" }, hl: ["torso"], props: [] } },
+  "Crunch en banco": { m: "Abdomen", steps: ["Tumbado en el banco con los pies apoyados o sujetos y manos junto a la cabeza.", "Sube los hombros acercando las costillas a la cadera, sin tirar del cuello.", "Baja despacio sin llegar a relajar del todo."], ojo: "Impulsarte con los brazos o tirar de la cabeza.",
+    fig: { a: { hip: [100, 140], to: -90, ank: [140, 144], kb: "up", wr: [52, 130], eb: "up" }, b: { hip: [100, 140], to: -58, ank: [140, 144], kb: "up", wr: [60, 104], eb: "up" }, hl: ["torso"], props: [{ t: "bench", x: 30, y: 146, w: 130 }] } },
   "Rueda abdominal": { m: "Abdomen y core", steps: ["De rodillas con la rueda bajo los hombros.", "Rueda hacia delante manteniendo el abdomen apretado.", "Vuelve tirando con el abdomen, no con la cadera."], ojo: "Hundir la zona lumbar.",
     fig: { a: { hip: [70, 146], to: 20, ank: [30, 184], kb: "down", ft: 180, wr: [102, 176] }, b: { hip: [100, 168], to: 80, ank: [30, 184], kb: "down", ft: 180, wr: [184, 176] }, hl: ["torso"], props: [{ t: "wheel", j: "wr" }] } },
   "Elevación de piernas": { m: "Abdomen inferior y flexores de cadera", steps: ["Colgado de la barra con los brazos estirados.", "Sube las piernas hasta la horizontal (o las rodillas al pecho).", "Baja sin balancearte."], ojo: "Usar el balanceo.",
@@ -1047,19 +1070,21 @@ const EX_MUS = {
   "Peso muerto": [["gluteo", "isquios", "lumbar"], ["dorsal", "trapecio", "cuadriceps", "antebrazo"]], "Peso muerto rumano": [["isquios", "gluteo"], ["lumbar"]],
   "Press militar": [["deltoides"], ["triceps", "trapecio", "abdomen"]], "Remo con barra": [["dorsal"], ["biceps", "trapecio", "lumbar"]],
   "Dominadas": [["dorsal"], ["biceps", "antebrazo", "abdomen"]], "Jalón al pecho": [["dorsal"], ["biceps"]], "Curl con barra": [["biceps"], ["antebrazo"]],
-  "Curl martillo": [["biceps", "antebrazo"], []], "Curl en banco Scott": [["biceps"], ["antebrazo"]], "Extensión en polea": [["triceps"], []],
-  "Press francés": [["triceps"], []], "Fondos": [["pectoral", "triceps"], ["deltoides"]], "Press inclinado con mancuernas": [["pectoral"], ["deltoides", "triceps"]],
+  "Curl martillo": [["biceps", "antebrazo"], []], "Curl en banco Scott": [["biceps"], ["antebrazo"]], "Curl en polea": [["biceps"], ["antebrazo"]], "Extensión en polea": [["triceps"], []],
+  "Press francés": [["triceps"], []], "Fondos": [["pectoral", "triceps"], ["deltoides"]], "Press inclinado con mancuernas": [["pectoral"], ["deltoides", "triceps"]], "Press inclinado con barra": [["pectoral"], ["deltoides", "triceps"]],
   "Press en máquina": [["pectoral"], ["triceps"]], "Aperturas": [["pectoral"], ["deltoides"]], "Cruce de poleas": [["pectoral"], ["deltoides"]],
   "Elevaciones laterales": [["deltoides"], ["trapecio"]], "Pájaros": [["deltoides"], ["trapecio", "dorsal"]], "Face pull": [["deltoides", "trapecio"], []],
   "Prensa": [["cuadriceps", "gluteo"], ["isquios"]], "Zancadas": [["cuadriceps", "gluteo"], ["isquios", "gemelos"]], "Sentadilla búlgara": [["cuadriceps", "gluteo"], ["isquios"]],
   "Extensión de cuádriceps": [["cuadriceps"], []], "Curl femoral": [["isquios"], ["gemelos"]], "Gemelos": [["gemelos"], []], "Hip thrust": [["gluteo"], ["isquios"]],
-  "Plancha": [["abdomen"], ["oblicuos", "deltoides"]], "Crunch": [["abdomen"], []], "Rueda abdominal": [["abdomen"], ["dorsal", "oblicuos"]],
+  "Plancha": [["abdomen"], ["oblicuos", "deltoides"]], "Crunch": [["abdomen"], []], "Crunch en banco": [["abdomen"], ["oblicuos"]], "Rueda abdominal": [["abdomen"], ["dorsal", "oblicuos"]],
   "Elevación de piernas": [["abdomen"], ["oblicuos"]], "Remo con mancuerna": [["dorsal"], ["biceps", "trapecio"]], "Remo en polea baja": [["dorsal"], ["biceps", "trapecio"]],
   "Flexiones": [["pectoral"], ["triceps", "deltoides", "abdomen"]], "Remo invertido": [["dorsal"], ["biceps", "trapecio"]], "Mountain climbers": [["abdomen"], ["cuadriceps", "deltoides"]],
   "Sentadilla sin peso": [["cuadriceps", "gluteo"], []], "Pike push-up": [["deltoides"], ["triceps"]], "Burpee": [["cuadriceps", "pectoral"], ["deltoides", "abdomen"]],
   "Puente de glúteo": [["gluteo"], ["isquios"]], "Fondos en banco": [["triceps"], ["deltoides", "pectoral"]],
   "Crol": [["dorsal", "deltoides"], ["triceps", "abdomen"]], "Braza": [["pectoral", "cuadriceps"], ["gluteo"]], "Espalda": [["dorsal", "deltoides"], ["gluteo"]],
-  "Mariposa": [["pectoral", "deltoides"], ["dorsal", "abdomen"]], "Patada con tabla": [["cuadriceps", "gluteo"], ["gemelos"]], "Pull buoy": [["dorsal", "deltoides"], ["triceps"]]
+  "Mariposa": [["pectoral", "deltoides"], ["dorsal", "abdomen"]], "Patada con tabla": [["cuadriceps", "gluteo"], ["gemelos"]], "Pull buoy": [["dorsal", "deltoides"], ["triceps"]],
+  "Carrera en cinta": [["cuadriceps", "gemelos"], ["gluteo", "isquios"]], "Bici": [["cuadriceps", "gluteo"], ["gemelos", "isquios"]], "Elíptica": [["cuadriceps", "gluteo"], ["deltoides", "gemelos"]],
+  "Remo ergómetro": [["dorsal", "cuadriceps"], ["biceps", "gluteo", "lumbar"]], "Comba": [["gemelos"], ["cuadriceps", "deltoides"]], "Caminar en cinta inclinada": [["gluteo", "gemelos"], ["cuadriceps", "isquios"]]
 };
 const SPORT_MUS = { cinta: [["cuadriceps", "gemelos"], ["gluteo", "isquios"]], bici: [["cuadriceps", "gluteo"], ["gemelos", "isquios"]], natacion: [["dorsal", "deltoides"], ["triceps", "abdomen"]] };
 const GROUP_MUS = { "Pecho": "pectoral", "Espalda": "dorsal", "Piernas": "cuadriceps", "Glúteo": "gluteo", "Hombro": "deltoides", "Bíceps": "biceps", "Tríceps": "triceps", "Core": "abdomen" };
@@ -1266,6 +1291,8 @@ const dDemo = () => drinks.length === 0;
 const wts = () => wDemo() ? DEMO_BODY.ws : weights;
 const drk = () => dDemo() ? DEMO_BODY.ds : drinks;
 const profileOf = who => ({ ...PROFILE_DEFAULT, ...(profiles[who] || {}) });
+// the stored profile document without the row id, to merge new fields into it
+const profileDoc = who => { const { id, ...rest } = profiles[who] || {}; return rest; };
 // Inputs marked data-keep survive re-renders caused by live data.
 const kept = store.get("gym.kept", {});
 const keep = (id, d = "") => (kept[id] ?? d);
@@ -2439,7 +2466,7 @@ function targetsFor(who){
 function renderDieta(){
   if (!dWho) dWho = me || "juan";
   const v = $("#view-dieta"), other = OTHER[dWho];
-  const { t, w } = targetsFor(dWho), o = targetsFor(other).t, pr = profileOf(dWho), saved = !!profiles[dWho];
+  const { t, w } = targetsFor(dWho), o = targetsFor(other).t, pr = profileOf(dWho), saved = !!(profiles[dWho] && profiles[dWho].height);
   const factor = Math.min(1.45, Math.max(0.7, t.kcal / 2400));
   const dp = me === dWho ? dietPlan() : dietPlan(dWho), pdd = dp && dp.dias.find(d => (parseISO(d.fecha).getDay() + 6) % 7 === dDay);
   const menu = pdd ? { desayuno: pdd.desayuno, media: pdd.media, comida: pdd.comida[dCirc] || [], merienda: pdd.merienda, cena: pdd.cena } : dayMenu(dDay, dCirc, factor);
@@ -2524,7 +2551,7 @@ async function saveProfile(){
   if (dbState !== "ready" || me !== dWho) return;
   const p = { height: num($("#p-height").value), age: num($("#p-age").value), goal: $("#p-goal").value, work: $("#p-work").value, alcoholGoal: num($("#p-alc").value) };
   if (p.height < 140 || p.height > 220 || p.age < 16 || p.age > 90) { toast("Revisa la altura y la edad"); return; }
-  try { await db.doc("perfiles/" + me).set({ ...p, updatedAt: Date.now() }); toast("Datos guardados"); }
+  try { await db.doc("perfiles/" + me).set({ ...profileDoc(me), ...p, updatedAt: Date.now() }); toast("Datos guardados"); }
   catch { toast("No se han podido guardar tus datos"); }
 }
 document.addEventListener("click", e => {
@@ -2662,8 +2689,9 @@ function agentPrompt(agent, userText){
     ? `Eres el entrenador personal de ${ATH[me]} en su app "Juan vs Ignacio", donde compite con su amigo ${ATH[other]}. Motivas, eres directo y concreto, con pique sano con ${ATH[other]}. Sabes de fuerza, calistenia, natación y cardio.`
     : `Eres el dietista de ${ATH[me]} en su app "Juan vs Ignacio", donde compite con su amigo ${ATH[other]}. Práctico, sin sermones, comida española normal. Tienes en cuenta el alcohol (1 UBE = 10 g) y su trabajo: a veces está en la obra sin cocina, otras come en un bar o en la oficina con microondas.`;
   const schemas = agent === "coach"
-    ? `Responde SOLO con JSON: {"respuesta": str, "entreno": ENTRENO|null, "plan": PLAN_ENTRENO|null}
+    ? `Responde SOLO con JSON: {"respuesta": str, "entreno": ENTRENO|null, "plan": PLAN_ENTRENO|null, "no_gusta": [str]|null, "si_gusta": [str]|null}
 Pon "entreno" solo si pide un entrenamiento concreto para hacer (hoy o un día concreto) y "plan" solo si pide un plan semanal o mensual. Si hay plan y pide "el entreno de hoy", hazlo según el plan.
+Si dice que un ejercicio no le gusta, le molesta o le cuesta demasiado, pon su nombre en "no_gusta" y en "respuesta" proponle 2 o 3 que trabajen el mismo músculo; si pide entreno, ya sin ese ejercicio. Si dice que vuelve a querer uno que no le gustaba, ponlo en "si_gusta". Nunca pongas en un entreno un ejercicio que no le gusta: usa otro del mismo músculo.
 ${WORKOUT_SCHEMA.replace("${RIVAL}", ATH[other])}
 ${TRAIN_PLAN_SCHEMA}`
     : `Responde SOLO con JSON: {"respuesta": str, "plan": PLAN_DIETA|null}
@@ -2678,6 +2706,7 @@ ${schemas}
 Datos de ${ATH[me]}:
 ${athleteContext(me)}
 Músculos trabajados en los últimos 3 días: ${(() => { const r = recentMuscles(me, 3); const k = MUSCLE_ORDER.filter(x => r[x] === 2); return k.length ? musNames(k) : "ninguno"; })()}.
+${agent === "coach" ? `Ejercicios que no le gustan: ${dislikes().join(", ") || "ninguno apuntado"}.` : ""}
 ${checkinText() ? "Cómo está hoy (check-in): " + checkinText() : ""}
 Plan de entreno actual: ${planSummary(trainPlan())}
 ${agent === "nutri" && dietPlan() ? `Tiene un menú semanal guardado: ${dietPlan().titulo || ""}.` : ""}
@@ -2722,7 +2751,8 @@ function normalizeTrainPlan(o){
   const semanas = o.semanas.slice(0, 5).map(w => ({ objetivo: String((w && w.objetivo) || "").slice(0, 160),
     dias: (Array.isArray(w && w.dias) ? w.dias : []).slice(0, 7).filter(d => d && /^\d{4}-\d{2}-\d{2}$/.test(d.fecha)).map(d => ({
       fecha: d.fecha, dia: String(d.dia || DIA[parseISO(d.fecha).getDay()]), actividad: acts.includes(d.actividad) ? d.actividad : "otro",
-      duracion_min: clampN(d.duracion_min, 0, 300) || 0, foco: String(d.foco || "").slice(0, 80), detalle: String(d.detalle || "").slice(0, 240) })) }))
+      duracion_min: clampN(d.duracion_min, 0, 300) || 0, foco: String(d.foco || "").slice(0, 80), detalle: String(d.detalle || "").slice(0, 240),
+      ...(normalizeWorkout(d.entreno) ? { entreno: normalizeWorkout(d.entreno) } : {}) })) }))
     .filter(w => w.dias.length);
   if (!semanas.length) return null;
   return { tipo: o.tipo === "mes" ? "mes" : "semana", titulo: String(o.titulo || "Plan de entreno").slice(0, 80), semanas, nota: String(o.nota || "").slice(0, 400) };
@@ -2758,6 +2788,9 @@ async function sendChat(agent, text, opts = {}){
     if (agent === "coach") {
       const w = normalizeWorkout(o && o.entreno), p = normalizeTrainPlan(o && o.plan);
       if (w) msg.entreno = w;
+      const L = v => (Array.isArray(v) ? v : []).map(x => String(x).trim().slice(0, 50)).filter(Boolean).slice(0, 6);
+      const add = L(o && o.no_gusta), remove = L(o && o.si_gusta);
+      if ((add.length || remove.length) && await updateDislikes({ add, remove })) { if (add.length) msg.noGusta = add.map(canonicalName); if (remove.length) msg.siGusta = remove.map(canonicalName); }
       if (p) { msg.plan = p; await db?.doc(`planes/${me}_entreno`).set({ athlete: me, clase: "entreno", ...p, creado: Date.now() }); }
     } else {
       const p = normalizeDietPlan(o && o.plan);
@@ -2805,7 +2838,7 @@ function renderChat(agent){
       ${msgs.length ? `<button type="button" class="btn sm ghost" data-chat-clear="${agent}">Nueva conversación</button>` : ""}</div>
     <div class="msgs" id="msgs-${agent}">
       ${msgs.length ? "" : `<div class="bubble a">Hola, ${ATH[me]}. Soy ${A.who}. ${agent === "coach" ? "Pídeme el entreno de hoy, un plan semanal o mensual, o cómo ganarle a " + ATH[OTHER[me]] + "." : "Pídeme el menú de la semana o qué comer hoy según dónde estés."}</div>`}
-      ${msgs.map((m, i) => `<div class="bubble ${m.r}">${esc(m.t)}${m.entreno ? workoutCard(m.entreno, `${agent}:${i}`) : ""}${m.plan ? planCard(m.plan, agent) : ""}</div>`).join("")}
+      ${msgs.map((m, i) => `<div class="bubble ${m.r}">${esc(m.t)}${m.noGusta ? `<div class="note">Apuntado: no te gusta ${esc(m.noGusta.join(", "))}. No te lo vuelvo a poner.</div>` : ""}${m.siGusta ? `<div class="note">Vuelve a tu lista: ${esc(m.siGusta.join(", "))}.</div>` : ""}${m.entreno ? workoutCard(m.entreno, `${agent}:${i}`) : ""}${m.plan ? planCard(m.plan, agent) : ""}</div>`).join("")}
       ${busy ? `<div class="bubble a typing"><span class="spin"></span>${agent === "coach" ? "Preparando…" : "Pensando…"}</div>` : ""}
     </div>
     ${chatErr[agent] ? `<div class="err" role="alert">${esc(chatErr[agent])}</div>` : ""}
@@ -2843,7 +2876,8 @@ function renderPlan(){
     return `<div class="pday ${isToday ? "today" : ""} ${past ? "past" : ""}">
       <div class="pd-date"><b>${esc(d.dia.slice(0, 3))}</b><span>${parseISO(d.fecha).getDate()}</span></div>
       <div class="pd-body"><div><b>${d.actividad === "descanso" ? "Descanso" : esc(d.foco || SPORTS[d.actividad] || d.actividad)}</b>${d.duracion_min ? ` <span class="muted">· ${d.duracion_min} min</span>` : ""}${done ? ' <span class="pill ok">hecho</span>' : ""}</div><div class="muted" style="font-size:13px">${esc(d.detalle)}</div></div>
-      ${d.actividad !== "descanso" && !past ? `<button type="button" class="btn sm ${isToday ? "primary" : ""}" data-plan-day="${d.fecha}">${isToday ? "Empezar" : "Preparar"}</button>` : ""}
+      ${d.actividad === "descanso" || past || (isToday && done) ? "" : d.entreno ? `<button type="button" class="btn sm ${isToday ? "primary" : ""}" data-plan-open="${d.fecha}">${isToday ? "Empezar" : "Ver"}</button>`
+        : `<button type="button" class="btn sm ${isToday ? "primary" : ""}" data-plan-day="${d.fecha}">${isToday ? "Empezar" : "Preparar"}</button>`}
     </div>`; };
   v.innerHTML = `<div style="display:grid;gap:18px">
     ${p ? `<div class="panel"><div class="panel-head"><div><h2>${esc(p.titulo)}</h2><div class="muted" style="font-size:13px;margin-top:2px">Plan ${p.tipo === "mes" ? "mensual" : "semanal"} de ${ATH[me]}${p.nota ? " · " + esc(p.nota) : ""}</div></div>
@@ -2852,9 +2886,16 @@ function renderPlan(){
     : `<div class="panel empty-plan"><h2>Sin plan todavía</h2><p class="muted">Pídeselo a tu entrenador: tendrá en cuenta lo que has hecho, tu objetivo y cómo va ${ATH[OTHER[me]]}.</p>
       <div class="row-btns" style="justify-content:center"><button type="button" class="btn primary" data-say="coach" data-text="Hazme un plan semanal">Plan semanal</button><button type="button" class="btn" data-say="coach" data-text="Hazme un plan de un mes">Plan mensual</button></div>
       ${chatBusy.coach ? `<div class="thinking" style="justify-content:center;margin-top:12px"><span class="spin"></span>Preparando tu plan…</div>` : ""}</div>`}
+    ${me ? dislikesHTML() : ""}
     ${o ? `<div class="panel"><div class="panel-head"><h2>El plan de ${ATH[OTHER[me]]}</h2></div>${(o.semanas[0] ? o.semanas.flatMap(w => w.dias).filter(d => d.fecha >= todayISO()).slice(0, 4) : []).map(d => `<div class="pday"><div class="pd-date"><b>${esc(d.dia.slice(0, 3))}</b><span>${parseISO(d.fecha).getDate()}</span></div><div class="pd-body"><b>${d.actividad === "descanso" ? "Descanso" : esc(d.foco || d.actividad)}</b> <span class="muted">${d.duracion_min ? "· " + d.duracion_min + " min" : ""}</span></div></div>`).join("")}</div>` : ""}
   </div>`;
 }
+/* a plan day that already carries its workout opens straight away */
+function openPlanDay(fecha){
+  const d = planDay(trainPlan(), fecha), w = d && normalizeWorkout(d.entreno);
+  if (w) openPlayer(w); else toast("Ese día no tiene entreno preparado");
+}
+document.addEventListener("click", e => { const t = e.target.closest("button[data-plan-open]"); if (t) openPlanDay(t.dataset.planOpen); });
 document.addEventListener("click", async e => {
   const t = e.target.closest("button[data-plan-day]"); if (!t) return;
   const d = planDay(trainPlan(), t.dataset.planDay); if (!d) return;
@@ -2865,7 +2906,7 @@ document.addEventListener("click", async e => {
 /* ask for a workout from anywhere (Hoy, plan) */
 async function quickWorkout({ tipo, minutos, plan, checkin } = {}){
   const text = plan
-    ? `Prepárame el entreno del ${plan.dia} ${plan.fecha} según mi plan: ${plan.actividad}, ${plan.duracion_min} min, ${plan.foco}. ${plan.detalle}${checkin ? " Ten en cuenta cómo estoy hoy." : ""}`
+    ? `Prepárame el entreno del ${plan.dia} ${plan.fecha} según mi plan: ${plan.actividad}, ${plan.duracion_min} min, ${plan.foco}. ${plan.detalle}${plan.entreno ? ` El previsto era: ${plan.entreno.bloques.flatMap(b => b.items).map(x => `${x.ejercicio} ${x.series} × ${target(x)}`).join("; ")}. Adáptalo trabajando los mismos músculos.` : ""}${checkin ? " Ten en cuenta cómo estoy hoy." : ""}`
     : checkin
     ? `Hazme el entreno de hoy según cómo estoy: ${checkinText()}. Adáptalo: si estoy flojo o he dormido mal, baja volumen e intensidad; si voy a tope, ponme un reto fuerte. No cargues los músculos que me molestan y evita repetir los que trabajé ayer si no te lo pido.`
     : `Hazme un entreno de ${tipo === "casa" ? "calistenia en casa sin material" : tipo} de ${minutos} minutos para hoy, que me haga superar mi última sesión.`;
@@ -2911,6 +2952,11 @@ let runTick = null, wakeLock = null, audioCtx = null;
 const playerOpen = () => !$("#player").hidden;
 const voiceOn = () => store.get("gym.voice", true);
 
+// the items that count as "today you work": without warm-up and cool-down, unless that is all there is
+function mainItems(w){
+  const all = w.bloques.flatMap(b => b.items), core = w.bloques.filter(b => !/calentamiento|vuelta a la calma/i.test(b.nombre)).flatMap(b => b.items);
+  return core.length ? core : all;
+}
 function flatten(w){
   const steps = [];
   w.bloques.forEach((b, bi) => b.items.forEach((it, ii) => { for (let s = 1; s <= it.series; s++) steps.push({ bi, ii, s }); }));
@@ -2921,7 +2967,9 @@ const keyOf = (st) => st.bi + "." + st.ii;
 function saveRun(){ store.set("gym.run", run); }
 function openPlayer(w){
   if (!me) { toast("Elige primero quién eres"); return; }
-  run = { w, steps: flatten(w), i: 0, phase: "preview", startedAt: null, until: null, log: {}, cur: null, athlete: me, rpe: null, extra: "" };
+  const { w: ww, swapped } = autoSwap(w);
+  swap = null;
+  run = { w: ww, steps: flatten(ww), i: 0, phase: "preview", startedAt: null, until: null, log: {}, cur: null, athlete: me, rpe: null, extra: "", swapped };
   saveRun(); showPlayer();
 }
 function resumePlayer(){ if (run && run.athlete === me && run.phase !== "preview") showPlayer(); }
@@ -2930,6 +2978,7 @@ function showPlayer(){
   renderPlayer(); keepAwake(true);
 }
 function closePlayer(discard){
+  swap = null;
   if (discard) { run = null; store.del("gym.run"); }
   $("#player").hidden = true; $("#player").innerHTML = ""; document.body.classList.remove("playing");
   clearInterval(runTick); runTick = null; keepAwake(false);
@@ -2976,11 +3025,13 @@ function renderPlayer(){
   if (run.phase === "preview") {
     body = `<div class="pl-body">
       ${w.objetivo ? `<p class="pl-goal">${esc(w.objetivo)}</p>` : ""}
-      ${(() => { const all = w.bloques.flatMap(b => b.items).map(musclesOf), lv = levelsFor(all); const main = MUSCLE_ORDER.filter(k => lv[k] === 2);
+      ${(() => { const all = mainItems(w).map(musclesOf), lv = levelsFor(all); const main = MUSCLE_ORDER.filter(k => lv[k] === 2);
         return main.length ? `<div class="pl-today"><div class="eyebrow">Hoy trabajas</div><div class="mus-title" style="font-size:24px">${esc(musNames(main))}</div>${bodyMap(lv, { cls: "small" })}<div class="mus-legend"><span><i style="background:var(--muscle)"></i>principal</span><span><i style="background:var(--mus-help)"></i>ayuda</span></div></div>` : ""; })()}
-      ${w.bloques.map(b => `<div class="pl-block"><div class="eyebrow">${esc(b.nombre)}</div>${b.items.map(x => `<div class="pl-item">
+      ${run.swapped && run.swapped.length ? `<p class="note">Cambiado porque no te gusta: ${run.swapped.map(([a, b]) => `${esc(a)} → <b>${esc(b)}</b>`).join(", ")}.</p>` : ""}
+      ${w.bloques.map((b, bi) => `<div class="pl-block"><div class="eyebrow">${esc(b.nombre)}</div>${b.items.map((x, ii) => `<div class="pl-item">
         ${GUIDE[x.ejercicio] ? `<svg class="fig mini" viewBox="0 -14 200 206" aria-hidden="true">${figSVG(x.ejercicio, 1, false)}</svg>` : `<div class="fig mini nofig">${esc(x.ejercicio.slice(0, 2))}</div>`}
-        <div>${musclesOf(x).main.length ? `<div class="mus-chip">${esc(musNames(musclesOf(x).main))}</div>` : ""}<b>${esc(x.ejercicio)}</b><div class="muted" style="font-size:13px">${x.series} × ${target(x)} · descanso ${x.descanso_s} s</div>${x.reto ? `<div class="reto">${esc(x.reto)}</div>` : ""}</div></div>`).join("")}</div>`).join("")}
+        <div>${musclesOf(x).main.length ? `<div class="mus-chip">${esc(musNames(musclesOf(x).main))}</div>` : ""}<b>${esc(x.ejercicio)}</b><div class="muted" style="font-size:13px">${x.series} × ${target(x)} · descanso ${x.descanso_s} s</div>${x.reto ? `<div class="reto">${esc(x.reto)}</div>` : ""}</div>
+        <button type="button" class="btn sm ghost" data-swap-item="${bi}.${ii}" aria-label="Cambiar ${esc(x.ejercicio)}">Cambiar</button></div>`).join("")}</div>`).join("")}
       ${w.nota ? `<p class="note">${esc(w.nota)}</p>` : ""}
     </div>
     <div class="pl-foot"><button type="button" class="btn primary big" data-pl="start">Empezar</button></div>`;
@@ -3015,10 +3066,10 @@ function renderPlayer(){
         : working ? `<button type="button" class="btn primary big" data-pl="workdone">Hecho</button>`
         : it.modo === "tiempo" ? `<button type="button" class="btn primary big" data-pl="work">Empezar ${it.segundos} s</button>`
         : `<button type="button" class="btn primary big" data-pl="done">Serie hecha</button>`}
-      <div class="pl-aux"><button type="button" class="linkbtn" data-pl="skipex">Saltar ejercicio</button><button type="button" class="linkbtn" data-pl="finish">Terminar ya</button></div>
+      <div class="pl-aux"><button type="button" class="linkbtn" data-pl="skipex">Saltar ejercicio</button>${working ? "" : resting ? (next ? `<button type="button" class="linkbtn" data-swap-item="${next.bi}.${next.ii}">Cambiar el siguiente</button>` : "") : `<button type="button" class="linkbtn" data-swap-item="${st.bi}.${st.ii}">Cambiar ejercicio</button>`}<button type="button" class="linkbtn" data-pl="finish">Terminar ya</button></div>
     </div>`;
   }
-  el.innerHTML = `<div class="pl-wrap">${head}${body}</div>`;
+  el.innerHTML = `<div class="pl-wrap">${head}${body}</div>${swapSheetHTML()}`;
   mountFigs();
   clearInterval(runTick); runTick = null;
   if (run.phase === "rest" || run.phase === "work" || (run.startedAt && run.phase !== "done")) runTick = setInterval(tickPlayer, 250);
@@ -3169,6 +3220,11 @@ function checkinHTML(pd){
   </div>`;
 }
 
+const workoutMuscles = w => { const lv = levelsFor(mainItems(w).map(musclesOf)); return musNames(MUSCLE_ORDER.filter(k => lv[k] === 2)); };
+function nextPlanDay(){
+  const p = trainPlan(); if (!p || !Array.isArray(p.semanas)) return null;
+  return p.semanas.flatMap(w => w.dias || []).find(d => d.fecha > todayISO() && d.actividad !== "descanso") || null;
+}
 function greeting(){ const h = new Date().getHours(); return h < 6 ? "Buenas noches" : h < 13 ? "Buenos días" : h < 21 ? "Buenas tardes" : "Buenas noches"; }
 function todayMenu(){
   const dp = dietPlan(), d = dp && dp.dias.find(x => x.fecha === todayISO());
@@ -3186,7 +3242,7 @@ function renderHoy(){
   }
   const { T } = (() => { const p = period; period = "semana"; const r = computeDuel(); period = p; return r; })();
   const pq = (() => { const p = period; period = "semana"; const r = piqueText(T); period = p; return r; })();
-  const pd = planDay(trainPlan()), doneToday = data().filter(s => s.athlete === me && s.date === todayISO());
+  const pd = planDay(trainPlan()), nx = nextPlanDay(), doneToday = data().filter(s => s.athlete === me && s.date === todayISO());
   const menu = todayMenu(), busy = chatBusy.coach;
   const paused = run && run.athlete === me && run.phase !== "preview";
   const lastCoach = chatMsgs("coach").slice().reverse().find(m => m.entreno);
@@ -3200,7 +3256,12 @@ function renderHoy(){
           <div class="row-btns"><button type="button" class="btn primary" data-hoy="resume">Continuar</button><button type="button" class="btn ghost" data-hoy="drop">Descartar</button></div></div>` : ""}
       ${pd ? `<div class="plan-today"><div class="eyebrow">Según tu plan</div><b>${pd.actividad === "descanso" ? "Hoy toca descanso" : esc(pd.foco || SPORTS[pd.actividad] || pd.actividad)}</b>${pd.duracion_min ? ` <span class="muted">· ${pd.duracion_min} min</span>` : ""}
           <div class="muted" style="font-size:13.5px">${esc(pd.detalle)}</div>
-          ${pd.actividad !== "descanso" ? `<button type="button" class="btn primary" data-hoy="plan" ${busy || !sample ? "disabled" : ""}>Prepárame la sesión</button>` : ""}</div>` : ""}
+          ${pd.entreno && pd.actividad !== "descanso" ? `<div class="muted" style="font-size:13.5px">Trabajas: <b>${esc(workoutMuscles(pd.entreno))}</b></div>` : ""}
+          ${pd.actividad === "descanso" || doneToday.length ? "" : pd.entreno
+            ? `<div class="row-btns"><button type="button" class="btn primary" data-plan-open="${pd.fecha}">Empezar</button><button type="button" class="btn ghost" data-hoy="plan" ${busy || !sample ? "disabled" : ""}>Adáptalo a cómo estoy</button></div>`
+            : `<button type="button" class="btn primary" data-hoy="plan" ${busy || !sample ? "disabled" : ""}>Prepárame la sesión</button>`}</div>` : ""}
+      ${nx && (!pd || pd.actividad === "descanso" || doneToday.length) ? `<div class="plan-today"><div class="eyebrow">Lo próximo · ${esc(nx.dia)} ${parseISO(nx.fecha).getDate()}</div><b>${esc(nx.foco || SPORTS[nx.actividad] || nx.actividad)}</b>${nx.duracion_min ? ` <span class="muted">· ${nx.duracion_min} min</span>` : ""}
+          ${nx.entreno ? `<div class="muted" style="font-size:13.5px">Trabajas: <b>${esc(workoutMuscles(nx.entreno))}</b></div><button type="button" class="btn" data-plan-open="${nx.fecha}">Ver el entreno</button>` : `<div class="muted" style="font-size:13.5px">${esc(nx.detalle)}</div>`}</div>` : ""}
       <div class="quick">
         ${checkinHTML(pd)}
         <button type="button" class="btn primary big" data-hoy="quick" ${busy || !sample ? "disabled" : ""}>${busy ? "Tu entrenador lo está preparando…" : "Hazme el entreno"}</button>
@@ -3247,6 +3308,164 @@ document.addEventListener("click", async e => {
   else if (t.dataset.hoy === "last") { const m = chatMsgs("coach").slice().reverse().find(x => x.entreno); if (m) openPlayer(m.entreno); }
   else if (t.dataset.go) setTab(t.dataset.go);
 });
+
+/* ===== 13-cambiar.js ===== */
+/* ---------- "este ejercicio no me gusta": swap it for another that works the same muscle ----------
+   Alternatives come from the exercise library, ranked by the muscles they share with the original
+   (main muscle first), or from the coach. Disliked exercises live in the athlete's profile
+   (perfiles/<who>.noGusta) and are replaced on their own whenever a workout opens. */
+const SWIM = ["Crol", "Espalda", "Braza", "Mariposa", "Patada con tabla", "Pull buoy"];
+const CARDIO = ["Carrera en cinta", "Bici", "Elíptica", "Remo ergómetro", "Comba", "Caminar en cinta inclinada"];
+const TIMED = new Set(["Plancha", "Mountain climbers"]);
+const BODYWEIGHT = new Set(["Dominadas", "Fondos", "Flexiones", "Remo invertido", "Mountain climbers", "Sentadilla sin peso", "Pike push-up", "Burpee",
+  "Puente de glúteo", "Fondos en banco", "Plancha", "Crunch", "Elevación de piernas", "Zancadas", "Sentadilla búlgara", "Gemelos"]);
+let swap = null; // the open "Cambiar" sheet: { bi, ii, list, ai, aiErr, dislike }
+
+const dislikes = (who = me) => { const l = profiles[who] && profiles[who].noGusta; return Array.isArray(l) ? l.map(String) : []; };
+const isDisliked = (name, who = me) => dislikes(who).some(n => normName(n) === normName(name));
+async function updateDislikes({ add = [], remove = [] }){
+  if (dbState !== "ready" || !me) return false;
+  const drop = new Set([...add, ...remove].map(normName));
+  const next = [...dislikes().filter(n => !drop.has(normName(n))), ...add.map(canonicalName)].slice(-40);
+  const doc = { ...profileDoc(me), noGusta: next, updatedAt: Date.now() };
+  profiles[me] = { id: me, ...doc };
+  try { await db.doc("perfiles/" + me).set(doc); return true; }
+  catch { toast("No se ha podido guardar"); return false; }
+}
+
+/* the alternatives */
+const bodyweightOnly = w => w.tipo === "calistenia" || (ck && ck.date === todayISO() && (ck.lugar === "casa" || ck.lugar === "parque"));
+const kindOf = it => it.modo === "distancia" || SWIM.includes(it.ejercicio) ? "swim" : CARDIO.includes(canonicalName(it.ejercicio)) ? "cardio" : "fuerza";
+function convertItem(item, name){
+  const base = { ...item, ejercicio: name, musculos: [], reto: "", indicacion: "" };
+  if (TIMED.has(name)) return { ...base, modo: "tiempo", segundos: item.modo === "tiempo" ? item.segundos : 45, reps: null, kg: null, metros: null };
+  const best = bestFor(me, name).b, bw = BODYWEIGHT.has(name);
+  return { ...base, modo: "reps", reps: item.modo === "reps" ? item.reps : 12, kg: best ? best.kg : bw ? 0 : item.modo === "reps" ? item.kg : 0, segundos: null, metros: null,
+    indicacion: best ? `Tu mejor aquí: ${best.kg ? fmt(best.kg, 2) + " kg × " : ""}${best.reps}` : bw ? "" : "Primera vez: ajusta el peso para que las últimas repeticiones cuesten." };
+}
+function alternativesFor(item, w, n = 6){
+  const name = canonicalName(item.ejercicio), kind = kindOf(item), ok = c => normName(c) !== normName(name) && !isDisliked(c);
+  const opt = (c, why, it) => ({ name: c, why, item: it });
+  if (kind === "swim") return SWIM.filter(ok).slice(0, n).map(c => opt(c, musNames(musclesOf(c).main), { ...item, ejercicio: c, musculos: [], reto: "" }));
+  if (kind === "cardio") return CARDIO.filter(ok).slice(0, n).map(c => opt(c, musNames(musclesOf(c).main), { ...item, ejercicio: c, musculos: [], reto: "", indicacion: "Ritmo como el previsto." }));
+  const mu = musclesOf(item), bw = bodyweightOnly(w), used = new Set(w.bloques.flatMap(b => b.items).map(x => normName(x.ejercicio)));
+  const pool = [...new Set([...Object.keys(GUIDE), ...Object.keys(EX_MUS)])].filter(c => !SWIM.includes(c) && !CARDIO.includes(c) && ok(c) && (!bw || BODYWEIGHT.has(c)));
+  return pool.map(c => {
+    const m = musclesOf(c), shared = m.main.filter(k => mu.main.includes(k));
+    if (!shared.length) return null;
+    const s = shared.length * 3 + (m.main[0] === mu.main[0] ? 2 : 0) + m.help.filter(k => mu.help.includes(k)).length
+      - m.main.filter(k => !mu.main.includes(k)).length - (used.has(normName(c)) ? 4 : 0) + (GUIDE[c] ? 1 : 0);
+    return { c, s, shared };
+  }).filter(Boolean).sort((a, b) => b.s - a.s).slice(0, n).map(({ c, shared }) => opt(c, musNames(shared), convertItem(item, c)));
+}
+
+/* disliked exercises are replaced before the workout starts */
+function autoSwap(w){
+  const copy = JSON.parse(JSON.stringify(w)), swapped = [];
+  for (const b of copy.bloques) b.items.forEach((it, i) => {
+    if (!isDisliked(it.ejercicio)) return;
+    const alt = alternativesFor(it, copy, 1)[0];
+    if (alt) { swapped.push([it.ejercicio, alt.name]); b.items[i] = { ...alt.item, series: it.series, descanso_s: it.descanso_s }; }
+  });
+  return { w: copy, swapped };
+}
+
+/* replacing an item of the running workout; sets already done stay with the old exercise */
+function applySwap(bi, ii, item){
+  const items = run.w.bloques[bi].items, old = items[ii], done = (run.log[bi + "." + ii] || []).length;
+  if (!done) items[ii] = { ...item, series: old.series };
+  else {
+    items.splice(ii, 1, { ...old, series: done }, { ...item, series: Math.max(1, old.series - done) });
+    const log = {};
+    for (const [k, v] of Object.entries(run.log)) { const [b, i] = k.split(".").map(Number); log[b === bi && i > ii ? b + "." + (i + 1) : k] = v; }
+    run.log = log;
+  }
+  run.steps = flatten(run.w);
+  if (done) { const at = run.steps.findIndex(s => s.bi === bi && s.ii === ii && s.s === done); run.i = run.phase === "rest" ? at : at + 1; }
+  const st = run.steps[run.i];
+  if (run.phase === "set" && st && st.bi === bi && st.ii === (done ? ii + 1 : ii)) { const it = itemOf(st); run.cur = { reps: it.reps, kg: it.kg, secs: it.segundos, meters: it.metros }; }
+}
+
+/* the sheet */
+function openSwap(bi, ii){
+  const it = run && run.w.bloques[bi] && run.w.bloques[bi].items[ii]; if (!it) return;
+  swap = { bi, ii, list: alternativesFor(it, run.w), ai: null, aiErr: "", dislike: isDisliked(it.ejercicio) };
+  renderPlayer();
+}
+function swapSheetHTML(){
+  if (!swap || !run) return "";
+  const it = run.w.bloques[swap.bi].items[swap.ii], mu = musclesOf(it);
+  const opt = (o, i, src) => `<button type="button" class="swap-opt" data-swap-pick="${src}:${i}">
+      ${GUIDE[o.name] ? `<svg class="fig mini" viewBox="0 -14 200 206" aria-hidden="true">${figSVG(o.name, 1, false)}</svg>` : `<div class="fig mini nofig">${esc(o.name.slice(0, 2))}</div>`}
+      <span><span class="mus-chip">${esc(o.why)}</span><b>${esc(o.name)}</b><small>${esc(o.item.series + " × " + target(o.item))}</small></span></button>`;
+  return `<div class="swap-back" data-swap="close"></div>
+  <div class="swap-sheet" role="dialog" aria-modal="true" aria-labelledby="swap-t">
+    <div class="swap-h"><div><div class="eyebrow">Cambiar ejercicio</div><b id="swap-t">${esc(it.ejercicio)}</b>${mu.main.length ? `<div class="muted" style="font-size:13px">Otros que trabajan ${esc(musNames(mu.main).toLowerCase())}</div>` : ""}</div>
+      <button type="button" class="btn sm ghost" data-swap="close" aria-label="Cerrar">✕</button></div>
+    <label class="swap-dis"><input type="checkbox" id="swap-dis" ${swap.dislike ? "checked" : ""}> No me gusta: no me lo vuelvas a poner</label>
+    <div class="swap-list">${swap.list.length ? swap.list.map((o, i) => opt(o, i, "l")).join("") : `<p class="muted" style="margin:0">No tengo otro parecido en la lista: pídeselo a tu entrenador.</p>`}</div>
+    ${Array.isArray(swap.ai) ? `<div class="eyebrow">Tu entrenador propone</div><div class="swap-list">${swap.ai.map((o, i) => opt(o, i, "a")).join("")}</div>` : ""}
+    ${swap.ai === "loading" ? `<div class="thinking"><span class="spin"></span>Tu entrenador lo está pensando…</div>`
+      : Array.isArray(swap.ai) ? "" : `<button type="button" class="btn" data-swap="ai" ${sample ? "" : "disabled"}>Pídeselo al entrenador</button>`}
+    ${swap.aiErr ? `<div class="err" role="alert">${esc(swap.aiErr)}</div>` : ""}
+  </div>`;
+}
+async function pickSwap(src, i){
+  const o = (src === "a" ? swap.ai : swap.list)[i]; if (!o) return;
+  const old = run.w.bloques[swap.bi].items[swap.ii].ejercicio, dis = swap.dislike;
+  applySwap(swap.bi, swap.ii, o.item);
+  swap = null; saveRun(); renderPlayer();
+  if (dis !== isDisliked(old)) {
+    const okSaved = await updateDislikes(dis ? { add: [old] } : { remove: [old] });
+    toast(okSaved && dis ? `Cambiado. ${old} no te vuelve a salir` : `Cambiado por ${o.name}`);
+  } else toast(`Cambiado por ${o.name}`);
+}
+async function askCoachSwap(){
+  const s = swap, it = run.w.bloques[s.bi].items[s.ii], mu = musclesOf(it);
+  s.ai = "loading"; s.aiErr = ""; renderPlayer();
+  const prompt = `Eres el entrenador personal de ${ATH[me]}. En su entreno "${run.w.titulo}" quiere cambiar "${it.ejercicio}" (${it.series} × ${target(it)}), que trabaja ${musNames(mu.main).toLowerCase() || "?"}${mu.help.length ? " y ayuda " + musNames(mu.help).toLowerCase() : ""}, porque no le gusta o le cuesta.
+Lugar: ${bodyweightOnly(run.w) ? "sin material, con su propio peso" : "gimnasio con máquinas, poleas, barras y mancuernas"}.
+Resto del entreno de hoy: ${run.w.bloques.flatMap(b => b.items).map(x => x.ejercicio).filter(n => n !== it.ejercicio).join(", ") || "nada más"}.
+No le gustan: ${dislikes().join(", ") || "nada apuntado"}.
+Propón 3 alternativas distintas entre sí que trabajen el mismo músculo principal (o casi), con series, repeticiones y un peso prudente para él.
+Responde SOLO con JSON: {"opciones": [ITEM, ITEM, ITEM]}
+ITEM = {"ejercicio": str, "musculos": [clave], "modo": "reps"|"tiempo"|"distancia", "series": n, "reps": n?, "kg": n?, "segundos": n?, "metros": n?, "descanso_s": n, "indicacion": str}
+Claves de músculos: ${Object.keys(MUSCLES).join(", ")}. Usa estos nombres cuando encajen (tienen dibujo): ${Object.keys(GUIDE).join(", ")}.
+Datos de ${ATH[me]}:
+${athleteContext(me)}`;
+  try {
+    const o = await sample.json(prompt, { cache: false });
+    const w = normalizeWorkout({ bloques: [{ nombre: "Opciones", items: Array.isArray(o && o.opciones) ? o.opciones : [] }] });
+    if (swap !== s) return;
+    const list = w ? w.bloques[0].items.filter(x => normName(x.ejercicio) !== normName(it.ejercicio)).slice(0, 4) : [];
+    s.ai = list.length ? list.map(x => ({ name: x.ejercicio, why: musNames(musclesOf(x).main), item: x })) : null;
+    if (!list.length) s.aiErr = "No ha propuesto nada útil. Prueba otra vez.";
+  } catch (e) {
+    if (swap !== s) return;
+    s.ai = null; s.aiErr = sampleMsg(e);
+    if (e && (e.code === "not_granted" || e.code === "sampling_disabled")) sample = null;
+  }
+  if (run && swap === s) renderPlayer();
+}
+
+/* the list of disliked exercises, to take one back */
+function dislikesHTML(){
+  const l = dislikes(); if (!l.length) return "";
+  return `<div class="panel"><div class="panel-head" style="margin-bottom:6px"><h2>No te gustan</h2></div>
+    <p class="muted" style="margin:0 0 10px;font-size:13.5px">No te los pongo en ningún entreno: se cambian solos por otro del mismo músculo. Toca uno para volver a aceptarlo.</p>
+    <div class="chips">${l.map(n => `<button type="button" data-undislike="${esc(n)}" aria-label="Volver a aceptar ${esc(n)}">${esc(n)} ✕</button>`).join("")}</div></div>`;
+}
+
+document.addEventListener("click", async e => {
+  const t = e.target.closest("[data-swap-item],[data-swap],[data-swap-pick],[data-undislike]"); if (!t) return;
+  if (t.dataset.swapItem && run) { const [bi, ii] = t.dataset.swapItem.split(".").map(Number); openSwap(bi, ii); }
+  else if (t.dataset.swap === "close") { swap = null; renderPlayer(); }
+  else if (t.dataset.swap === "ai" && swap) askCoachSwap();
+  else if (t.dataset.swapPick && swap) { const [src, i] = t.dataset.swapPick.split(":"); pickSwap(src, +i); }
+  else if (t.dataset.undislike) { if (await updateDislikes({ remove: [t.dataset.undislike] })) { toast(`${t.dataset.undislike} vuelve a salir`); if (tab === "plan") renderPlan(); } }
+});
+document.addEventListener("change", e => { if (e.target.id === "swap-dis" && swap) swap.dislike = e.target.checked; });
+document.addEventListener("keydown", e => { if (e.key === "Escape" && swap) { swap = null; renderPlayer(); } });
 
 /* ===== 99-boot.js ===== */
 /* ---------- navigation ---------- */

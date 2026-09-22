@@ -6,6 +6,11 @@ let runTick = null, wakeLock = null, audioCtx = null;
 const playerOpen = () => !$("#player").hidden;
 const voiceOn = () => store.get("gym.voice", true);
 
+// the items that count as "today you work": without warm-up and cool-down, unless that is all there is
+function mainItems(w){
+  const all = w.bloques.flatMap(b => b.items), core = w.bloques.filter(b => !/calentamiento|vuelta a la calma/i.test(b.nombre)).flatMap(b => b.items);
+  return core.length ? core : all;
+}
 function flatten(w){
   const steps = [];
   w.bloques.forEach((b, bi) => b.items.forEach((it, ii) => { for (let s = 1; s <= it.series; s++) steps.push({ bi, ii, s }); }));
@@ -16,7 +21,9 @@ const keyOf = (st) => st.bi + "." + st.ii;
 function saveRun(){ store.set("gym.run", run); }
 function openPlayer(w){
   if (!me) { toast("Elige primero quién eres"); return; }
-  run = { w, steps: flatten(w), i: 0, phase: "preview", startedAt: null, until: null, log: {}, cur: null, athlete: me, rpe: null, extra: "" };
+  const { w: ww, swapped } = autoSwap(w);
+  swap = null;
+  run = { w: ww, steps: flatten(ww), i: 0, phase: "preview", startedAt: null, until: null, log: {}, cur: null, athlete: me, rpe: null, extra: "", swapped };
   saveRun(); showPlayer();
 }
 function resumePlayer(){ if (run && run.athlete === me && run.phase !== "preview") showPlayer(); }
@@ -25,6 +32,7 @@ function showPlayer(){
   renderPlayer(); keepAwake(true);
 }
 function closePlayer(discard){
+  swap = null;
   if (discard) { run = null; store.del("gym.run"); }
   $("#player").hidden = true; $("#player").innerHTML = ""; document.body.classList.remove("playing");
   clearInterval(runTick); runTick = null; keepAwake(false);
@@ -71,11 +79,13 @@ function renderPlayer(){
   if (run.phase === "preview") {
     body = `<div class="pl-body">
       ${w.objetivo ? `<p class="pl-goal">${esc(w.objetivo)}</p>` : ""}
-      ${(() => { const all = w.bloques.flatMap(b => b.items).map(musclesOf), lv = levelsFor(all); const main = MUSCLE_ORDER.filter(k => lv[k] === 2);
+      ${(() => { const all = mainItems(w).map(musclesOf), lv = levelsFor(all); const main = MUSCLE_ORDER.filter(k => lv[k] === 2);
         return main.length ? `<div class="pl-today"><div class="eyebrow">Hoy trabajas</div><div class="mus-title" style="font-size:24px">${esc(musNames(main))}</div>${bodyMap(lv, { cls: "small" })}<div class="mus-legend"><span><i style="background:var(--muscle)"></i>principal</span><span><i style="background:var(--mus-help)"></i>ayuda</span></div></div>` : ""; })()}
-      ${w.bloques.map(b => `<div class="pl-block"><div class="eyebrow">${esc(b.nombre)}</div>${b.items.map(x => `<div class="pl-item">
+      ${run.swapped && run.swapped.length ? `<p class="note">Cambiado porque no te gusta: ${run.swapped.map(([a, b]) => `${esc(a)} → <b>${esc(b)}</b>`).join(", ")}.</p>` : ""}
+      ${w.bloques.map((b, bi) => `<div class="pl-block"><div class="eyebrow">${esc(b.nombre)}</div>${b.items.map((x, ii) => `<div class="pl-item">
         ${GUIDE[x.ejercicio] ? `<svg class="fig mini" viewBox="0 -14 200 206" aria-hidden="true">${figSVG(x.ejercicio, 1, false)}</svg>` : `<div class="fig mini nofig">${esc(x.ejercicio.slice(0, 2))}</div>`}
-        <div>${musclesOf(x).main.length ? `<div class="mus-chip">${esc(musNames(musclesOf(x).main))}</div>` : ""}<b>${esc(x.ejercicio)}</b><div class="muted" style="font-size:13px">${x.series} × ${target(x)} · descanso ${x.descanso_s} s</div>${x.reto ? `<div class="reto">${esc(x.reto)}</div>` : ""}</div></div>`).join("")}</div>`).join("")}
+        <div>${musclesOf(x).main.length ? `<div class="mus-chip">${esc(musNames(musclesOf(x).main))}</div>` : ""}<b>${esc(x.ejercicio)}</b><div class="muted" style="font-size:13px">${x.series} × ${target(x)} · descanso ${x.descanso_s} s</div>${x.reto ? `<div class="reto">${esc(x.reto)}</div>` : ""}</div>
+        <button type="button" class="btn sm ghost" data-swap-item="${bi}.${ii}" aria-label="Cambiar ${esc(x.ejercicio)}">Cambiar</button></div>`).join("")}</div>`).join("")}
       ${w.nota ? `<p class="note">${esc(w.nota)}</p>` : ""}
     </div>
     <div class="pl-foot"><button type="button" class="btn primary big" data-pl="start">Empezar</button></div>`;
@@ -110,10 +120,10 @@ function renderPlayer(){
         : working ? `<button type="button" class="btn primary big" data-pl="workdone">Hecho</button>`
         : it.modo === "tiempo" ? `<button type="button" class="btn primary big" data-pl="work">Empezar ${it.segundos} s</button>`
         : `<button type="button" class="btn primary big" data-pl="done">Serie hecha</button>`}
-      <div class="pl-aux"><button type="button" class="linkbtn" data-pl="skipex">Saltar ejercicio</button><button type="button" class="linkbtn" data-pl="finish">Terminar ya</button></div>
+      <div class="pl-aux"><button type="button" class="linkbtn" data-pl="skipex">Saltar ejercicio</button>${working ? "" : resting ? (next ? `<button type="button" class="linkbtn" data-swap-item="${next.bi}.${next.ii}">Cambiar el siguiente</button>` : "") : `<button type="button" class="linkbtn" data-swap-item="${st.bi}.${st.ii}">Cambiar ejercicio</button>`}<button type="button" class="linkbtn" data-pl="finish">Terminar ya</button></div>
     </div>`;
   }
-  el.innerHTML = `<div class="pl-wrap">${head}${body}</div>`;
+  el.innerHTML = `<div class="pl-wrap">${head}${body}</div>${swapSheetHTML()}`;
   mountFigs();
   clearInterval(runTick); runTick = null;
   if (run.phase === "rest" || run.phase === "work" || (run.startedAt && run.phase !== "done")) runTick = setInterval(tickPlayer, 250);

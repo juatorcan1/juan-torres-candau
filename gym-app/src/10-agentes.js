@@ -64,8 +64,9 @@ function agentPrompt(agent, userText){
     ? `Eres el entrenador personal de ${ATH[me]} en su app "Juan vs Ignacio", donde compite con su amigo ${ATH[other]}. Motivas, eres directo y concreto, con pique sano con ${ATH[other]}. Sabes de fuerza, calistenia, natación y cardio.`
     : `Eres el dietista de ${ATH[me]} en su app "Juan vs Ignacio", donde compite con su amigo ${ATH[other]}. Práctico, sin sermones, comida española normal. Tienes en cuenta el alcohol (1 UBE = 10 g) y su trabajo: a veces está en la obra sin cocina, otras come en un bar o en la oficina con microondas.`;
   const schemas = agent === "coach"
-    ? `Responde SOLO con JSON: {"respuesta": str, "entreno": ENTRENO|null, "plan": PLAN_ENTRENO|null}
+    ? `Responde SOLO con JSON: {"respuesta": str, "entreno": ENTRENO|null, "plan": PLAN_ENTRENO|null, "no_gusta": [str]|null, "si_gusta": [str]|null}
 Pon "entreno" solo si pide un entrenamiento concreto para hacer (hoy o un día concreto) y "plan" solo si pide un plan semanal o mensual. Si hay plan y pide "el entreno de hoy", hazlo según el plan.
+Si dice que un ejercicio no le gusta, le molesta o le cuesta demasiado, pon su nombre en "no_gusta" y en "respuesta" proponle 2 o 3 que trabajen el mismo músculo; si pide entreno, ya sin ese ejercicio. Si dice que vuelve a querer uno que no le gustaba, ponlo en "si_gusta". Nunca pongas en un entreno un ejercicio que no le gusta: usa otro del mismo músculo.
 ${WORKOUT_SCHEMA.replace("${RIVAL}", ATH[other])}
 ${TRAIN_PLAN_SCHEMA}`
     : `Responde SOLO con JSON: {"respuesta": str, "plan": PLAN_DIETA|null}
@@ -80,6 +81,7 @@ ${schemas}
 Datos de ${ATH[me]}:
 ${athleteContext(me)}
 Músculos trabajados en los últimos 3 días: ${(() => { const r = recentMuscles(me, 3); const k = MUSCLE_ORDER.filter(x => r[x] === 2); return k.length ? musNames(k) : "ninguno"; })()}.
+${agent === "coach" ? `Ejercicios que no le gustan: ${dislikes().join(", ") || "ninguno apuntado"}.` : ""}
 ${checkinText() ? "Cómo está hoy (check-in): " + checkinText() : ""}
 Plan de entreno actual: ${planSummary(trainPlan())}
 ${agent === "nutri" && dietPlan() ? `Tiene un menú semanal guardado: ${dietPlan().titulo || ""}.` : ""}
@@ -124,7 +126,8 @@ function normalizeTrainPlan(o){
   const semanas = o.semanas.slice(0, 5).map(w => ({ objetivo: String((w && w.objetivo) || "").slice(0, 160),
     dias: (Array.isArray(w && w.dias) ? w.dias : []).slice(0, 7).filter(d => d && /^\d{4}-\d{2}-\d{2}$/.test(d.fecha)).map(d => ({
       fecha: d.fecha, dia: String(d.dia || DIA[parseISO(d.fecha).getDay()]), actividad: acts.includes(d.actividad) ? d.actividad : "otro",
-      duracion_min: clampN(d.duracion_min, 0, 300) || 0, foco: String(d.foco || "").slice(0, 80), detalle: String(d.detalle || "").slice(0, 240) })) }))
+      duracion_min: clampN(d.duracion_min, 0, 300) || 0, foco: String(d.foco || "").slice(0, 80), detalle: String(d.detalle || "").slice(0, 240),
+      ...(normalizeWorkout(d.entreno) ? { entreno: normalizeWorkout(d.entreno) } : {}) })) }))
     .filter(w => w.dias.length);
   if (!semanas.length) return null;
   return { tipo: o.tipo === "mes" ? "mes" : "semana", titulo: String(o.titulo || "Plan de entreno").slice(0, 80), semanas, nota: String(o.nota || "").slice(0, 400) };
@@ -160,6 +163,9 @@ async function sendChat(agent, text, opts = {}){
     if (agent === "coach") {
       const w = normalizeWorkout(o && o.entreno), p = normalizeTrainPlan(o && o.plan);
       if (w) msg.entreno = w;
+      const L = v => (Array.isArray(v) ? v : []).map(x => String(x).trim().slice(0, 50)).filter(Boolean).slice(0, 6);
+      const add = L(o && o.no_gusta), remove = L(o && o.si_gusta);
+      if ((add.length || remove.length) && await updateDislikes({ add, remove })) { if (add.length) msg.noGusta = add.map(canonicalName); if (remove.length) msg.siGusta = remove.map(canonicalName); }
       if (p) { msg.plan = p; await db?.doc(`planes/${me}_entreno`).set({ athlete: me, clase: "entreno", ...p, creado: Date.now() }); }
     } else {
       const p = normalizeDietPlan(o && o.plan);
@@ -207,7 +213,7 @@ function renderChat(agent){
       ${msgs.length ? `<button type="button" class="btn sm ghost" data-chat-clear="${agent}">Nueva conversación</button>` : ""}</div>
     <div class="msgs" id="msgs-${agent}">
       ${msgs.length ? "" : `<div class="bubble a">Hola, ${ATH[me]}. Soy ${A.who}. ${agent === "coach" ? "Pídeme el entreno de hoy, un plan semanal o mensual, o cómo ganarle a " + ATH[OTHER[me]] + "." : "Pídeme el menú de la semana o qué comer hoy según dónde estés."}</div>`}
-      ${msgs.map((m, i) => `<div class="bubble ${m.r}">${esc(m.t)}${m.entreno ? workoutCard(m.entreno, `${agent}:${i}`) : ""}${m.plan ? planCard(m.plan, agent) : ""}</div>`).join("")}
+      ${msgs.map((m, i) => `<div class="bubble ${m.r}">${esc(m.t)}${m.noGusta ? `<div class="note">Apuntado: no te gusta ${esc(m.noGusta.join(", "))}. No te lo vuelvo a poner.</div>` : ""}${m.siGusta ? `<div class="note">Vuelve a tu lista: ${esc(m.siGusta.join(", "))}.</div>` : ""}${m.entreno ? workoutCard(m.entreno, `${agent}:${i}`) : ""}${m.plan ? planCard(m.plan, agent) : ""}</div>`).join("")}
       ${busy ? `<div class="bubble a typing"><span class="spin"></span>${agent === "coach" ? "Preparando…" : "Pensando…"}</div>` : ""}
     </div>
     ${chatErr[agent] ? `<div class="err" role="alert">${esc(chatErr[agent])}</div>` : ""}
@@ -245,7 +251,8 @@ function renderPlan(){
     return `<div class="pday ${isToday ? "today" : ""} ${past ? "past" : ""}">
       <div class="pd-date"><b>${esc(d.dia.slice(0, 3))}</b><span>${parseISO(d.fecha).getDate()}</span></div>
       <div class="pd-body"><div><b>${d.actividad === "descanso" ? "Descanso" : esc(d.foco || SPORTS[d.actividad] || d.actividad)}</b>${d.duracion_min ? ` <span class="muted">· ${d.duracion_min} min</span>` : ""}${done ? ' <span class="pill ok">hecho</span>' : ""}</div><div class="muted" style="font-size:13px">${esc(d.detalle)}</div></div>
-      ${d.actividad !== "descanso" && !past ? `<button type="button" class="btn sm ${isToday ? "primary" : ""}" data-plan-day="${d.fecha}">${isToday ? "Empezar" : "Preparar"}</button>` : ""}
+      ${d.actividad === "descanso" || past || (isToday && done) ? "" : d.entreno ? `<button type="button" class="btn sm ${isToday ? "primary" : ""}" data-plan-open="${d.fecha}">${isToday ? "Empezar" : "Ver"}</button>`
+        : `<button type="button" class="btn sm ${isToday ? "primary" : ""}" data-plan-day="${d.fecha}">${isToday ? "Empezar" : "Preparar"}</button>`}
     </div>`; };
   v.innerHTML = `<div style="display:grid;gap:18px">
     ${p ? `<div class="panel"><div class="panel-head"><div><h2>${esc(p.titulo)}</h2><div class="muted" style="font-size:13px;margin-top:2px">Plan ${p.tipo === "mes" ? "mensual" : "semanal"} de ${ATH[me]}${p.nota ? " · " + esc(p.nota) : ""}</div></div>
@@ -254,9 +261,16 @@ function renderPlan(){
     : `<div class="panel empty-plan"><h2>Sin plan todavía</h2><p class="muted">Pídeselo a tu entrenador: tendrá en cuenta lo que has hecho, tu objetivo y cómo va ${ATH[OTHER[me]]}.</p>
       <div class="row-btns" style="justify-content:center"><button type="button" class="btn primary" data-say="coach" data-text="Hazme un plan semanal">Plan semanal</button><button type="button" class="btn" data-say="coach" data-text="Hazme un plan de un mes">Plan mensual</button></div>
       ${chatBusy.coach ? `<div class="thinking" style="justify-content:center;margin-top:12px"><span class="spin"></span>Preparando tu plan…</div>` : ""}</div>`}
+    ${me ? dislikesHTML() : ""}
     ${o ? `<div class="panel"><div class="panel-head"><h2>El plan de ${ATH[OTHER[me]]}</h2></div>${(o.semanas[0] ? o.semanas.flatMap(w => w.dias).filter(d => d.fecha >= todayISO()).slice(0, 4) : []).map(d => `<div class="pday"><div class="pd-date"><b>${esc(d.dia.slice(0, 3))}</b><span>${parseISO(d.fecha).getDate()}</span></div><div class="pd-body"><b>${d.actividad === "descanso" ? "Descanso" : esc(d.foco || d.actividad)}</b> <span class="muted">${d.duracion_min ? "· " + d.duracion_min + " min" : ""}</span></div></div>`).join("")}</div>` : ""}
   </div>`;
 }
+/* a plan day that already carries its workout opens straight away */
+function openPlanDay(fecha){
+  const d = planDay(trainPlan(), fecha), w = d && normalizeWorkout(d.entreno);
+  if (w) openPlayer(w); else toast("Ese día no tiene entreno preparado");
+}
+document.addEventListener("click", e => { const t = e.target.closest("button[data-plan-open]"); if (t) openPlanDay(t.dataset.planOpen); });
 document.addEventListener("click", async e => {
   const t = e.target.closest("button[data-plan-day]"); if (!t) return;
   const d = planDay(trainPlan(), t.dataset.planDay); if (!d) return;
@@ -267,7 +281,7 @@ document.addEventListener("click", async e => {
 /* ask for a workout from anywhere (Hoy, plan) */
 async function quickWorkout({ tipo, minutos, plan, checkin } = {}){
   const text = plan
-    ? `Prepárame el entreno del ${plan.dia} ${plan.fecha} según mi plan: ${plan.actividad}, ${plan.duracion_min} min, ${plan.foco}. ${plan.detalle}${checkin ? " Ten en cuenta cómo estoy hoy." : ""}`
+    ? `Prepárame el entreno del ${plan.dia} ${plan.fecha} según mi plan: ${plan.actividad}, ${plan.duracion_min} min, ${plan.foco}. ${plan.detalle}${plan.entreno ? ` El previsto era: ${plan.entreno.bloques.flatMap(b => b.items).map(x => `${x.ejercicio} ${x.series} × ${target(x)}`).join("; ")}. Adáptalo trabajando los mismos músculos.` : ""}${checkin ? " Ten en cuenta cómo estoy hoy." : ""}`
     : checkin
     ? `Hazme el entreno de hoy según cómo estoy: ${checkinText()}. Adáptalo: si estoy flojo o he dormido mal, baja volumen e intensidad; si voy a tope, ponme un reto fuerte. No cargues los músculos que me molestan y evita repetir los que trabajé ayer si no te lo pido.`
     : `Hazme un entreno de ${tipo === "casa" ? "calistenia en casa sin material" : tipo} de ${minutos} minutos para hoy, que me haga superar mi última sesión.`;

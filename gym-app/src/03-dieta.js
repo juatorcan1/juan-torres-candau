@@ -27,7 +27,26 @@ const scaleText = (t, f) => t.replace(/\{(\d+)\}/g, (_, n) => String(Math.max(5,
 
 // Index 0 = lunes … 6 = domingo.
 const MENU = {
-  desayuno: [
+  desayuno: {
+    bocadillo: [
+      ["Café con leche en casa", "Tostada integral ({60} g) con aceite y pavo ({50} g)", "1 naranja para el camino"],
+      ["Batido en botella: leche ({300} ml), avena ({50} g) y 1 plátano", "Café"],
+      ["Yogur griego ({200} g) con avena ({40} g) antes de salir", "1 plátano para la furgoneta"],
+      ["Café con leche", "4 tortitas de maíz con pavo ({60} g) y queso fresco ({40} g)", "1 manzana"],
+      ["2 huevos cocidos (de la noche antes)", "Pan integral ({50} g) y 1 fruta", "Café"],
+      ["Yogur proteico con avena ({40} g) en un tarro", "Café con leche"],
+      ["Bocadillo pequeño ({60} g) de tortilla francesa de 1 huevo, hecho la noche antes", "Café con leche"]
+    ],
+    bar: [
+      ["Café con leche", "Tostada de pan integral con tomate y aceite (media si es grande)", "Zumo de naranja natural pequeño"],
+      ["Café con leche", "Pincho de tortilla", "Agua"],
+      ["Café solo o cortado", "Tostada con tomate y jamón serrano"],
+      ["Café con leche", "Bocadillo pequeño de pavo o jamón con tomate, sin mantequilla"],
+      ["Cortado", "Huevos revueltos o a la plancha con una tostada, si los tienen"],
+      ["Café con leche", "Media tostada con aguacate y tomate", "1 fruta que lleves"],
+      ["Café", "Tostada integral con queso fresco y tomate"]
+    ],
+    oficina: [
     ["Café con leche", "Tostada de pan integral ({80} g) con tomate, 1 cucharada de aceite de oliva y jamón serrano ({40} g)", "1 pieza de fruta"],
     ["Yogur griego natural ({200} g) con copos de avena ({50} g) y {20} g de nueces", "1 plátano", "Café o infusión"],
     ["Tortilla francesa de 2 huevos + 2 claras", "Pan integral ({60} g)", "1 kiwi y café"],
@@ -35,9 +54,10 @@ const MENU = {
     ["4 tortitas de maíz con pavo ({60} g) y aguacate ({50} g)", "Café con leche"],
     ["Tostada integral ({80} g) con queso fresco ({80} g) y 1 huevo a la plancha", "1 naranja"],
     ["Tortitas caseras: 2 huevos + avena ({60} g) + 1 plátano", "Hilo de miel y café"]
-  ],
+    ]
+  },
   media: {
-    bocadillo: [["1 plátano y {30} g de almendras"], ["Yogur proteico y 1 manzana"], ["2 tortitas de maíz con pavo ({40} g)"], ["Barrita de proteína (unos 20 g de proteína) y 1 fruta"], ["Bocadillo pequeño de pan integral ({40} g) con atún"], ["1 plátano y {30} g de anacardos"], ["Batido de proteína en botella y 1 fruta"]],
+    bocadillo: [["1 plátano y {30} g de almendras"], ["Yogur proteico y 1 manzana"], ["Queso fresco batido en tarrina ({150} g) y 1 fruta"], ["Barrita de proteína (unos 20 g de proteína) y 1 fruta"], ["Bocadillo pequeño de pan integral ({40} g) con atún"], ["1 plátano y {30} g de anacardos"], ["Batido de proteína en botella y 1 fruta"]],
     bar: [["Café con leche y media tostada con tomate"], ["Café solo y 1 pieza de fruta que lleves"], ["Pincho pequeño de tortilla y café"], ["Café con leche y 1 fruta"], ["Media tostada con tomate y aceite, café"], ["Café y {30} g de frutos secos"], ["Café con leche"]],
     oficina: [["Yogur griego con {20} g de nueces"], ["Hummus ({50} g) con palitos de zanahoria"], ["Queso fresco ({100} g) y 1 fruta"], ["Kéfir ({200} ml) y 1 manzana"], ["1 plátano y {30} g de almendras"], ["Yogur proteico y frutos rojos"], ["1 fruta"]]
   },
@@ -70,10 +90,14 @@ const MENU = {
       ["Garbanzos ({200} g cocidos) salteados con espinacas y 1 huevo", "Pan ({40} g)"]
     ]
   },
-  merienda: [
-    ["Yogur natural y 1 fruta"], ["Tostada integral ({40} g) con pavo"], ["Batido de proteína con leche o agua"], ["Queso fresco ({100} g) y {15} g de nueces"],
-    ["2 tortitas de maíz con crema de cacahuete ({15} g)"], ["1 fruta y {20} g de frutos secos"], ["Kéfir ({200} ml) con avena ({30} g)"]
-  ],
+  merienda: {
+    bocadillo: [["2 tortitas de maíz con crema de cacahuete ({15} g)"], ["1 fruta y {20} g de frutos secos"], ["Yogur proteico líquido y 1 plátano"], ["1 manzana y 2 quesitos"],
+      ["Barrita de proteína y agua"], ["Batido de proteína en botella"], ["Bocadillo pequeño ({40} g) de pavo"]],
+    bar: [["Café con leche y 1 fruta"], ["Cerveza 0,0 y unas aceitunas"], ["Cortado y {20} g de frutos secos"], ["Infusión y media tostada con tomate"],
+      ["Café y 1 yogur"], ["Café con leche"], ["Zumo natural pequeño"]],
+    oficina: [["Yogur natural y 1 fruta"], ["Tostada integral ({40} g) con pavo"], ["Batido de proteína con leche o agua"], ["Queso fresco ({100} g) y {15} g de nueces"],
+      ["2 tortitas de maíz con crema de cacahuete ({15} g)"], ["1 fruta y {20} g de frutos secos"], ["Kéfir ({200} ml) con avena ({30} g)"]]
+  },
   cena: [
     ["Tortilla de 2 huevos con espinacas", "Ensalada grande con aceite de oliva", "Pan integral ({40} g)"],
     ["Merluza a la plancha ({180} g)", "Verduras salteadas y patata cocida ({150} g)"],
@@ -89,13 +113,18 @@ const TIPS = {
   bar: ["Pide la salsa y el aliño aparte.", "Cambia las patatas fritas por ensalada o verdura.", "Un trozo de pan, no la cesta entera.", "Agua, cerveza 0,0 o una caña como mucho."],
   oficina: ["Cocina dos raciones la noche antes: cena y táper del día siguiente.", "Medio plato de verdura, un cuarto de proteína y un cuarto de hidrato.", "Deja la fruta a la vista en la mesa para la media mañana."]
 };
+// Meals that change with where you are; dinner is at home in all three.
+const CIRC_MEALS = ["desayuno", "media", "comida", "merienda"];
+// A dietitian plan day stores each meal as a list, or as one list per circumstance.
+const mealFor = (d, k, circ) => { const v = d[k]; return Array.isArray(v) ? v : (v && Array.isArray(v[circ]) ? v[circ] : []); };
+const planMenu = (d, circ) => Object.fromEntries(MEALS.map(([k]) => [k, mealFor(d, k, circ)]));
 function dayMenu(dayIdx, circ, factor){
   const pick = (arr, i) => arr[i % arr.length].map(t => scaleText(t, factor));
   return {
-    desayuno: pick(MENU.desayuno, dayIdx),
+    desayuno: pick(MENU.desayuno[circ], dayIdx),
     media: pick(MENU.media[circ], dayIdx),
     comida: pick(MENU.comida[circ], dayIdx),
-    merienda: pick(MENU.merienda, dayIdx),
+    merienda: pick(MENU.merienda[circ], dayIdx),
     cena: pick(MENU.cena, dayIdx)
   };
 }

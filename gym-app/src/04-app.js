@@ -1,13 +1,16 @@
 /* ---------- state ---------- */
-const TABS = ["duelo", "apuntar", "historial", "records", "cuerpo", "dieta", "ejercicios"];
+// Each screen ("leaf") lives under one of the five buttons of the bottom bar ("top").
+const LEAF_TOP = { hoy: "hoy", coach: "entrenador", plan: "entrenador", ejercicios: "entrenador", apuntar: "apuntar",
+  nutri: "dietista", dieta: "dietista", duelo: "duelo", historial: "duelo", records: "duelo", cuerpo: "duelo" };
+const TABS = Object.keys(LEAF_TOP);
 let db = null, dbState = "loading"; // loading | ready | none
 let sample = null;                    // Claude, when this view can use it
 let real = [], weights = [], drinks = [], profiles = {};
 let me = store.get("gym.me", null); if (!ATH[me]) me = null;
 let period = store.get("gym.period", "semana"); if (!PERIODS[period]) period = "semana";
-let tab = (location.hash || "").slice(1) || store.get("gym.tab", "duelo");
+let tab = (location.hash || "").slice(1) || "hoy"; // the app always opens on "Hoy"
 if (tab === "registrar") tab = "apuntar";
-if (!TABS.includes(tab)) tab = "duelo";
+if (!TABS.includes(tab)) tab = "hoy";
 let chartMetric = store.get("gym.chart", "minutos");
 let histWho = "ambos", histSport = "todos";
 let openSess = new Set();
@@ -64,7 +67,6 @@ function renderHeader(){
       </select>
     </div>
     ${side("ignacio")}`;
-  for (const b of document.querySelectorAll(".tabs button")) b.setAttribute("aria-selected", String(b.dataset.tab === tab));
 }
 
 /* ---------- Duelo ---------- */

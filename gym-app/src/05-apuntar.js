@@ -38,9 +38,9 @@ function renderVoz(){
     <div class="panel-head" style="margin-bottom:0">
       <div><h2>Cuéntaselo a Claude</h2><div class="muted" style="font-size:13.5px;margin-top:2px">Sesiones, series, kilos, minutos, tu peso y las copas del finde: todo de una vez y sin formato.</div></div>
     </div>
-    <div class="mic-help">${MIC}<div><b>Pulsa el micrófono del teclado del móvil y habla.</b> En iPhone está abajo a la derecha del teclado; en Android, en la barra superior del teclado o manteniendo pulsada la barra espaciadora. Lo que digas se escribe solo aquí.</div></div>
+    <div class="mic-help">${MIC}<div>${SR ? `<b>Pulsa el micrófono azul y habla.</b> Lo que digas se escribe solo; vuelve a pulsarlo para parar. También vale el micrófono del teclado.` : `<b>Pulsa el micrófono del teclado del móvil y habla.</b> En iPhone está abajo a la derecha del teclado; en Android, en la barra superior del teclado o manteniendo pulsada la barra espaciadora. Lo que digas se escribe solo aquí.`}</div></div>
     <label for="voz" class="eyebrow">Lo que has hecho</label>
-    <textarea id="voz" data-keep placeholder="Ej.: hoy press banca 4 series de 8 con 80 kilos, remo con barra 3 de 10 con 60… El sábado 4 cañas y 2 copas.">${esc(keep("voz"))}</textarea>
+    <div class="voz-box"><textarea id="voz" data-keep placeholder="Ej.: hoy press banca 4 series de 8 con 80 kilos, remo con barra 3 de 10 con 60… El sábado 4 cañas y 2 copas.">${esc(keep("voz"))}</textarea>${micButton("voz")}</div>
     <div class="examples" aria-label="Ejemplos">${VOICE_EXAMPLES.map((t, i) => `<button type="button" data-act="voz-ex" data-i="${i}">«${esc(t.slice(0, 58))}…»</button>`).join("")}</div>
     <div class="row-btns">
       ${vBusy

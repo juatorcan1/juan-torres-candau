@@ -25,7 +25,7 @@ mkdir -p web
   echo '<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.0/dist/umd/supabase.js"></script>'
   echo "<script>window.GYM_WEB = { url: \"$SUPABASE_URL\", key: \"$SUPABASE_KEY\" };</script>"
   echo '<script>'; echo '(function(){'; echo '"use strict";'
-  for f in src/01-core.js src/02-figuras.js src/03-dieta.js src/04-app.js src/05-apuntar.js src/06-cuerpo.js src/07-dieta-view.js src/web/08-web.js src/09-boot.js; do
+  for f in $(ls src/[0-9]*.js | sort | grep -v 99-boot) src/web/08-web.js src/99-boot.js; do
     echo; echo "/* ===== $(basename "$f") ===== */"; cat "$f"
   done
   echo '})();'; echo '</script>'

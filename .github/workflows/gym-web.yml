@@ -1,5 +1,8 @@
 name: Publicar web del gimnasio
 
+# Genera la web (gym-app/build-web.sh) y la sube a la rama gh-pages, que es la que
+# publica GitHub Pages en https://juatorcan1.github.io/juan-torres-candau/.
+# gh-pages solo contiene la web generada: se reescribe entera en cada publicación.
 on:
   push:
     branches: [main]
@@ -7,9 +10,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
 concurrency:
   group: gym-web-pages
@@ -18,18 +19,19 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
       - name: Construir la web
         run: gym-app/build-web.sh
-      - uses: actions/configure-pages@v5
-        with:
-          enablement: true
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: gym-app/web
-      - id: deploy
-        uses: actions/deploy-pages@v4
+      - name: Subir a gh-pages
+        working-directory: gym-app/web
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          touch .nojekyll
+          git init -q -b gh-pages
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Web del gimnasio desde ${GITHUB_SHA::7}"
+          git push -f "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" gh-pages

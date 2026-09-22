@@ -30,6 +30,11 @@ function checkinHTML(pd){
   </div>`;
 }
 
+const workoutMuscles = w => { const lv = levelsFor(mainItems(w).map(musclesOf)); return musNames(MUSCLE_ORDER.filter(k => lv[k] === 2)); };
+function nextPlanDay(){
+  const p = trainPlan(); if (!p || !Array.isArray(p.semanas)) return null;
+  return p.semanas.flatMap(w => w.dias || []).find(d => d.fecha > todayISO() && d.actividad !== "descanso") || null;
+}
 function greeting(){ const h = new Date().getHours(); return h < 6 ? "Buenas noches" : h < 13 ? "Buenos días" : h < 21 ? "Buenas tardes" : "Buenas noches"; }
 function todayMenu(){
   const dp = dietPlan(), d = dp && dp.dias.find(x => x.fecha === todayISO());
@@ -47,7 +52,7 @@ function renderHoy(){
   }
   const { T } = (() => { const p = period; period = "semana"; const r = computeDuel(); period = p; return r; })();
   const pq = (() => { const p = period; period = "semana"; const r = piqueText(T); period = p; return r; })();
-  const pd = planDay(trainPlan()), doneToday = data().filter(s => s.athlete === me && s.date === todayISO());
+  const pd = planDay(trainPlan()), nx = nextPlanDay(), doneToday = data().filter(s => s.athlete === me && s.date === todayISO());
   const menu = todayMenu(), busy = chatBusy.coach;
   const paused = run && run.athlete === me && run.phase !== "preview";
   const lastCoach = chatMsgs("coach").slice().reverse().find(m => m.entreno);
@@ -61,7 +66,12 @@ function renderHoy(){
           <div class="row-btns"><button type="button" class="btn primary" data-hoy="resume">Continuar</button><button type="button" class="btn ghost" data-hoy="drop">Descartar</button></div></div>` : ""}
       ${pd ? `<div class="plan-today"><div class="eyebrow">Según tu plan</div><b>${pd.actividad === "descanso" ? "Hoy toca descanso" : esc(pd.foco || SPORTS[pd.actividad] || pd.actividad)}</b>${pd.duracion_min ? ` <span class="muted">· ${pd.duracion_min} min</span>` : ""}
           <div class="muted" style="font-size:13.5px">${esc(pd.detalle)}</div>
-          ${pd.actividad !== "descanso" ? `<button type="button" class="btn primary" data-hoy="plan" ${busy || !sample ? "disabled" : ""}>Prepárame la sesión</button>` : ""}</div>` : ""}
+          ${pd.entreno && pd.actividad !== "descanso" ? `<div class="muted" style="font-size:13.5px">Trabajas: <b>${esc(workoutMuscles(pd.entreno))}</b></div>` : ""}
+          ${pd.actividad === "descanso" || doneToday.length ? "" : pd.entreno
+            ? `<div class="row-btns"><button type="button" class="btn primary" data-plan-open="${pd.fecha}">Empezar</button><button type="button" class="btn ghost" data-hoy="plan" ${busy || !sample ? "disabled" : ""}>Adáptalo a cómo estoy</button></div>`
+            : `<button type="button" class="btn primary" data-hoy="plan" ${busy || !sample ? "disabled" : ""}>Prepárame la sesión</button>`}</div>` : ""}
+      ${nx && (!pd || pd.actividad === "descanso" || doneToday.length) ? `<div class="plan-today"><div class="eyebrow">Lo próximo · ${esc(nx.dia)} ${parseISO(nx.fecha).getDate()}</div><b>${esc(nx.foco || SPORTS[nx.actividad] || nx.actividad)}</b>${nx.duracion_min ? ` <span class="muted">· ${nx.duracion_min} min</span>` : ""}
+          ${nx.entreno ? `<div class="muted" style="font-size:13.5px">Trabajas: <b>${esc(workoutMuscles(nx.entreno))}</b></div><button type="button" class="btn" data-plan-open="${nx.fecha}">Ver el entreno</button>` : `<div class="muted" style="font-size:13.5px">${esc(nx.detalle)}</div>`}</div>` : ""}
       <div class="quick">
         ${checkinHTML(pd)}
         <button type="button" class="btn primary big" data-hoy="quick" ${busy || !sample ? "disabled" : ""}>${busy ? "Tu entrenador lo está preparando…" : "Hazme el entreno"}</button>

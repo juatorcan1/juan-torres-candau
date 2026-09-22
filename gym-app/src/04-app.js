@@ -23,6 +23,8 @@ const dDemo = () => drinks.length === 0;
 const wts = () => wDemo() ? DEMO_BODY.ws : weights;
 const drk = () => dDemo() ? DEMO_BODY.ds : drinks;
 const profileOf = who => ({ ...PROFILE_DEFAULT, ...(profiles[who] || {}) });
+// the stored profile document without the row id, to merge new fields into it
+const profileDoc = who => { const { id, ...rest } = profiles[who] || {}; return rest; };
 // Inputs marked data-keep survive re-renders caused by live data.
 const kept = store.get("gym.kept", {});
 const keep = (id, d = "") => (kept[id] ?? d);

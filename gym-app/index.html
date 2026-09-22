@@ -12,7 +12,7 @@
   --juan-wash:rgba(47,91,211,.10); --ign-wash:rgba(224,102,42,.12);
   --good:#1D7F46; --bad:#B8362B; --focus:#2F5BD3;
   --me:var(--ink); --me-strong:var(--ink);
-  --fig:#1F2428; --fig-far:#A9B0B6; --muscle:#D0425C; --prop:#59636C; --prop-2:#C9CFC8;
+  --fig:#1F2428; --fig-far:#A9B0B6; --sil:#E2E5DF; --mus-off:#C9CEC6; --mus-help:#EFA8B4; --muscle:#D0425C; --prop:#59636C; --prop-2:#C9CFC8;
   --ok:#1D7F46; --warn:#A86A00; --over:#B8362B; --ok-bg:rgba(29,127,70,.10); --warn-bg:rgba(168,106,0,.12); --over-bg:rgba(184,54,43,.10);
   --display:"Big Shoulders Display","Arial Narrow","Roboto Condensed",sans-serif;
   --body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
@@ -27,7 +27,7 @@
     --juan-strong:#3D66DB; --ign-strong:#B9521F;
     --juan-wash:rgba(91,130,240,.16); --ign-wash:rgba(217,98,42,.18);
     --good:#48B77A; --bad:#E0685C; --focus:#7C9BFF;
-    --fig:#E4E7E9; --fig-far:#5C646B; --muscle:#EA6C83; --prop:#9AA3AB; --prop-2:#3A4046;
+    --fig:#E4E7E9; --fig-far:#5C646B; --sil:#262A2E; --mus-off:#3C4248; --mus-help:#8A4150; --muscle:#EA6C83; --prop:#9AA3AB; --prop-2:#3A4046;
     --ok:#48B77A; --warn:#E0A53A; --over:#E0685C; --ok-bg:rgba(72,183,122,.14); --warn-bg:rgba(224,165,58,.14); --over-bg:rgba(224,104,92,.14);
   }
 }
@@ -39,7 +39,7 @@
   --juan-strong:#3D66DB; --ign-strong:#B9521F;
   --juan-wash:rgba(91,130,240,.16); --ign-wash:rgba(217,98,42,.18);
   --good:#48B77A; --bad:#E0685C; --focus:#7C9BFF;
-    --fig:#E4E7E9; --fig-far:#5C646B; --muscle:#EA6C83; --prop:#9AA3AB; --prop-2:#3A4046;
+    --fig:#E4E7E9; --fig-far:#5C646B; --sil:#262A2E; --mus-off:#3C4248; --mus-help:#8A4150; --muscle:#EA6C83; --prop:#9AA3AB; --prop-2:#3A4046;
     --ok:#48B77A; --warn:#E0A53A; --over:#E0685C; --ok-bg:rgba(72,183,122,.14); --warn-bg:rgba(224,165,58,.14); --over-bg:rgba(224,104,92,.14);
 }
 body.me-juan{--me:var(--juan);--me-strong:var(--juan-strong)}
@@ -499,6 +499,39 @@ body.playing{overflow:hidden}
 .pl-done{text-align:center;display:grid;gap:10px}
 .pl-done h2{font-family:var(--display);font-weight:800;font-size:40px;text-transform:uppercase}
 .prs{display:grid;gap:4px;font-weight:600;padding:10px;border-radius:9px;background:var(--ok-bg);color:var(--ok)}
+
+/* ================= mapa muscular ================= */
+.bodymap{display:block;width:100%;height:auto;max-width:320px;margin:0 auto}
+.bodymap .sil > *{fill:var(--sil);stroke:none}
+.bodymap .sil .limb{stroke:var(--sil);stroke-linecap:round;fill:none}
+.bodymap .m{fill:var(--mus-off);stroke:var(--surface);stroke-width:1.2;transition:fill .2s}
+.bodymap .m.l1{fill:var(--mus-help)}
+.bodymap .m.l2{fill:var(--muscle);animation:mpulse 1.8s ease-in-out infinite}
+.bodymap .m.picked{stroke:var(--ink);stroke-width:2.4}
+.bodymap [data-mus]{cursor:pointer}
+.bodymap [data-mus]:focus-visible{outline:none;stroke:var(--focus);stroke-width:2.4}
+.bodymap .abs-lines{stroke:var(--surface);stroke-width:1.2;fill:none;pointer-events:none}
+.bodymap .ml{font:600 10px var(--body);fill:var(--muted);text-anchor:middle}
+@keyframes mpulse{50%{opacity:.6}}
+@media (prefers-reduced-motion:reduce){.bodymap .m.l2{animation:none}}
+.bodymap.small{max-width:190px}
+.mus-legend{display:flex;gap:14px;justify-content:center;font-size:12.5px;color:var(--ink-2)}
+.mus-legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.mus-title{font-family:var(--display);font-weight:800;font-size:34px;text-transform:uppercase;letter-spacing:.02em;line-height:1;color:var(--muscle)}
+.pl-how{display:flex;gap:12px;align-items:center;text-align:left;background:var(--surface);border:1px solid var(--line-2);border-radius:12px;padding:8px 12px 8px 8px}
+.pl-fig.small{width:84px;padding:2px;border-radius:8px;background:var(--surface-2)}
+.pl-map{width:min(66vw,250px)}
+.pl-today{display:grid;gap:8px;justify-items:center;text-align:center;padding:12px;border-radius:12px;background:var(--surface);border:1px solid var(--line-2)}
+.mus-chip{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muscle);margin-bottom:1px}
+/* check-in */
+.checkin{display:grid;gap:14px}
+.checkin .q{display:grid;gap:7px}
+.checkin .ql{font-weight:700;font-size:15px}
+.checkin .ql .muted{font-weight:500;font-size:12.5px}
+.checkin .chips button{padding:7px 13px;font-size:13.5px}
+.chips.mus button{padding:5px 10px;font-size:12.5px}
+.ck-map{padding:6px;border-radius:12px;background:var(--surface-2)}
+.ck-map .bodymap{max-width:260px}
 </style>
 <div class="wrap">
   <div class="brand">
@@ -519,7 +552,7 @@ body.playing{overflow:hidden}
       <div class="subnav" role="tablist" aria-label="Entrenador">
         <button role="tab" data-leaf="coach">Chat</button>
         <button role="tab" data-leaf="plan">Plan</button>
-        <button role="tab" data-leaf="ejercicios">Ejercicios</button>
+        <button role="tab" data-leaf="ejercicios">Músculos</button>
       </div>
       <div id="view-coach" class="leaf"></div>
       <div id="view-plan" class="leaf" hidden></div>
@@ -997,6 +1030,112 @@ const GUIDE = {
   "Remo en polea baja": { m: "Espalda media y dorsal", steps: ["Sentado con los pies en la plataforma y la espalda recta.", "Tira del agarre hacia el abdomen llevando los codos atrás.", "Estira los brazos sin encorvarte."], ojo: "Balancear el tronco adelante y atrás.",
     fig: { a: { hip: [80, 160], to: 0, ank: [156, 166], kb: "up", ft: 10, wr: [133, 110] }, b: { hip: [80, 160], to: 0, ank: [156, 166], kb: "up", ft: 10, wr: [96, 128], eb: "back" }, hl: ["torso", "ua"], props: [{ t: "bench", x: 58, y: 165, w: 44 }, { t: "line", x1: 168, y1: 144, x2: 168, y2: 188, w: 5 }, { t: "cable", from: [192, 150] }, { t: "handle", j: "wr" }] } }
 };
+
+/* ===== 02b-musculos.js ===== */
+/* ---------- muscles: the body map and which muscles each exercise works ----------
+   Front and back silhouettes in one 250 × 252 viewBox (front at x 0, back at x 130).
+   Level 2 = main muscle (red, pulsing), level 1 = helper muscle (pale red). */
+const MUSCLES = {
+  pectoral: "Pectoral", deltoides: "Hombro", biceps: "Bíceps", triceps: "Tríceps", antebrazo: "Antebrazo",
+  abdomen: "Abdomen", oblicuos: "Oblicuos", trapecio: "Trapecio", dorsal: "Dorsal", lumbar: "Lumbar",
+  gluteo: "Glúteo", cuadriceps: "Cuádriceps", isquios: "Isquiotibiales", gemelos: "Gemelos"
+};
+const MUSCLE_ORDER = ["pectoral", "dorsal", "deltoides", "trapecio", "biceps", "triceps", "antebrazo", "abdomen", "oblicuos", "lumbar", "gluteo", "cuadriceps", "isquios", "gemelos"];
+// [main muscles, helper muscles]
+const EX_MUS = {
+  "Sentadilla": [["cuadriceps", "gluteo"], ["lumbar", "isquios", "abdomen"]], "Press banca": [["pectoral"], ["triceps", "deltoides"]],
+  "Peso muerto": [["gluteo", "isquios", "lumbar"], ["dorsal", "trapecio", "cuadriceps", "antebrazo"]], "Peso muerto rumano": [["isquios", "gluteo"], ["lumbar"]],
+  "Press militar": [["deltoides"], ["triceps", "trapecio", "abdomen"]], "Remo con barra": [["dorsal"], ["biceps", "trapecio", "lumbar"]],
+  "Dominadas": [["dorsal"], ["biceps", "antebrazo", "abdomen"]], "Jalón al pecho": [["dorsal"], ["biceps"]], "Curl con barra": [["biceps"], ["antebrazo"]],
+  "Curl martillo": [["biceps", "antebrazo"], []], "Curl en banco Scott": [["biceps"], ["antebrazo"]], "Extensión en polea": [["triceps"], []],
+  "Press francés": [["triceps"], []], "Fondos": [["pectoral", "triceps"], ["deltoides"]], "Press inclinado con mancuernas": [["pectoral"], ["deltoides", "triceps"]],
+  "Press en máquina": [["pectoral"], ["triceps"]], "Aperturas": [["pectoral"], ["deltoides"]], "Cruce de poleas": [["pectoral"], ["deltoides"]],
+  "Elevaciones laterales": [["deltoides"], ["trapecio"]], "Pájaros": [["deltoides"], ["trapecio", "dorsal"]], "Face pull": [["deltoides", "trapecio"], []],
+  "Prensa": [["cuadriceps", "gluteo"], ["isquios"]], "Zancadas": [["cuadriceps", "gluteo"], ["isquios", "gemelos"]], "Sentadilla búlgara": [["cuadriceps", "gluteo"], ["isquios"]],
+  "Extensión de cuádriceps": [["cuadriceps"], []], "Curl femoral": [["isquios"], ["gemelos"]], "Gemelos": [["gemelos"], []], "Hip thrust": [["gluteo"], ["isquios"]],
+  "Plancha": [["abdomen"], ["oblicuos", "deltoides"]], "Crunch": [["abdomen"], []], "Rueda abdominal": [["abdomen"], ["dorsal", "oblicuos"]],
+  "Elevación de piernas": [["abdomen"], ["oblicuos"]], "Remo con mancuerna": [["dorsal"], ["biceps", "trapecio"]], "Remo en polea baja": [["dorsal"], ["biceps", "trapecio"]],
+  "Flexiones": [["pectoral"], ["triceps", "deltoides", "abdomen"]], "Remo invertido": [["dorsal"], ["biceps", "trapecio"]], "Mountain climbers": [["abdomen"], ["cuadriceps", "deltoides"]],
+  "Sentadilla sin peso": [["cuadriceps", "gluteo"], []], "Pike push-up": [["deltoides"], ["triceps"]], "Burpee": [["cuadriceps", "pectoral"], ["deltoides", "abdomen"]],
+  "Puente de glúteo": [["gluteo"], ["isquios"]], "Fondos en banco": [["triceps"], ["deltoides", "pectoral"]],
+  "Crol": [["dorsal", "deltoides"], ["triceps", "abdomen"]], "Braza": [["pectoral", "cuadriceps"], ["gluteo"]], "Espalda": [["dorsal", "deltoides"], ["gluteo"]],
+  "Mariposa": [["pectoral", "deltoides"], ["dorsal", "abdomen"]], "Patada con tabla": [["cuadriceps", "gluteo"], ["gemelos"]], "Pull buoy": [["dorsal", "deltoides"], ["triceps"]]
+};
+const SPORT_MUS = { cinta: [["cuadriceps", "gemelos"], ["gluteo", "isquios"]], bici: [["cuadriceps", "gluteo"], ["gemelos", "isquios"]], natacion: [["dorsal", "deltoides"], ["triceps", "abdomen"]] };
+const GROUP_MUS = { "Pecho": "pectoral", "Espalda": "dorsal", "Piernas": "cuadriceps", "Glúteo": "gluteo", "Hombro": "deltoides", "Bíceps": "biceps", "Tríceps": "triceps", "Core": "abdomen" };
+
+/* muscles for an exercise name, or for a workout item that brings its own list */
+function musclesOf(nameOrItem){
+  const item = typeof nameOrItem === "object" ? nameOrItem : null, name = canonicalName(item ? item.ejercicio : nameOrItem);
+  if (EX_MUS[name]) return { main: EX_MUS[name][0], help: EX_MUS[name][1] };
+  const own = item && Array.isArray(item.musculos) ? item.musculos.filter(m => MUSCLES[m]) : [];
+  if (own.length) return { main: own.slice(0, 2), help: own.slice(2) };
+  const g = GROUP_MUS[CATALOG[name]];
+  return { main: g ? [g] : [], help: [] };
+}
+function levelsFor(list){ // list of {main, help}; main wins over help
+  const lv = {};
+  for (const m of list) { for (const k of m.help) lv[k] = Math.max(lv[k] || 0, 1); for (const k of m.main) lv[k] = 2; }
+  return lv;
+}
+const musNames = keys => keys.map(k => MUSCLES[k]).join(" · ");
+
+/* muscles an athlete worked in the last n days (from saved sessions) */
+function recentMuscles(who, days = 3){
+  const from = toISO(addDays(today(), -(days - 1))), out = {};
+  for (const s of data()) if (s.athlete === who && s.date >= from) {
+    if (s.sport === "gym") for (const e of s.exercises || []) { const m = musclesOf(e.name); for (const k of m.main) out[k] = Math.max(out[k] || 0, 2); for (const k of m.help) out[k] = Math.max(out[k] || 0, 1); }
+    else if (SPORT_MUS[s.sport]) { for (const k of SPORT_MUS[s.sport][0]) out[k] = Math.max(out[k] || 0, 1); }
+  }
+  return out;
+}
+
+/* the body map */
+function bodyMap(levels = {}, opts = {}){
+  const lv = k => levels[k] || 0;
+  const cls = k => `m ${lv(k) === 2 ? "l2" : lv(k) === 1 ? "l1" : ""} ${opts.pick === k ? "picked" : ""}`;
+  const tap = k => opts.clickable ? ` data-mus="${k}" role="button" tabindex="0" aria-label="${MUSCLES[k]}"` : "";
+  const E = (k, cx, cy, rx, ry, rot = 0) => `<ellipse class="${cls(k)}"${tap(k)} cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}"${rot ? ` transform="rotate(${rot} ${cx} ${cy})"` : ""}/>`;
+  const Pth = (k, d) => `<path class="${cls(k)}"${tap(k)} d="${d}"/>`;
+  const R = (k, x, y, w, h, r) => `<rect class="${cls(k)}"${tap(k)} x="${x}" y="${y}" width="${w}" height="${h}" rx="${r}"/>`;
+  const body = `<g class="sil">
+    <circle cx="60" cy="18" r="12"/><rect x="54" y="28" width="12" height="12" rx="3"/>
+    <path d="M34 42 Q60 36 86 42 L91 60 L85 118 Q60 128 35 118 L29 60 Z"/><path d="M35 114 L85 114 L87 138 L60 147 L33 138 Z"/>
+    <line x1="30" y1="47" x2="22" y2="94" class="limb" stroke-width="16"/><line x1="22" y1="94" x2="17" y2="134" class="limb" stroke-width="12"/><circle cx="16" cy="140" r="6"/>
+    <line x1="90" y1="47" x2="98" y2="94" class="limb" stroke-width="16"/><line x1="98" y1="94" x2="103" y2="134" class="limb" stroke-width="12"/><circle cx="104" cy="140" r="6"/>
+    <line x1="48" y1="140" x2="47" y2="188" class="limb" stroke-width="20"/><line x1="47" y1="188" x2="47" y2="232" class="limb" stroke-width="14"/><ellipse cx="46" cy="239" rx="8" ry="5"/>
+    <line x1="72" y1="140" x2="73" y2="188" class="limb" stroke-width="20"/><line x1="73" y1="188" x2="73" y2="232" class="limb" stroke-width="14"/><ellipse cx="74" cy="239" rx="8" ry="5"/>
+  </g>`;
+  const front = `<g>${body}
+    ${E("deltoides", 31, 50, 8, 9)}${E("deltoides", 89, 50, 8, 9)}
+    ${Pth("pectoral", "M59 50 Q46 45 37 54 Q37 68 49 72 Q58 73 59 66 Z")}${Pth("pectoral", "M61 50 Q74 45 83 54 Q83 68 71 72 Q62 73 61 66 Z")}
+    ${E("biceps", 26, 72, 5.5, 13, 9)}${E("biceps", 94, 72, 5.5, 13, -9)}
+    ${E("antebrazo", 19.5, 113, 4.5, 14, 7)}${E("antebrazo", 100.5, 113, 4.5, 14, -7)}
+    ${R("abdomen", 51, 76, 18, 40, 6)}<path class="abs-lines" d="M51 89 H69 M51 102 H69 M60 76 V116"/>
+    ${E("oblicuos", 43, 97, 5, 14)}${E("oblicuos", 77, 97, 5, 14)}
+    ${E("cuadriceps", 48, 162, 8.5, 21)}${E("cuadriceps", 72, 162, 8.5, 21)}
+    <text x="60" y="251" class="ml">Delante</text></g>`;
+  const back = `<g transform="translate(130 0)">${body}
+    ${Pth("trapecio", "M60 31 L79 46 L60 76 L41 46 Z")}
+    ${E("deltoides", 31, 50, 8, 9)}${E("deltoides", 89, 50, 8, 9)}
+    ${Pth("dorsal", "M44 58 Q35 72 42 97 L57 104 L58 64 Z")}${Pth("dorsal", "M76 58 Q85 72 78 97 L63 104 L62 64 Z")}
+    ${E("triceps", 25, 72, 5.5, 13, 9)}${E("triceps", 95, 72, 5.5, 13, -9)}
+    ${E("antebrazo", 19.5, 113, 4.5, 14, 7)}${E("antebrazo", 100.5, 113, 4.5, 14, -7)}
+    ${R("lumbar", 52, 102, 16, 15, 4)}
+    ${E("gluteo", 50, 132, 10, 10)}${E("gluteo", 70, 132, 10, 10)}
+    ${E("isquios", 48, 166, 8, 18)}${E("isquios", 72, 166, 8, 18)}
+    ${E("gemelos", 47, 207, 6, 14)}${E("gemelos", 73, 207, 6, 14)}
+    <text x="60" y="251" class="ml">Detrás</text></g>`;
+  const label = opts.label || Object.keys(levels).filter(k => levels[k] === 2).map(k => MUSCLES[k]).join(", ");
+  return `<svg class="bodymap ${opts.cls || ""}" viewBox="0 0 250 256" role="img" aria-label="Mapa muscular${label ? ": " + esc(label) : ""}">${front}${back}</svg>`;
+}
+
+function onMuscleTap(k, el){
+  if (el.closest("#view-hoy")) { const i = ck.quiero.indexOf(k); if (i >= 0) ck.quiero.splice(i, 1); else ck.quiero.push(k); saveCk(); renderHoy(); }
+  else if (el.closest("#view-ejercicios")) { gMus = k; store.set("gym.gmus", k); renderEjercicios(); }
+}
+document.addEventListener("click", e => { const el = e.target.closest && e.target.closest("[data-mus]"); if (el) onMuscleTap(el.dataset.mus, el); });
+document.addEventListener("keydown", e => { const el = e.target.closest && e.target.closest("[data-mus]"); if (el && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); onMuscleTap(el.dataset.mus, el); } });
 
 /* ===== 03-dieta.js ===== */
 /* ---------- diet ----------
@@ -2397,23 +2536,38 @@ document.addEventListener("click", e => {
   else if (t.dataset.act === "ai-stop") aiCtl?.abort();
 });
 
-/* ---------- Ejercicios ---------- */
-let gGroup = "Todos";
+/* ---------- Músculos: tap a muscle, see how to work it ---------- */
+let gMus = store.get("gym.gmus", "pectoral"); if (!MUSCLES[gMus]) gMus = "pectoral";
+function exercisesFor(k){
+  const main = [], help = [];
+  for (const n of Object.keys(GUIDE)) { const m = musclesOf(n); if (m.main.includes(k)) main.push(n); else if (m.help.includes(k)) help.push(n); }
+  return { main, help };
+}
 function renderEjercicios(){
-  const v = $("#view-ejercicios");
-  const names = Object.keys(GUIDE).filter(n => gGroup === "Todos" || CATALOG[n] === gGroup);
-  const groups = ["Todos", ...GROUPS.filter(g => Object.keys(GUIDE).some(n => CATALOG[n] === g))];
-  v.innerHTML = `<div class="panel">
-    <div class="panel-head"><div><h2>Cómo se hace cada ejercicio</h2><div class="muted" style="font-size:13px;margin-top:2px">Dibujo en movimiento, en rojo el músculo que trabaja. La silueta clara es la posición de partida.</div></div></div>
-    <div class="chips" role="group" aria-label="Grupo muscular" style="margin-bottom:14px">${groups.map(g => `<button type="button" data-ggroup="${esc(g)}" aria-pressed="${gGroup === g}">${esc(g)}</button>`).join("")}</div>
-    <div class="guide-grid">${names.map(n => { const g = GUIDE[n]; return `<article class="gcard">
+  const v = $("#view-ejercicios"), { main, help } = exercisesFor(gMus);
+  const lv = { [gMus]: 2 };
+  const recent = me ? recentMuscles(me, 7) : {};
+  const card = n => { const g = GUIDE[n], m = musclesOf(n); return `<article class="gcard">
       <div class="fig-wrap">${figMarkup(n)}</div>
-      <div><h3>${esc(n)}</h3><div class="mus">${esc(g.m)}</div><ol>${g.steps.map(s => `<li>${esc(s)}</li>`).join("")}</ol><div class="ojo"><b>Ojo:</b> ${esc(g.ojo)}</div></div>
-    </article>`; }).join("")}</div>
+      <div><div class="mus-chip">${esc(musNames(m.main))}</div><h3>${esc(n)}</h3>${m.help.length ? `<div class="mus">Ayudan: ${esc(musNames(m.help))}</div>` : ""}<ol>${g.steps.map(s => `<li>${esc(s)}</li>`).join("")}</ol><div class="ojo"><b>Ojo:</b> ${esc(g.ojo)}</div></div>
+    </article>`; };
+  v.innerHTML = `<div style="display:grid;gap:16px">
+    <div class="panel">
+      <div class="panel-head"><div><h2>Toca un músculo</h2><div class="muted" style="font-size:13px;margin-top:2px">Te enseño cómo trabajarlo; da igual con qué ejercicio.</div></div></div>
+      ${bodyMap(lv, { clickable: true, pick: gMus })}
+      <div class="chips mus" style="margin-top:10px">${MUSCLE_ORDER.map(k => `<button type="button" data-gmus="${k}" aria-pressed="${gMus === k}">${MUSCLES[k]}${recent[k] === 2 ? " ·" : ""}</button>`).join("")}</div>
+      ${me && Object.keys(recent).length ? `<p class="note" style="margin:8px 0 0">El punto marca lo que has trabajado esta semana.</p>` : ""}
+    </div>
+    <div class="panel">
+      <div class="panel-head"><div><h2 class="mus-title" style="font-size:30px">${MUSCLES[gMus]}</h2><div class="muted" style="font-size:13px;margin-top:2px">${main.length} ejercicio${main.length === 1 ? "" : "s"} donde es el protagonista</div></div>
+        ${me ? `<button type="button" class="btn sm primary" data-say="coach" data-go="coach" data-text="${esc(`Hazme un entreno centrado en ${MUSCLES[gMus].toLowerCase()} para hoy`)}">Entreno de ${esc(MUSCLES[gMus].toLowerCase())}</button>` : ""}</div>
+      <div class="guide-grid">${main.map(card).join("") || `<div class="empty">Sin ejercicios dibujados todavía.</div>`}</div>
+      ${help.length ? `<div class="eyebrow" style="margin:16px 0 8px">También lo trabajan</div><div class="guide-grid">${help.map(card).join("")}</div>` : ""}
+    </div>
   </div>`;
   mountFigs();
 }
-document.addEventListener("click", e => { const t = e.target.closest("button[data-ggroup]"); if (t) { gGroup = t.dataset.ggroup; renderEjercicios(); } });
+document.addEventListener("click", e => { const t = e.target.closest("button[data-gmus]"); if (t) { gMus = t.dataset.gmus; store.set("gym.gmus", gMus); renderEjercicios(); } });
 
 /* ---------- figure animation ---------- */
 const reduceMotion = (() => { try { return matchMedia("(prefers-reduced-motion: reduce)").matches; } catch { return false; } })();
@@ -2493,8 +2647,9 @@ function planSummary(plan){
 }
 const WORKOUT_SCHEMA = `ENTRENO = {"titulo": str, "tipo": "gym"|"calistenia"|"natacion"|"cinta"|"bici"|"otro", "duracion_min": n, "objetivo": str,
  "bloques": [{"nombre": "Calentamiento"|"Principal"|"Finisher"|"Vuelta a la calma"|..., "items": [
-   {"ejercicio": str, "modo": "reps"|"tiempo"|"distancia", "series": n, "reps": n?, "kg": n?, "segundos": n?, "metros": n?, "descanso_s": n, "indicacion": str?, "reto": str?}]}],
+   {"ejercicio": str, "musculos": [clave], "modo": "reps"|"tiempo"|"distancia", "series": n, "reps": n?, "kg": n?, "segundos": n?, "metros": n?, "descanso_s": n, "indicacion": str?, "reto": str?}]}],
  "nota": str}
+Lo importante es el músculo, no el ejercicio: organiza el entreno por los músculos que toca trabajar y elige para cada uno el ejercicio que mejor encaje con el lugar y el material. "musculos": los que trabaja, el principal primero, con estas claves: ${Object.keys(MUSCLES).join(", ")}.
 Reglas del ENTRENO: que quepa en la duración pedida contando descansos; "reps" para fuerza (kg 0 si es peso corporal), "tiempo" para planchas, intervalos o cardio por tiempo, "distancia" para natación (metros por serie). En "reto" pon cómo superar su última vez o su récord (por ejemplo "Tu mejor: 80 kg × 8. Hoy 82,5 × 8") o cómo ganar a ${"${RIVAL}"}. Progresión prudente: +2,5 kg o +1 rep si la última vez completó todo; nunca más de un 5 %. Para "ejercicio" usa exactamente estos nombres cuando encajen (tienen dibujo): ${Object.keys(GUIDE).join(", ")}. Para natación usa nombres como "Crol", "Braza", "Espalda", "Patada con tabla", "Pull buoy".`;
 const TRAIN_PLAN_SCHEMA = `PLAN_ENTRENO = {"tipo": "semana"|"mes", "titulo": str, "semanas": [{"objetivo": str, "dias": [{"fecha": "YYYY-MM-DD", "dia": "lunes"…, "actividad": "gym"|"calistenia"|"natacion"|"cinta"|"bici"|"descanso"|"otro", "duracion_min": n, "foco": str, "detalle": str}]}], "nota": str}
 Reglas del PLAN_ENTRENO: empieza hoy; semana = 7 días, mes = 4 semanas; cada semana con su objetivo y progresión; incluye descansos; "detalle" en una frase.`;
@@ -2522,6 +2677,8 @@ ${schemas}
 
 Datos de ${ATH[me]}:
 ${athleteContext(me)}
+Músculos trabajados en los últimos 3 días: ${(() => { const r = recentMuscles(me, 3); const k = MUSCLE_ORDER.filter(x => r[x] === 2); return k.length ? musNames(k) : "ninguno"; })()}.
+${checkinText() ? "Cómo está hoy (check-in): " + checkinText() : ""}
 Plan de entreno actual: ${planSummary(trainPlan())}
 ${agent === "nutri" && dietPlan() ? `Tiene un menú semanal guardado: ${dietPlan().titulo || ""}.` : ""}
 Su rival, ${ATH[other]}:
@@ -2550,7 +2707,8 @@ function normalizeWorkout(o){
         segundos: modo === "tiempo" ? (clampN(it.segundos, 5, 3600) || 30) : null,
         metros: modo === "distancia" ? (clampN(it.metros, 25, 5000) || 100) : null,
         descanso_s: clampN(it.descanso_s, 0, 600) ?? 60,
-        indicacion: String(it.indicacion || "").slice(0, 160), reto: String(it.reto || "").slice(0, 160)
+        indicacion: String(it.indicacion || "").slice(0, 160), reto: String(it.reto || "").slice(0, 160),
+        musculos: (Array.isArray(it.musculos) ? it.musculos : []).filter(m => MUSCLES[m]).slice(0, 5)
       };
     })
   })).filter(b => b.items.length);
@@ -2705,9 +2863,11 @@ document.addEventListener("click", async e => {
 });
 
 /* ask for a workout from anywhere (Hoy, plan) */
-async function quickWorkout({ tipo, minutos, plan } = {}){
+async function quickWorkout({ tipo, minutos, plan, checkin } = {}){
   const text = plan
-    ? `Prepárame el entreno del ${plan.dia} ${plan.fecha} según mi plan: ${plan.actividad}, ${plan.duracion_min} min, ${plan.foco}. ${plan.detalle}`
+    ? `Prepárame el entreno del ${plan.dia} ${plan.fecha} según mi plan: ${plan.actividad}, ${plan.duracion_min} min, ${plan.foco}. ${plan.detalle}${checkin ? " Ten en cuenta cómo estoy hoy." : ""}`
+    : checkin
+    ? `Hazme el entreno de hoy según cómo estoy: ${checkinText()}. Adáptalo: si estoy flojo o he dormido mal, baja volumen e intensidad; si voy a tope, ponme un reto fuerte. No cargues los músculos que me molestan y evita repetir los que trabajé ayer si no te lo pido.`
     : `Hazme un entreno de ${tipo === "casa" ? "calistenia en casa sin material" : tipo} de ${minutos} minutos para hoy, que me haga superar mi última sesión.`;
   if (tab !== "hoy" && tab !== "plan") setTab("coach");
   const r = await sendChat("coach", text);
@@ -2802,6 +2962,7 @@ const mmssS = s => `${Math.floor(Math.max(0, s) / 60)}:${pad(Math.max(0, Math.ce
 
 /* rendering */
 function stepLabel(st){ const it = itemOf(st); return `${it.ejercicio} · serie ${st.s} de ${it.series}`; }
+function spokenStep(st){ const it = itemOf(st), m = musNames(musclesOf(it).main); return `${m ? m + ". " : ""}${it.ejercicio}, serie ${st.s} de ${it.series}`; }
 function renderPlayer(){
   const el = $("#player"); if (!run) { closePlayer(); return; }
   const w = run.w, st = run.steps[run.i], it = st && itemOf(st), total = run.steps.length;
@@ -2815,9 +2976,11 @@ function renderPlayer(){
   if (run.phase === "preview") {
     body = `<div class="pl-body">
       ${w.objetivo ? `<p class="pl-goal">${esc(w.objetivo)}</p>` : ""}
+      ${(() => { const all = w.bloques.flatMap(b => b.items).map(musclesOf), lv = levelsFor(all); const main = MUSCLE_ORDER.filter(k => lv[k] === 2);
+        return main.length ? `<div class="pl-today"><div class="eyebrow">Hoy trabajas</div><div class="mus-title" style="font-size:24px">${esc(musNames(main))}</div>${bodyMap(lv, { cls: "small" })}<div class="mus-legend"><span><i style="background:var(--muscle)"></i>principal</span><span><i style="background:var(--mus-help)"></i>ayuda</span></div></div>` : ""; })()}
       ${w.bloques.map(b => `<div class="pl-block"><div class="eyebrow">${esc(b.nombre)}</div>${b.items.map(x => `<div class="pl-item">
         ${GUIDE[x.ejercicio] ? `<svg class="fig mini" viewBox="0 -14 200 206" aria-hidden="true">${figSVG(x.ejercicio, 1, false)}</svg>` : `<div class="fig mini nofig">${esc(x.ejercicio.slice(0, 2))}</div>`}
-        <div><b>${esc(x.ejercicio)}</b><div class="muted" style="font-size:13px">${x.series} × ${target(x)} · descanso ${x.descanso_s} s</div>${x.reto ? `<div class="reto">${esc(x.reto)}</div>` : ""}</div></div>`).join("")}</div>`).join("")}
+        <div>${musclesOf(x).main.length ? `<div class="mus-chip">${esc(musNames(musclesOf(x).main))}</div>` : ""}<b>${esc(x.ejercicio)}</b><div class="muted" style="font-size:13px">${x.series} × ${target(x)} · descanso ${x.descanso_s} s</div>${x.reto ? `<div class="reto">${esc(x.reto)}</div>` : ""}</div></div>`).join("")}</div>`).join("")}
       ${w.nota ? `<p class="note">${esc(w.nota)}</p>` : ""}
     </div>
     <div class="pl-foot"><button type="button" class="btn primary big" data-pl="start">Empezar</button></div>`;
@@ -2830,15 +2993,16 @@ function renderPlayer(){
     const mine = it.modo === "reps" ? bestFor(me, it.ejercicio).b : null, his = it.modo === "reps" ? bestFor(OTHER[me], it.ejercicio).b : null;
     const resting = run.phase === "rest", working = run.phase === "work";
     const secsLeft = run.until ? (run.until - Date.now()) / 1000 : 0, span = resting ? (it.descanso_s || 1) : (it.segundos || 1);
+    const mu = musclesOf(it);
     body = `<div class="pl-body center">
-      <div class="eyebrow">${esc(w.bloques[st.bi].nombre)}</div>
-      <h2 class="pl-ex">${esc(it.ejercicio)}</h2>
-      <div class="pl-set">Serie <b>${st.s}</b> de ${it.series} · objetivo <b>${target(it)}</b></div>
+      <div class="eyebrow">${esc(w.bloques[st.bi].nombre)} · trabajas</div>
+      <h2 class="mus-title">${esc(musNames(mu.main) || it.ejercicio)}</h2>
+      <div class="pl-how">${GUIDE[it.ejercicio] ? `<div class="pl-fig small">${figMarkup(it.ejercicio)}</div>` : ""}<div><div class="muted" style="font-size:12px">cómo</div><b>${esc(it.ejercicio)}</b><div class="pl-set">Serie <b>${st.s}</b> de ${it.series} · <b>${target(it)}</b></div></div></div>
       ${resting || working ? `<div class="ring ${resting ? "rest" : "work"}">
           <svg viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="52" class="rt"/><circle cx="60" cy="60" r="52" class="rv" id="pl-ring" style="stroke-dasharray:326.7;stroke-dashoffset:${326.7 * (1 - Math.max(0, secsLeft) / span)}"/></svg>
           <div class="ring-txt"><span id="pl-count">${mmssS(secsLeft)}</span><small>${resting ? "descanso" : "¡dale!"}</small></div></div>
-          ${resting ? `<div class="pl-next">Siguiente: <b>${next ? esc(stepLabel(next)) : "terminar"}</b></div>` : ""}`
-        : `${GUIDE[it.ejercicio] ? `<div class="pl-fig">${figMarkup(it.ejercicio)}</div>` : ""}
+          ${resting ? `<div class="pl-next">Siguiente: <b>${next ? esc(musNames(musclesOf(itemOf(next)).main) || itemOf(next).ejercicio) + " · " + esc(stepLabel(next)) : "terminar"}</b></div>` : ""}`
+        : `<div class="pl-map">${bodyMap(levelsFor([mu]))}</div>
           ${it.indicacion ? `<div class="pl-cue">${esc(it.indicacion)}</div>` : ""}
           ${it.reto ? `<div class="reto big">${esc(it.reto)}</div>` : ""}
           ${mine || his ? `<div class="pl-best">${mine ? `<span><i class="dot ${me}"></i> Tu mejor: <b>${fmt(mine.kg, 2)} kg × ${mine.reps}</b></span>` : ""}${his ? `<span><i class="dot ${OTHER[me]}"></i> ${ATH[OTHER[me]]}: <b>${fmt(his.kg, 2)} kg × ${his.reps}</b></span>` : ""}</div>` : ""}
@@ -2881,11 +3045,11 @@ function logSet(){
   run._w3 = false;
   const next = run.steps[run.i + 1];
   if (!next) { finishRun(); return; }
-  if (it.descanso_s > 0) { run.phase = "rest"; run.until = Date.now() + it.descanso_s * 1000; say(`Descanso. Siguiente: ${stepLabel(next)}`); }
+  if (it.descanso_s > 0) { run.phase = "rest"; run.until = Date.now() + it.descanso_s * 1000; say(`Descanso. Siguiente: ${spokenStep(next)}`); }
   else advance();
   saveRun(); renderPlayer();
 }
-function endRest(){ buzz(); beep(); advance(); const st = run.steps[run.i]; if (st) say(`${stepLabel(st)}. ${target(itemOf(st))}`); saveRun(); renderPlayer(); }
+function endRest(){ buzz(); beep(); advance(); const st = run.steps[run.i]; if (st) say(`${spokenStep(st)}. ${target(itemOf(st))}`); saveRun(); renderPlayer(); }
 function advance(){
   const prev = run.steps[run.i]; run.i++; run.until = null;
   const st = run.steps[run.i]; if (!st) { finishRun(); return; }
@@ -2930,6 +3094,7 @@ function summaryHTML(){
     <div class="pl-done"><div class="eyebrow">Entreno terminado</div><h2>${prs.length ? "¡Récord!" : "¡Hecho!"}</h2>
       <div class="kv"><div><dt>Tiempo</dt><dd>${doc.minutes} min</dd></div>${g ? `<div><dt>Series</dt><dd>${g.sets}</dd></div><div><dt>Volumen</dt><dd>${fmt(g.vol)} kg</dd></div>` : ""}${doc.meters ? `<div><dt>Nadado</dt><dd>${fmt(doc.meters)} m</dd></div>` : ""}</div>
       ${prs.length ? `<div class="prs">${prs.map(p => `<div>🏆 ${esc(p)}</div>`).join("")}</div>` : ""}
+      ${(() => { const done = run.w.bloques.flatMap((b, bi) => b.items.filter((it, ii) => (run.log[bi + "." + ii] || []).length)).map(musclesOf); return done.length ? `<div class="eyebrow">Has trabajado</div>${bodyMap(levelsFor(done), { cls: "small" })}` : ""; })()}
     </div>
     <div class="f"><label>¿Cuánto te ha costado? <small>RPE 1–10</small></label><div class="chips">${[5, 6, 7, 8, 9, 10].map(n => `<button type="button" data-rpe="${n}" aria-pressed="${run.rpe === n}">${n}</button>`).join("")}</div></div>
     ${needKm ? `<div class="f"><label for="pl-km">Distancia total <small>km</small></label><input id="pl-km" type="number" inputmode="decimal" step="0.1" value="${esc(run.extra)}"></div>` : ""}
@@ -2958,7 +3123,7 @@ document.addEventListener("click", e => {
   if (t.dataset.rpe) { run.rpe = +t.dataset.rpe; saveRun(); renderPlayer(); return; }
   if (a === "close") { if (run.phase === "preview") closePlayer(true); else { closePlayer(false); toast("Entreno en pausa: lo retomas desde Hoy"); } }
   else if (a === "voice") { store.set("gym.voice", !voiceOn()); renderPlayer(); }
-  else if (a === "start") { run.startedAt = Date.now(); advanceFromStart(); beep(); say(`Empezamos. ${stepLabel(run.steps[0])}. ${target(itemOf(run.steps[0]))}`); saveRun(); renderPlayer(); }
+  else if (a === "start") { run.startedAt = Date.now(); advanceFromStart(); beep(); say(`Empezamos. ${spokenStep(run.steps[0])}. ${target(itemOf(run.steps[0]))}`); saveRun(); renderPlayer(); }
   else if (a === "done" || a === "workdone") logSet();
   else if (a === "work") { run.phase = "work"; run.until = Date.now() + itemOf(run.steps[run.i]).segundos * 1000; beep(); saveRun(); renderPlayer(); }
   else if (a === "plus") { run.until += 15000; saveRun(); }
@@ -2973,9 +3138,36 @@ document.addEventListener("input", e => { if (e.target.id === "pl-km" && run) { 
 
 /* ===== 12-hoy.js ===== */
 /* ---------- Hoy: what to do today ---------- */
-const QUICK_TYPES = [["gym", "Gimnasio"], ["calistenia", "Calistenia"], ["casa", "En casa"], ["natacion", "Natación"], ["cinta", "Cinta"], ["bici", "Bici"]];
-let qType = store.get("gym.qtype", "gym"), qMin = store.get("gym.qmin", 60);
-if (!QUICK_TYPES.some(x => x[0] === qType)) qType = "gym";
+// Daily check-in: how the athlete feels decides the workout. Kept per device and per day.
+const ENERGY = ["Reventado", "Flojo", "Normal", "Bien", "A tope"], SLEEP = ["Mal", "Regular", "Bien"];
+const PLACES = [["gym", "Gimnasio", "gimnasio"], ["casa", "En casa", "en casa sin material"], ["parque", "Parque", "parque con barra de dominadas"], ["piscina", "Piscina", "piscina"], ["cardio", "Cinta o bici", "cinta o bici"]];
+let ck = store.get("gym.ck", null);
+if (!ck || ck.date !== toISO(today())) ck = { date: toISO(today()), energia: null, sueno: null, molesta: null, molestias: [], quiero: [], lugar: store.get("gym.lugar", "gym"), min: store.get("gym.qmin", 60) };
+const saveCk = () => store.set("gym.ck", ck);
+function checkinText(){
+  if (!ck || ck.date !== toISO(today()) || (ck.energia == null && ck.sueno == null && !ck.quiero.length && !ck.molestias.length)) return "";
+  const place = (PLACES.find(p => p[0] === ck.lugar) || PLACES[0])[2];
+  return [ck.energia != null ? `energía ${ENERGY[ck.energia].toLowerCase()} (${ck.energia + 1}/5)` : "", ck.sueno != null ? `ha dormido ${SLEEP[ck.sueno].toLowerCase()}` : "",
+    `molestias: ${ck.molestias.length ? musNames(ck.molestias) : "ninguna"}`, `quiere trabajar: ${ck.quiero.length ? musNames(ck.quiero) : "lo que toque según su plan y su recuperación"}`,
+    `lugar: ${place}`, `tiempo: ${ck.min} min`].filter(Boolean).join("; ");
+}
+function checkinHTML(pd){
+  const recent = recentMuscles(me, 3), rk = MUSCLE_ORDER.filter(k => recent[k] === 2);
+  const lv = {}; for (const k of ck.quiero) lv[k] = 2;
+  const chipsOf = (key, labels, val) => labels.map((l, i) => `<button type="button" data-ck="${key}" data-v="${i}" aria-pressed="${val === i}">${l}</button>`).join("");
+  return `<div class="checkin">
+    <div class="q"><div class="ql">¿Qué tal estás hoy?</div><div class="chips">${chipsOf("energia", ENERGY, ck.energia)}</div></div>
+    <div class="q"><div class="ql">¿Cómo has dormido?</div><div class="chips">${chipsOf("sueno", SLEEP, ck.sueno)}</div></div>
+    <div class="q"><div class="ql">¿Tienes agujetas o algo te molesta?</div><div class="chips"><button type="button" data-ck="molesta" data-v="0" aria-pressed="${ck.molesta === 0}">Nada</button><button type="button" data-ck="molesta" data-v="1" aria-pressed="${ck.molesta === 1}">Sí</button></div>
+      ${ck.molesta === 1 ? `<div class="chips mus">${MUSCLE_ORDER.map(k => `<button type="button" data-ckm="molestias" data-k="${k}" aria-pressed="${ck.molestias.includes(k)}">${MUSCLES[k]}</button>`).join("")}</div>` : ""}</div>
+    <div class="q"><div class="ql">¿Qué músculos quieres trabajar? <span class="muted">toca el cuerpo</span></div>
+      <div class="ck-map">${bodyMap(lv, { clickable: true, cls: "small", label: ck.quiero.length ? musNames(ck.quiero) : "ninguno elegido" })}</div>
+      <div class="chips"><button type="button" data-ck="quiero-auto" aria-pressed="${!ck.quiero.length}">${pd ? "Lo que toca en mi plan" : "Lo que toque"}</button>${ck.quiero.map(k => `<button type="button" data-ckm="quiero" data-k="${k}" aria-pressed="true">${MUSCLES[k]} ✕</button>`).join("")}</div>
+      ${rk.length ? `<div class="note">Últimos 3 días trabajaste: <b>${esc(musNames(rk))}</b></div>` : ""}</div>
+    <div class="q"><div class="ql">¿Dónde entrenas?</div><div class="chips">${PLACES.map(([k, l]) => `<button type="button" data-ck="lugar" data-v="${k}" aria-pressed="${ck.lugar === k}">${l}</button>`).join("")}</div></div>
+    <div class="q"><div class="ql">¿Cuánto tiempo tienes?</div><div class="chips">${[20, 30, 40, 60, 90].map(n => `<button type="button" data-ck="min" data-v="${n}" aria-pressed="${ck.min === n}">${n} min</button>`).join("")}</div></div>
+  </div>`;
+}
 
 function greeting(){ const h = new Date().getHours(); return h < 6 ? "Buenas noches" : h < 13 ? "Buenos días" : h < 21 ? "Buenas tardes" : "Buenas noches"; }
 function todayMenu(){
@@ -3010,9 +3202,7 @@ function renderHoy(){
           <div class="muted" style="font-size:13.5px">${esc(pd.detalle)}</div>
           ${pd.actividad !== "descanso" ? `<button type="button" class="btn primary" data-hoy="plan" ${busy || !sample ? "disabled" : ""}>Prepárame la sesión</button>` : ""}</div>` : ""}
       <div class="quick">
-        <div class="eyebrow">${pd ? "O pide otro" : "Pide un entreno"}</div>
-        <div class="chips" role="group" aria-label="Tipo">${QUICK_TYPES.map(([k, l]) => `<button type="button" data-qtype="${k}" aria-pressed="${qType === k}">${l}</button>`).join("")}</div>
-        <div class="chips" role="group" aria-label="Duración">${[20, 30, 40, 60, 90].map(n => `<button type="button" data-qmin="${n}" aria-pressed="${qMin === n}">${n} min</button>`).join("")}</div>
+        ${checkinHTML(pd)}
         <button type="button" class="btn primary big" data-hoy="quick" ${busy || !sample ? "disabled" : ""}>${busy ? "Tu entrenador lo está preparando…" : "Hazme el entreno"}</button>
         ${busy ? `<div class="thinking"><span class="spin"></span>Suele tardar menos de un minuto</div>` : ""}
         ${!sample && sampleState !== "loading" ? `<div class="note">Claude no está disponible ahora mismo.</div>` : ""}
@@ -3040,10 +3230,18 @@ function renderHoy(){
 }
 document.addEventListener("click", async e => {
   const t = e.target.closest("button"); if (!t) return;
-  if (t.dataset.qtype) { qType = t.dataset.qtype; store.set("gym.qtype", qType); renderHoy(); }
-  else if (t.dataset.qmin) { qMin = +t.dataset.qmin; store.set("gym.qmin", qMin); renderHoy(); }
-  else if (t.dataset.hoy === "quick") { const tl = QUICK_TYPES.find(x => x[0] === qType)[1].toLowerCase(); await quickWorkout({ tipo: qType === "casa" ? "casa" : tl, minutos: qMin }); }
-  else if (t.dataset.hoy === "plan") { const pd = planDay(trainPlan()); if (pd) await quickWorkout({ plan: pd }); }
+  if (t.dataset.hoy === "quick") { saveCk(); await quickWorkout({ checkin: true }); }
+  else if (t.dataset.hoy === "plan") { const pd = planDay(trainPlan()); if (pd) await quickWorkout({ plan: pd, checkin: !!checkinText() }); }
+  else if (t.dataset.ck) {
+    const k = t.dataset.ck, v = t.dataset.v;
+    if (k === "lugar") { ck.lugar = v; store.set("gym.lugar", v); }
+    else if (k === "min") { ck.min = +v; store.set("gym.qmin", +v); }
+    else if (k === "quiero-auto") ck.quiero = [];
+    else if (k === "molesta") { ck.molesta = +v; if (+v === 0) ck.molestias = []; }
+    else ck[k] = ck[k] === +v ? null : +v;
+    saveCk(); renderHoy();
+  }
+  else if (t.dataset.ckm) { const list = ck[t.dataset.ckm], k = t.dataset.k; const i = list.indexOf(k); if (i >= 0) list.splice(i, 1); else list.push(k); saveCk(); renderHoy(); }
   else if (t.dataset.hoy === "resume") showPlayer();
   else if (t.dataset.hoy === "drop") { run = null; store.del("gym.run"); renderHoy(); }
   else if (t.dataset.hoy === "last") { const m = chatMsgs("coach").slice().reverse().find(x => x.entreno); if (m) openPlayer(m.entreno); }

@@ -57,6 +57,7 @@ const mmssS = s => `${Math.floor(Math.max(0, s) / 60)}:${pad(Math.max(0, Math.ce
 
 /* rendering */
 function stepLabel(st){ const it = itemOf(st); return `${it.ejercicio} · serie ${st.s} de ${it.series}`; }
+function spokenStep(st){ const it = itemOf(st), m = musNames(musclesOf(it).main); return `${m ? m + ". " : ""}${it.ejercicio}, serie ${st.s} de ${it.series}`; }
 function renderPlayer(){
   const el = $("#player"); if (!run) { closePlayer(); return; }
   const w = run.w, st = run.steps[run.i], it = st && itemOf(st), total = run.steps.length;
@@ -70,9 +71,11 @@ function renderPlayer(){
   if (run.phase === "preview") {
     body = `<div class="pl-body">
       ${w.objetivo ? `<p class="pl-goal">${esc(w.objetivo)}</p>` : ""}
+      ${(() => { const all = w.bloques.flatMap(b => b.items).map(musclesOf), lv = levelsFor(all); const main = MUSCLE_ORDER.filter(k => lv[k] === 2);
+        return main.length ? `<div class="pl-today"><div class="eyebrow">Hoy trabajas</div><div class="mus-title" style="font-size:24px">${esc(musNames(main))}</div>${bodyMap(lv, { cls: "small" })}<div class="mus-legend"><span><i style="background:var(--muscle)"></i>principal</span><span><i style="background:var(--mus-help)"></i>ayuda</span></div></div>` : ""; })()}
       ${w.bloques.map(b => `<div class="pl-block"><div class="eyebrow">${esc(b.nombre)}</div>${b.items.map(x => `<div class="pl-item">
         ${GUIDE[x.ejercicio] ? `<svg class="fig mini" viewBox="0 -14 200 206" aria-hidden="true">${figSVG(x.ejercicio, 1, false)}</svg>` : `<div class="fig mini nofig">${esc(x.ejercicio.slice(0, 2))}</div>`}
-        <div><b>${esc(x.ejercicio)}</b><div class="muted" style="font-size:13px">${x.series} × ${target(x)} · descanso ${x.descanso_s} s</div>${x.reto ? `<div class="reto">${esc(x.reto)}</div>` : ""}</div></div>`).join("")}</div>`).join("")}
+        <div>${musclesOf(x).main.length ? `<div class="mus-chip">${esc(musNames(musclesOf(x).main))}</div>` : ""}<b>${esc(x.ejercicio)}</b><div class="muted" style="font-size:13px">${x.series} × ${target(x)} · descanso ${x.descanso_s} s</div>${x.reto ? `<div class="reto">${esc(x.reto)}</div>` : ""}</div></div>`).join("")}</div>`).join("")}
       ${w.nota ? `<p class="note">${esc(w.nota)}</p>` : ""}
     </div>
     <div class="pl-foot"><button type="button" class="btn primary big" data-pl="start">Empezar</button></div>`;
@@ -85,15 +88,16 @@ function renderPlayer(){
     const mine = it.modo === "reps" ? bestFor(me, it.ejercicio).b : null, his = it.modo === "reps" ? bestFor(OTHER[me], it.ejercicio).b : null;
     const resting = run.phase === "rest", working = run.phase === "work";
     const secsLeft = run.until ? (run.until - Date.now()) / 1000 : 0, span = resting ? (it.descanso_s || 1) : (it.segundos || 1);
+    const mu = musclesOf(it);
     body = `<div class="pl-body center">
-      <div class="eyebrow">${esc(w.bloques[st.bi].nombre)}</div>
-      <h2 class="pl-ex">${esc(it.ejercicio)}</h2>
-      <div class="pl-set">Serie <b>${st.s}</b> de ${it.series} · objetivo <b>${target(it)}</b></div>
+      <div class="eyebrow">${esc(w.bloques[st.bi].nombre)} · trabajas</div>
+      <h2 class="mus-title">${esc(musNames(mu.main) || it.ejercicio)}</h2>
+      <div class="pl-how">${GUIDE[it.ejercicio] ? `<div class="pl-fig small">${figMarkup(it.ejercicio)}</div>` : ""}<div><div class="muted" style="font-size:12px">cómo</div><b>${esc(it.ejercicio)}</b><div class="pl-set">Serie <b>${st.s}</b> de ${it.series} · <b>${target(it)}</b></div></div></div>
       ${resting || working ? `<div class="ring ${resting ? "rest" : "work"}">
           <svg viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="52" class="rt"/><circle cx="60" cy="60" r="52" class="rv" id="pl-ring" style="stroke-dasharray:326.7;stroke-dashoffset:${326.7 * (1 - Math.max(0, secsLeft) / span)}"/></svg>
           <div class="ring-txt"><span id="pl-count">${mmssS(secsLeft)}</span><small>${resting ? "descanso" : "¡dale!"}</small></div></div>
-          ${resting ? `<div class="pl-next">Siguiente: <b>${next ? esc(stepLabel(next)) : "terminar"}</b></div>` : ""}`
-        : `${GUIDE[it.ejercicio] ? `<div class="pl-fig">${figMarkup(it.ejercicio)}</div>` : ""}
+          ${resting ? `<div class="pl-next">Siguiente: <b>${next ? esc(musNames(musclesOf(itemOf(next)).main) || itemOf(next).ejercicio) + " · " + esc(stepLabel(next)) : "terminar"}</b></div>` : ""}`
+        : `<div class="pl-map">${bodyMap(levelsFor([mu]))}</div>
           ${it.indicacion ? `<div class="pl-cue">${esc(it.indicacion)}</div>` : ""}
           ${it.reto ? `<div class="reto big">${esc(it.reto)}</div>` : ""}
           ${mine || his ? `<div class="pl-best">${mine ? `<span><i class="dot ${me}"></i> Tu mejor: <b>${fmt(mine.kg, 2)} kg × ${mine.reps}</b></span>` : ""}${his ? `<span><i class="dot ${OTHER[me]}"></i> ${ATH[OTHER[me]]}: <b>${fmt(his.kg, 2)} kg × ${his.reps}</b></span>` : ""}</div>` : ""}
@@ -136,11 +140,11 @@ function logSet(){
   run._w3 = false;
   const next = run.steps[run.i + 1];
   if (!next) { finishRun(); return; }
-  if (it.descanso_s > 0) { run.phase = "rest"; run.until = Date.now() + it.descanso_s * 1000; say(`Descanso. Siguiente: ${stepLabel(next)}`); }
+  if (it.descanso_s > 0) { run.phase = "rest"; run.until = Date.now() + it.descanso_s * 1000; say(`Descanso. Siguiente: ${spokenStep(next)}`); }
   else advance();
   saveRun(); renderPlayer();
 }
-function endRest(){ buzz(); beep(); advance(); const st = run.steps[run.i]; if (st) say(`${stepLabel(st)}. ${target(itemOf(st))}`); saveRun(); renderPlayer(); }
+function endRest(){ buzz(); beep(); advance(); const st = run.steps[run.i]; if (st) say(`${spokenStep(st)}. ${target(itemOf(st))}`); saveRun(); renderPlayer(); }
 function advance(){
   const prev = run.steps[run.i]; run.i++; run.until = null;
   const st = run.steps[run.i]; if (!st) { finishRun(); return; }
@@ -185,6 +189,7 @@ function summaryHTML(){
     <div class="pl-done"><div class="eyebrow">Entreno terminado</div><h2>${prs.length ? "¡Récord!" : "¡Hecho!"}</h2>
       <div class="kv"><div><dt>Tiempo</dt><dd>${doc.minutes} min</dd></div>${g ? `<div><dt>Series</dt><dd>${g.sets}</dd></div><div><dt>Volumen</dt><dd>${fmt(g.vol)} kg</dd></div>` : ""}${doc.meters ? `<div><dt>Nadado</dt><dd>${fmt(doc.meters)} m</dd></div>` : ""}</div>
       ${prs.length ? `<div class="prs">${prs.map(p => `<div>🏆 ${esc(p)}</div>`).join("")}</div>` : ""}
+      ${(() => { const done = run.w.bloques.flatMap((b, bi) => b.items.filter((it, ii) => (run.log[bi + "." + ii] || []).length)).map(musclesOf); return done.length ? `<div class="eyebrow">Has trabajado</div>${bodyMap(levelsFor(done), { cls: "small" })}` : ""; })()}
     </div>
     <div class="f"><label>¿Cuánto te ha costado? <small>RPE 1–10</small></label><div class="chips">${[5, 6, 7, 8, 9, 10].map(n => `<button type="button" data-rpe="${n}" aria-pressed="${run.rpe === n}">${n}</button>`).join("")}</div></div>
     ${needKm ? `<div class="f"><label for="pl-km">Distancia total <small>km</small></label><input id="pl-km" type="number" inputmode="decimal" step="0.1" value="${esc(run.extra)}"></div>` : ""}
@@ -213,7 +218,7 @@ document.addEventListener("click", e => {
   if (t.dataset.rpe) { run.rpe = +t.dataset.rpe; saveRun(); renderPlayer(); return; }
   if (a === "close") { if (run.phase === "preview") closePlayer(true); else { closePlayer(false); toast("Entreno en pausa: lo retomas desde Hoy"); } }
   else if (a === "voice") { store.set("gym.voice", !voiceOn()); renderPlayer(); }
-  else if (a === "start") { run.startedAt = Date.now(); advanceFromStart(); beep(); say(`Empezamos. ${stepLabel(run.steps[0])}. ${target(itemOf(run.steps[0]))}`); saveRun(); renderPlayer(); }
+  else if (a === "start") { run.startedAt = Date.now(); advanceFromStart(); beep(); say(`Empezamos. ${spokenStep(run.steps[0])}. ${target(itemOf(run.steps[0]))}`); saveRun(); renderPlayer(); }
   else if (a === "done" || a === "workdone") logSet();
   else if (a === "work") { run.phase = "work"; run.until = Date.now() + itemOf(run.steps[run.i]).segundos * 1000; beep(); saveRun(); renderPlayer(); }
   else if (a === "plus") { run.until += 15000; saveRun(); }

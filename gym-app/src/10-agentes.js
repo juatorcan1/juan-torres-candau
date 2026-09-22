@@ -49,8 +49,9 @@ function planSummary(plan){
 }
 const WORKOUT_SCHEMA = `ENTRENO = {"titulo": str, "tipo": "gym"|"calistenia"|"natacion"|"cinta"|"bici"|"otro", "duracion_min": n, "objetivo": str,
  "bloques": [{"nombre": "Calentamiento"|"Principal"|"Finisher"|"Vuelta a la calma"|..., "items": [
-   {"ejercicio": str, "modo": "reps"|"tiempo"|"distancia", "series": n, "reps": n?, "kg": n?, "segundos": n?, "metros": n?, "descanso_s": n, "indicacion": str?, "reto": str?}]}],
+   {"ejercicio": str, "musculos": [clave], "modo": "reps"|"tiempo"|"distancia", "series": n, "reps": n?, "kg": n?, "segundos": n?, "metros": n?, "descanso_s": n, "indicacion": str?, "reto": str?}]}],
  "nota": str}
+Lo importante es el músculo, no el ejercicio: organiza el entreno por los músculos que toca trabajar y elige para cada uno el ejercicio que mejor encaje con el lugar y el material. "musculos": los que trabaja, el principal primero, con estas claves: ${Object.keys(MUSCLES).join(", ")}.
 Reglas del ENTRENO: que quepa en la duración pedida contando descansos; "reps" para fuerza (kg 0 si es peso corporal), "tiempo" para planchas, intervalos o cardio por tiempo, "distancia" para natación (metros por serie). En "reto" pon cómo superar su última vez o su récord (por ejemplo "Tu mejor: 80 kg × 8. Hoy 82,5 × 8") o cómo ganar a ${"${RIVAL}"}. Progresión prudente: +2,5 kg o +1 rep si la última vez completó todo; nunca más de un 5 %. Para "ejercicio" usa exactamente estos nombres cuando encajen (tienen dibujo): ${Object.keys(GUIDE).join(", ")}. Para natación usa nombres como "Crol", "Braza", "Espalda", "Patada con tabla", "Pull buoy".`;
 const TRAIN_PLAN_SCHEMA = `PLAN_ENTRENO = {"tipo": "semana"|"mes", "titulo": str, "semanas": [{"objetivo": str, "dias": [{"fecha": "YYYY-MM-DD", "dia": "lunes"…, "actividad": "gym"|"calistenia"|"natacion"|"cinta"|"bici"|"descanso"|"otro", "duracion_min": n, "foco": str, "detalle": str}]}], "nota": str}
 Reglas del PLAN_ENTRENO: empieza hoy; semana = 7 días, mes = 4 semanas; cada semana con su objetivo y progresión; incluye descansos; "detalle" en una frase.`;
@@ -78,6 +79,8 @@ ${schemas}
 
 Datos de ${ATH[me]}:
 ${athleteContext(me)}
+Músculos trabajados en los últimos 3 días: ${(() => { const r = recentMuscles(me, 3); const k = MUSCLE_ORDER.filter(x => r[x] === 2); return k.length ? musNames(k) : "ninguno"; })()}.
+${checkinText() ? "Cómo está hoy (check-in): " + checkinText() : ""}
 Plan de entreno actual: ${planSummary(trainPlan())}
 ${agent === "nutri" && dietPlan() ? `Tiene un menú semanal guardado: ${dietPlan().titulo || ""}.` : ""}
 Su rival, ${ATH[other]}:
@@ -106,7 +109,8 @@ function normalizeWorkout(o){
         segundos: modo === "tiempo" ? (clampN(it.segundos, 5, 3600) || 30) : null,
         metros: modo === "distancia" ? (clampN(it.metros, 25, 5000) || 100) : null,
         descanso_s: clampN(it.descanso_s, 0, 600) ?? 60,
-        indicacion: String(it.indicacion || "").slice(0, 160), reto: String(it.reto || "").slice(0, 160)
+        indicacion: String(it.indicacion || "").slice(0, 160), reto: String(it.reto || "").slice(0, 160),
+        musculos: (Array.isArray(it.musculos) ? it.musculos : []).filter(m => MUSCLES[m]).slice(0, 5)
       };
     })
   })).filter(b => b.items.length);
@@ -261,9 +265,11 @@ document.addEventListener("click", async e => {
 });
 
 /* ask for a workout from anywhere (Hoy, plan) */
-async function quickWorkout({ tipo, minutos, plan } = {}){
+async function quickWorkout({ tipo, minutos, plan, checkin } = {}){
   const text = plan
-    ? `Prepárame el entreno del ${plan.dia} ${plan.fecha} según mi plan: ${plan.actividad}, ${plan.duracion_min} min, ${plan.foco}. ${plan.detalle}`
+    ? `Prepárame el entreno del ${plan.dia} ${plan.fecha} según mi plan: ${plan.actividad}, ${plan.duracion_min} min, ${plan.foco}. ${plan.detalle}${checkin ? " Ten en cuenta cómo estoy hoy." : ""}`
+    : checkin
+    ? `Hazme el entreno de hoy según cómo estoy: ${checkinText()}. Adáptalo: si estoy flojo o he dormido mal, baja volumen e intensidad; si voy a tope, ponme un reto fuerte. No cargues los músculos que me molestan y evita repetir los que trabajé ayer si no te lo pido.`
     : `Hazme un entreno de ${tipo === "casa" ? "calistenia en casa sin material" : tipo} de ${minutos} minutos para hoy, que me haga superar mi última sesión.`;
   if (tab !== "hoy" && tab !== "plan") setTab("coach");
   const r = await sendChat("coach", text);

@@ -10,6 +10,8 @@ Abajo hay cinco botones:
 - **Dietista** (agente con Claude): chat y **Menú** semanal con tres versiones de la comida (obra con bocadillo o tortitas, bar o restaurante, oficina con cocina), ajustado a peso, objetivo y copas.
 - **Duelo**: resumen comparativo, historial, récords, y peso y copas.
 
+**El músculo manda**: en Hoy el entrenador pregunta cómo estás (energía, sueño, molestias), qué músculos quieres trabajar (tocando el mapa del cuerpo), dónde entrenas y cuánto tiempo tienes, y hace el entreno según eso y lo que trabajaste los últimos días. En el entreno guiado el protagonista es el músculo (nombre grande y mapa encendido) y el ejercicio es solo el cómo. En **Músculos** tocas un músculo y ves con qué ejercicios trabajarlo.
+
 **Entreno guiado**: cada entreno del entrenador se abre a pantalla completa: dibujo del ejercicio, objetivo y reto de la serie, tu mejor marca y la del otro, kilos y repeticiones con botones +/−, descanso con cuenta atrás, vibración, pitido y voz, pantalla siempre encendida. Al terminar calcula el volumen, detecta récords y guarda la sesión.
 
 ## Dos versiones, mismo código

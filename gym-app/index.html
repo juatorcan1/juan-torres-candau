@@ -437,6 +437,8 @@ function relDay(iso){
 }
 
 /* ---------- domain ---------- */
+// WEB = the standalone site (Supabase login); otherwise the Claude Artifact.
+const WEB = !!window.GYM_WEB;
 const ATH = { juan: "Juan", ignacio: "Ignacio" };
 const KEYS = ["juan", "ignacio"];
 const OTHER = { juan: "ignacio", ignacio: "juan" };
@@ -968,7 +970,7 @@ function renderHeader(){
   document.body.classList.toggle("me-juan", me === "juan");
   document.body.classList.toggle("me-ignacio", me === "ignacio");
   $("#whoami").innerHTML = me
-    ? `<span class="dot ${me}"></span><span>Registras como <b>${ATH[me]}</b></span><button class="linkbtn" id="switch-me" type="button">Cambiar</button>`
+    ? `<span class="dot ${me}"></span><span>${WEB ? "Hola," : "Registras como"} <b>${ATH[me]}</b></span>${WEB ? `<button class="linkbtn" id="pw-open" type="button">Contraseña</button><button class="linkbtn" id="logout" type="button">Salir</button>` : `<button class="linkbtn" id="switch-me" type="button">Cambiar</button>`}`
     : `<span>Elige quién eres para registrar</span>`;
   const { T, wins } = computeDuel();
   const side = k => `
@@ -1111,7 +1113,7 @@ function demoBanner(kind = "s"){
   if (!demo) return "";
   const [art, what, first] = kind === "s" ? ["Las", "sesiones", "primeras"] : kind === "w" ? ["Los", "pesajes", "primeros"] : kind === "d" ? ["Las", "copas", "primeras"] : ["Los", "pesajes y copas", "primeros"];
   const why = dbState === "none"
-    ? "Esta vista no está conectada a la base de datos, así que no se guardará nada. Ábrela desde su enlace de Claude."
+    ? (WEB ? "No hay conexión con la base de datos: revisa internet y recarga." : "Esta vista no está conectada a la base de datos, así que no se guardará nada. Ábrela desde su enlace de Claude.")
     : `Desaparecen en cuanto apuntéis vuestros ${first} ${what} reales.`;
   return `<div class="banner"><strong>Datos de ejemplo.</strong> ${art} ${what} que ves son ${art === "Las" ? "inventadas" : "inventados"} para enseñar cómo funciona. ${why}</div>`;
 }
@@ -1451,7 +1453,7 @@ function renderRegistrar(){
       <div class="form-foot">
         <button type="submit" class="btn primary" ${canSave && !saving ? "" : "disabled"}>${saving ? "Guardando…" : d.id ? "Guardar cambios" : "Guardar sesión"}</button>
         <button type="button" class="btn ghost" data-act="reset">Vaciar</button>
-        ${!canSave ? `<span class="err">${dbState === "loading" ? "Conectando con la base de datos…" : "Abre la página desde su enlace de Claude para poder guardar."}</span>` : ""}
+        ${!canSave ? `<span class="err">${dbState === "loading" ? "Conectando con la base de datos…" : (WEB ? "Sin conexión con la base de datos." : "Abre la página desde su enlace de Claude para poder guardar.")}</span>` : ""}
         ${formErr ? `<span class="err" role="alert">${esc(formErr)}</span>` : ""}
       </div>
     </form>
@@ -1592,7 +1594,7 @@ async function submit(){
     return;
   } catch (e) {
     const c = e && e.code;
-    formErr = c === "invalid_argument" ? "No tienes permiso para guardar aquí: pide al dueño que te comparta la página con acceso “Puede interactuar”."
+    formErr = c === "invalid_argument" ? (WEB ? "No se puede guardar: solo puedes apuntar tus propios datos." : "No tienes permiso para guardar aquí: pide al dueño que te comparta la página con acceso “Puede interactuar”.")
       : c === "quota_exceeded" ? "La base de datos está llena. Borra sesiones antiguas para seguir guardando."
       : "No se ha podido guardar. Revisa la conexión y vuelve a intentarlo.";
   }
@@ -1728,7 +1730,7 @@ function renderVoz(){
         : `<button type="button" class="btn primary" data-act="voz-go" ${canAsk ? "" : "disabled"}>Apuntar con Claude</button>
            <button type="button" class="btn ghost" data-act="voz-clear">Borrar texto</button>`}
     </div>
-    ${!canAsk ? `<div class="banner">${sampleState === "loading" ? "Conectando con Claude…" : "Esta vista no puede usar Claude. Ábrela desde su enlace de Claude o usa el formulario."}</div>` : ""}
+    ${!canAsk ? `<div class="banner">${sampleState === "loading" ? "Conectando con Claude…" : (WEB ? "Claude no está disponible ahora mismo. Usa el formulario." : "Esta vista no puede usar Claude. Ábrela desde su enlace de Claude o usa el formulario.")}</div>` : ""}
     ${vBusy ? `<div class="thinking"><span class="spin"></span>${vStream ? "Claude está ordenando lo que has contado…" : "Pensando…"}</div>` : ""}
     ${vErr ? `<div class="err" role="alert">${esc(vErr)}</div>` : ""}
     ${vResult ? previewHTML(vResult, canSave) : ""}
@@ -1756,6 +1758,7 @@ function previewHTML(r, canSave){
   </div><button type="button" class="x" data-act="voz-rm" data-kind="bebidas" data-i="${i}" aria-label="Quitar">×</button></div>`));
   return `<div class="preview">
     <div class="eyebrow">Revisa antes de guardar</div>
+    ${r.skipped ? `<div class="banner">He quitado ${r.skipped} cosa${r.skipped > 1 ? "s" : ""} de ${ATH[OTHER[me]]}: cada uno apunta lo suyo desde su usuario.</div>` : ""}
     ${items.length ? items.join("") : `<div class="empty">Claude no ha encontrado nada que apuntar. Prueba a contarlo con más detalle.</div>`}
     ${r.comentario ? `<div class="comment"><span class="by">Claude dice</span>${esc(r.comentario)}</div>` : ""}
     ${items.length ? `<div class="row-btns"><button type="button" class="btn primary" data-act="voz-save" ${canSave && !vBusy ? "" : "disabled"}>Guardar todo</button><button type="button" class="btn ghost" data-act="voz-discard">Descartar</button></div>` : ""}
@@ -1829,13 +1832,19 @@ function normalizeParsed(o){
   for (const w of arr(o.pesajes)) { const kg = pos(w && w.kg, 250); if (kg && kg > 30) out.pesajes.push(clean({ athlete: okA(w.athlete), date: okD(w.date), kg, waist: pos(w.waist, 200), fat: pos(w.fat, 60) })); }
   for (const b of arr(o.bebidas)) { const q = Math.round(num(b && b.qty) || 1); if (b && DRINKS[b.type] && q > 0 && q <= 40) out.bebidas.push({ athlete: okA(b.athlete), date: okD(b.date), type: b.type, qty: q }); }
   out.comentario = String(o.comentario || "").slice(0, 900);
+  if (WEB) {
+    const before = out.sesiones.length + out.pesajes.length + out.bebidas.length;
+    for (const k of ["sesiones", "pesajes", "bebidas"]) out[k] = out[k].filter(x => x.athlete === me);
+    out.skipped = before - (out.sesiones.length + out.pesajes.length + out.bebidas.length);
+  }
   return out;
 }
 const SAMPLE_ERR = {
   not_granted: "No has dado permiso para usar Claude en esta página.", sampling_disabled: "Claude no está disponible para esta cuenta.",
   rate_limited: "Demasiadas peticiones seguidas. Espera un poco y vuelve a intentarlo.", session_expired: "Tu sesión ha caducado: vuelve a iniciar sesión.",
   invalid_json: "Claude no ha devuelto los datos bien ordenados. Pulsa otra vez.", refused: "Claude no ha querido procesar este texto. Cámbialo un poco.",
-  prompt_too_large: "El texto es demasiado largo. Cuéntalo en dos partes."
+  prompt_too_large: "El texto es demasiado largo. Cuéntalo en dos partes.",
+  no_key: "Claude todavía no está configurado en el servidor (falta la clave de Anthropic).", upstream_error: "No se ha podido hablar con Claude. Vuelve a intentarlo."
 };
 const sampleMsg = e => SAMPLE_ERR[e && e.code] || "No se ha podido hablar con Claude. Vuelve a intentarlo.";
 async function vozGo(){
@@ -1870,7 +1879,7 @@ async function vozSave(){
     vResult = null; kept.voz = ""; store.set("gym.kept", kept);
     toast("Apuntado. " + ATH[OTHER[me]] + " ya lo puede ver.");
   } catch (e) {
-    vErr = e && e.code === "invalid_argument" ? "No tienes permiso para guardar aquí: pide acceso “Puede interactuar” a la página." : "No se ha podido guardar todo. Revisa la conexión y vuelve a intentarlo.";
+    vErr = e && e.code === "invalid_argument" ? (WEB ? "No se puede guardar: solo puedes apuntar tus propios datos." : "No tienes permiso para guardar aquí: pide acceso “Puede interactuar” a la página.") : "No se ha podido guardar todo. Revisa la conexión y vuelve a intentarlo.";
   }
   vBusy = false; renderVoz();
 }
@@ -2309,6 +2318,7 @@ renderAll();
   sub("sesiones", rows => { real = rows.filter(s => ATH[s.athlete] && s.date); });
   sub("pesajes", rows => { weights = rows.filter(w => ATH[w.athlete] && w.date && num(w.kg) > 0); });
   sub("bebidas", rows => { drinks = rows.filter(d => ATH[d.athlete] && d.date && Object.keys(d.counts || {}).length); });
+  if (WEB) setInterval(() => { if (!document.hidden) db.refresh?.(); }, 60000);
   sub("perfiles", rows => { profiles = {}; for (const r of rows) if (ATH[r.id]) profiles[r.id] = r; });
 })();
 })();

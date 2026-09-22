@@ -1,0 +1,14 @@
+/* web only: page skeleton the Artifact viewer normally provides, and the login screen */
+html{-webkit-text-size-adjust:100%}
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0;font-size:15px}
+img{max-width:100%}
+[hidden]{display:none!important}
+body.locked .wrap,body.locked #toast{display:none}
+#login:empty{display:none}
+#login{min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding-block:24px}
+.login-card{width:100%;max-width:380px;display:grid;gap:14px;background:var(--surface);border:1px solid var(--line-2);border-radius:12px;padding:24px 20px}
+.login-card h1{font-family:var(--display);font-weight:800;font-size:34px;letter-spacing:.02em;text-transform:uppercase;line-height:1;margin:0}
+.login-card h1 .vs{color:var(--muted);font-weight:600;margin-inline:.25em}
+.login-card select,.login-card input{width:100%;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:10px;font-size:16px}
+.whoami .linkbtn + .linkbtn{margin-left:2px}

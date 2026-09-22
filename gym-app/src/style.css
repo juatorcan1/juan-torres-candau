@@ -6,7 +6,7 @@
   --juan-wash:rgba(47,91,211,.10); --ign-wash:rgba(224,102,42,.12);
   --good:#1D7F46; --bad:#B8362B; --focus:#2F5BD3;
   --me:var(--ink); --me-strong:var(--ink);
-  --fig:#1F2428; --fig-far:#A9B0B6; --muscle:#D0425C; --prop:#59636C; --prop-2:#C9CFC8;
+  --fig:#1F2428; --fig-far:#A9B0B6; --sil:#E2E5DF; --mus-off:#C9CEC6; --mus-help:#EFA8B4; --muscle:#D0425C; --prop:#59636C; --prop-2:#C9CFC8;
   --ok:#1D7F46; --warn:#A86A00; --over:#B8362B; --ok-bg:rgba(29,127,70,.10); --warn-bg:rgba(168,106,0,.12); --over-bg:rgba(184,54,43,.10);
   --display:"Big Shoulders Display","Arial Narrow","Roboto Condensed",sans-serif;
   --body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
@@ -21,7 +21,7 @@
     --juan-strong:#3D66DB; --ign-strong:#B9521F;
     --juan-wash:rgba(91,130,240,.16); --ign-wash:rgba(217,98,42,.18);
     --good:#48B77A; --bad:#E0685C; --focus:#7C9BFF;
-    --fig:#E4E7E9; --fig-far:#5C646B; --muscle:#EA6C83; --prop:#9AA3AB; --prop-2:#3A4046;
+    --fig:#E4E7E9; --fig-far:#5C646B; --sil:#262A2E; --mus-off:#3C4248; --mus-help:#8A4150; --muscle:#EA6C83; --prop:#9AA3AB; --prop-2:#3A4046;
     --ok:#48B77A; --warn:#E0A53A; --over:#E0685C; --ok-bg:rgba(72,183,122,.14); --warn-bg:rgba(224,165,58,.14); --over-bg:rgba(224,104,92,.14);
   }
 }
@@ -33,7 +33,7 @@
   --juan-strong:#3D66DB; --ign-strong:#B9521F;
   --juan-wash:rgba(91,130,240,.16); --ign-wash:rgba(217,98,42,.18);
   --good:#48B77A; --bad:#E0685C; --focus:#7C9BFF;
-    --fig:#E4E7E9; --fig-far:#5C646B; --muscle:#EA6C83; --prop:#9AA3AB; --prop-2:#3A4046;
+    --fig:#E4E7E9; --fig-far:#5C646B; --sil:#262A2E; --mus-off:#3C4248; --mus-help:#8A4150; --muscle:#EA6C83; --prop:#9AA3AB; --prop-2:#3A4046;
     --ok:#48B77A; --warn:#E0A53A; --over:#E0685C; --ok-bg:rgba(72,183,122,.14); --warn-bg:rgba(224,165,58,.14); --over-bg:rgba(224,104,92,.14);
 }
 body.me-juan{--me:var(--juan);--me-strong:var(--juan-strong)}
@@ -493,3 +493,36 @@ body.playing{overflow:hidden}
 .pl-done{text-align:center;display:grid;gap:10px}
 .pl-done h2{font-family:var(--display);font-weight:800;font-size:40px;text-transform:uppercase}
 .prs{display:grid;gap:4px;font-weight:600;padding:10px;border-radius:9px;background:var(--ok-bg);color:var(--ok)}
+
+/* ================= mapa muscular ================= */
+.bodymap{display:block;width:100%;height:auto;max-width:320px;margin:0 auto}
+.bodymap .sil > *{fill:var(--sil);stroke:none}
+.bodymap .sil .limb{stroke:var(--sil);stroke-linecap:round;fill:none}
+.bodymap .m{fill:var(--mus-off);stroke:var(--surface);stroke-width:1.2;transition:fill .2s}
+.bodymap .m.l1{fill:var(--mus-help)}
+.bodymap .m.l2{fill:var(--muscle);animation:mpulse 1.8s ease-in-out infinite}
+.bodymap .m.picked{stroke:var(--ink);stroke-width:2.4}
+.bodymap [data-mus]{cursor:pointer}
+.bodymap [data-mus]:focus-visible{outline:none;stroke:var(--focus);stroke-width:2.4}
+.bodymap .abs-lines{stroke:var(--surface);stroke-width:1.2;fill:none;pointer-events:none}
+.bodymap .ml{font:600 10px var(--body);fill:var(--muted);text-anchor:middle}
+@keyframes mpulse{50%{opacity:.6}}
+@media (prefers-reduced-motion:reduce){.bodymap .m.l2{animation:none}}
+.bodymap.small{max-width:190px}
+.mus-legend{display:flex;gap:14px;justify-content:center;font-size:12.5px;color:var(--ink-2)}
+.mus-legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.mus-title{font-family:var(--display);font-weight:800;font-size:34px;text-transform:uppercase;letter-spacing:.02em;line-height:1;color:var(--muscle)}
+.pl-how{display:flex;gap:12px;align-items:center;text-align:left;background:var(--surface);border:1px solid var(--line-2);border-radius:12px;padding:8px 12px 8px 8px}
+.pl-fig.small{width:84px;padding:2px;border-radius:8px;background:var(--surface-2)}
+.pl-map{width:min(66vw,250px)}
+.pl-today{display:grid;gap:8px;justify-items:center;text-align:center;padding:12px;border-radius:12px;background:var(--surface);border:1px solid var(--line-2)}
+.mus-chip{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muscle);margin-bottom:1px}
+/* check-in */
+.checkin{display:grid;gap:14px}
+.checkin .q{display:grid;gap:7px}
+.checkin .ql{font-weight:700;font-size:15px}
+.checkin .ql .muted{font-weight:500;font-size:12.5px}
+.checkin .chips button{padding:7px 13px;font-size:13.5px}
+.chips.mus button{padding:5px 10px;font-size:12.5px}
+.ck-map{padding:6px;border-radius:12px;background:var(--surface-2)}
+.ck-map .bodymap{max-width:260px}

@@ -1,7 +1,34 @@
 /* ---------- Hoy: what to do today ---------- */
-const QUICK_TYPES = [["gym", "Gimnasio"], ["calistenia", "Calistenia"], ["casa", "En casa"], ["natacion", "Natación"], ["cinta", "Cinta"], ["bici", "Bici"]];
-let qType = store.get("gym.qtype", "gym"), qMin = store.get("gym.qmin", 60);
-if (!QUICK_TYPES.some(x => x[0] === qType)) qType = "gym";
+// Daily check-in: how the athlete feels decides the workout. Kept per device and per day.
+const ENERGY = ["Reventado", "Flojo", "Normal", "Bien", "A tope"], SLEEP = ["Mal", "Regular", "Bien"];
+const PLACES = [["gym", "Gimnasio", "gimnasio"], ["casa", "En casa", "en casa sin material"], ["parque", "Parque", "parque con barra de dominadas"], ["piscina", "Piscina", "piscina"], ["cardio", "Cinta o bici", "cinta o bici"]];
+let ck = store.get("gym.ck", null);
+if (!ck || ck.date !== toISO(today())) ck = { date: toISO(today()), energia: null, sueno: null, molesta: null, molestias: [], quiero: [], lugar: store.get("gym.lugar", "gym"), min: store.get("gym.qmin", 60) };
+const saveCk = () => store.set("gym.ck", ck);
+function checkinText(){
+  if (!ck || ck.date !== toISO(today()) || (ck.energia == null && ck.sueno == null && !ck.quiero.length && !ck.molestias.length)) return "";
+  const place = (PLACES.find(p => p[0] === ck.lugar) || PLACES[0])[2];
+  return [ck.energia != null ? `energía ${ENERGY[ck.energia].toLowerCase()} (${ck.energia + 1}/5)` : "", ck.sueno != null ? `ha dormido ${SLEEP[ck.sueno].toLowerCase()}` : "",
+    `molestias: ${ck.molestias.length ? musNames(ck.molestias) : "ninguna"}`, `quiere trabajar: ${ck.quiero.length ? musNames(ck.quiero) : "lo que toque según su plan y su recuperación"}`,
+    `lugar: ${place}`, `tiempo: ${ck.min} min`].filter(Boolean).join("; ");
+}
+function checkinHTML(pd){
+  const recent = recentMuscles(me, 3), rk = MUSCLE_ORDER.filter(k => recent[k] === 2);
+  const lv = {}; for (const k of ck.quiero) lv[k] = 2;
+  const chipsOf = (key, labels, val) => labels.map((l, i) => `<button type="button" data-ck="${key}" data-v="${i}" aria-pressed="${val === i}">${l}</button>`).join("");
+  return `<div class="checkin">
+    <div class="q"><div class="ql">¿Qué tal estás hoy?</div><div class="chips">${chipsOf("energia", ENERGY, ck.energia)}</div></div>
+    <div class="q"><div class="ql">¿Cómo has dormido?</div><div class="chips">${chipsOf("sueno", SLEEP, ck.sueno)}</div></div>
+    <div class="q"><div class="ql">¿Tienes agujetas o algo te molesta?</div><div class="chips"><button type="button" data-ck="molesta" data-v="0" aria-pressed="${ck.molesta === 0}">Nada</button><button type="button" data-ck="molesta" data-v="1" aria-pressed="${ck.molesta === 1}">Sí</button></div>
+      ${ck.molesta === 1 ? `<div class="chips mus">${MUSCLE_ORDER.map(k => `<button type="button" data-ckm="molestias" data-k="${k}" aria-pressed="${ck.molestias.includes(k)}">${MUSCLES[k]}</button>`).join("")}</div>` : ""}</div>
+    <div class="q"><div class="ql">¿Qué músculos quieres trabajar? <span class="muted">toca el cuerpo</span></div>
+      <div class="ck-map">${bodyMap(lv, { clickable: true, cls: "small", label: ck.quiero.length ? musNames(ck.quiero) : "ninguno elegido" })}</div>
+      <div class="chips"><button type="button" data-ck="quiero-auto" aria-pressed="${!ck.quiero.length}">${pd ? "Lo que toca en mi plan" : "Lo que toque"}</button>${ck.quiero.map(k => `<button type="button" data-ckm="quiero" data-k="${k}" aria-pressed="true">${MUSCLES[k]} ✕</button>`).join("")}</div>
+      ${rk.length ? `<div class="note">Últimos 3 días trabajaste: <b>${esc(musNames(rk))}</b></div>` : ""}</div>
+    <div class="q"><div class="ql">¿Dónde entrenas?</div><div class="chips">${PLACES.map(([k, l]) => `<button type="button" data-ck="lugar" data-v="${k}" aria-pressed="${ck.lugar === k}">${l}</button>`).join("")}</div></div>
+    <div class="q"><div class="ql">¿Cuánto tiempo tienes?</div><div class="chips">${[20, 30, 40, 60, 90].map(n => `<button type="button" data-ck="min" data-v="${n}" aria-pressed="${ck.min === n}">${n} min</button>`).join("")}</div></div>
+  </div>`;
+}
 
 function greeting(){ const h = new Date().getHours(); return h < 6 ? "Buenas noches" : h < 13 ? "Buenos días" : h < 21 ? "Buenas tardes" : "Buenas noches"; }
 function todayMenu(){
@@ -36,9 +63,7 @@ function renderHoy(){
           <div class="muted" style="font-size:13.5px">${esc(pd.detalle)}</div>
           ${pd.actividad !== "descanso" ? `<button type="button" class="btn primary" data-hoy="plan" ${busy || !sample ? "disabled" : ""}>Prepárame la sesión</button>` : ""}</div>` : ""}
       <div class="quick">
-        <div class="eyebrow">${pd ? "O pide otro" : "Pide un entreno"}</div>
-        <div class="chips" role="group" aria-label="Tipo">${QUICK_TYPES.map(([k, l]) => `<button type="button" data-qtype="${k}" aria-pressed="${qType === k}">${l}</button>`).join("")}</div>
-        <div class="chips" role="group" aria-label="Duración">${[20, 30, 40, 60, 90].map(n => `<button type="button" data-qmin="${n}" aria-pressed="${qMin === n}">${n} min</button>`).join("")}</div>
+        ${checkinHTML(pd)}
         <button type="button" class="btn primary big" data-hoy="quick" ${busy || !sample ? "disabled" : ""}>${busy ? "Tu entrenador lo está preparando…" : "Hazme el entreno"}</button>
         ${busy ? `<div class="thinking"><span class="spin"></span>Suele tardar menos de un minuto</div>` : ""}
         ${!sample && sampleState !== "loading" ? `<div class="note">Claude no está disponible ahora mismo.</div>` : ""}
@@ -66,10 +91,18 @@ function renderHoy(){
 }
 document.addEventListener("click", async e => {
   const t = e.target.closest("button"); if (!t) return;
-  if (t.dataset.qtype) { qType = t.dataset.qtype; store.set("gym.qtype", qType); renderHoy(); }
-  else if (t.dataset.qmin) { qMin = +t.dataset.qmin; store.set("gym.qmin", qMin); renderHoy(); }
-  else if (t.dataset.hoy === "quick") { const tl = QUICK_TYPES.find(x => x[0] === qType)[1].toLowerCase(); await quickWorkout({ tipo: qType === "casa" ? "casa" : tl, minutos: qMin }); }
-  else if (t.dataset.hoy === "plan") { const pd = planDay(trainPlan()); if (pd) await quickWorkout({ plan: pd }); }
+  if (t.dataset.hoy === "quick") { saveCk(); await quickWorkout({ checkin: true }); }
+  else if (t.dataset.hoy === "plan") { const pd = planDay(trainPlan()); if (pd) await quickWorkout({ plan: pd, checkin: !!checkinText() }); }
+  else if (t.dataset.ck) {
+    const k = t.dataset.ck, v = t.dataset.v;
+    if (k === "lugar") { ck.lugar = v; store.set("gym.lugar", v); }
+    else if (k === "min") { ck.min = +v; store.set("gym.qmin", +v); }
+    else if (k === "quiero-auto") ck.quiero = [];
+    else if (k === "molesta") { ck.molesta = +v; if (+v === 0) ck.molestias = []; }
+    else ck[k] = ck[k] === +v ? null : +v;
+    saveCk(); renderHoy();
+  }
+  else if (t.dataset.ckm) { const list = ck[t.dataset.ckm], k = t.dataset.k; const i = list.indexOf(k); if (i >= 0) list.splice(i, 1); else list.push(k); saveCk(); renderHoy(); }
   else if (t.dataset.hoy === "resume") showPlayer();
   else if (t.dataset.hoy === "drop") { run = null; store.del("gym.run"); renderHoy(); }
   else if (t.dataset.hoy === "last") { const m = chatMsgs("coach").slice().reverse().find(x => x.entreno); if (m) openPlayer(m.entreno); }

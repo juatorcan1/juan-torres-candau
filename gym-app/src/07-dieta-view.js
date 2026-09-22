@@ -113,23 +113,38 @@ document.addEventListener("click", e => {
   else if (t.dataset.act === "ai-stop") aiCtl?.abort();
 });
 
-/* ---------- Ejercicios ---------- */
-let gGroup = "Todos";
+/* ---------- Músculos: tap a muscle, see how to work it ---------- */
+let gMus = store.get("gym.gmus", "pectoral"); if (!MUSCLES[gMus]) gMus = "pectoral";
+function exercisesFor(k){
+  const main = [], help = [];
+  for (const n of Object.keys(GUIDE)) { const m = musclesOf(n); if (m.main.includes(k)) main.push(n); else if (m.help.includes(k)) help.push(n); }
+  return { main, help };
+}
 function renderEjercicios(){
-  const v = $("#view-ejercicios");
-  const names = Object.keys(GUIDE).filter(n => gGroup === "Todos" || CATALOG[n] === gGroup);
-  const groups = ["Todos", ...GROUPS.filter(g => Object.keys(GUIDE).some(n => CATALOG[n] === g))];
-  v.innerHTML = `<div class="panel">
-    <div class="panel-head"><div><h2>Cómo se hace cada ejercicio</h2><div class="muted" style="font-size:13px;margin-top:2px">Dibujo en movimiento, en rojo el músculo que trabaja. La silueta clara es la posición de partida.</div></div></div>
-    <div class="chips" role="group" aria-label="Grupo muscular" style="margin-bottom:14px">${groups.map(g => `<button type="button" data-ggroup="${esc(g)}" aria-pressed="${gGroup === g}">${esc(g)}</button>`).join("")}</div>
-    <div class="guide-grid">${names.map(n => { const g = GUIDE[n]; return `<article class="gcard">
+  const v = $("#view-ejercicios"), { main, help } = exercisesFor(gMus);
+  const lv = { [gMus]: 2 };
+  const recent = me ? recentMuscles(me, 7) : {};
+  const card = n => { const g = GUIDE[n], m = musclesOf(n); return `<article class="gcard">
       <div class="fig-wrap">${figMarkup(n)}</div>
-      <div><h3>${esc(n)}</h3><div class="mus">${esc(g.m)}</div><ol>${g.steps.map(s => `<li>${esc(s)}</li>`).join("")}</ol><div class="ojo"><b>Ojo:</b> ${esc(g.ojo)}</div></div>
-    </article>`; }).join("")}</div>
+      <div><div class="mus-chip">${esc(musNames(m.main))}</div><h3>${esc(n)}</h3>${m.help.length ? `<div class="mus">Ayudan: ${esc(musNames(m.help))}</div>` : ""}<ol>${g.steps.map(s => `<li>${esc(s)}</li>`).join("")}</ol><div class="ojo"><b>Ojo:</b> ${esc(g.ojo)}</div></div>
+    </article>`; };
+  v.innerHTML = `<div style="display:grid;gap:16px">
+    <div class="panel">
+      <div class="panel-head"><div><h2>Toca un músculo</h2><div class="muted" style="font-size:13px;margin-top:2px">Te enseño cómo trabajarlo; da igual con qué ejercicio.</div></div></div>
+      ${bodyMap(lv, { clickable: true, pick: gMus })}
+      <div class="chips mus" style="margin-top:10px">${MUSCLE_ORDER.map(k => `<button type="button" data-gmus="${k}" aria-pressed="${gMus === k}">${MUSCLES[k]}${recent[k] === 2 ? " ·" : ""}</button>`).join("")}</div>
+      ${me && Object.keys(recent).length ? `<p class="note" style="margin:8px 0 0">El punto marca lo que has trabajado esta semana.</p>` : ""}
+    </div>
+    <div class="panel">
+      <div class="panel-head"><div><h2 class="mus-title" style="font-size:30px">${MUSCLES[gMus]}</h2><div class="muted" style="font-size:13px;margin-top:2px">${main.length} ejercicio${main.length === 1 ? "" : "s"} donde es el protagonista</div></div>
+        ${me ? `<button type="button" class="btn sm primary" data-say="coach" data-go="coach" data-text="${esc(`Hazme un entreno centrado en ${MUSCLES[gMus].toLowerCase()} para hoy`)}">Entreno de ${esc(MUSCLES[gMus].toLowerCase())}</button>` : ""}</div>
+      <div class="guide-grid">${main.map(card).join("") || `<div class="empty">Sin ejercicios dibujados todavía.</div>`}</div>
+      ${help.length ? `<div class="eyebrow" style="margin:16px 0 8px">También lo trabajan</div><div class="guide-grid">${help.map(card).join("")}</div>` : ""}
+    </div>
   </div>`;
   mountFigs();
 }
-document.addEventListener("click", e => { const t = e.target.closest("button[data-ggroup]"); if (t) { gGroup = t.dataset.ggroup; renderEjercicios(); } });
+document.addEventListener("click", e => { const t = e.target.closest("button[data-gmus]"); if (t) { gMus = t.dataset.gmus; store.set("gym.gmus", gMus); renderEjercicios(); } });
 
 /* ---------- figure animation ---------- */
 const reduceMotion = (() => { try { return matchMedia("(prefers-reduced-motion: reduce)").matches; } catch { return false; } })();

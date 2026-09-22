@@ -433,7 +433,7 @@ body.playing{overflow:hidden}
 .sugg{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
 .sugg button{flex:none;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:7px 12px;font-size:13px;font-weight:600;color:var(--ink-2);cursor:pointer;white-space:nowrap}
 .composer{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:end;position:sticky;bottom:calc(76px + env(safe-area-inset-bottom,0px));background:var(--bg);padding-block:6px}
-.composer textarea{width:100%;min-height:46px;max-height:140px;resize:vertical;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px;font-size:16px}
+.composer textarea{width:100%;min-height:46px;max-height:40vh;resize:none;line-height:1.4;overflow-y:auto;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px;font-size:16px}
 .mic{width:46px;height:46px;border-radius:50%;border:0;background:var(--juan-strong);color:#fff;display:grid;place-items:center;cursor:pointer;flex:none}
 .mic svg{width:22px;height:22px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round}
 .mic.on{background:var(--bad);animation:pulse 1.2s ease-in-out infinite}
@@ -1220,7 +1220,26 @@ const scaleText = (t, f) => t.replace(/\{(\d+)\}/g, (_, n) => String(Math.max(5,
 
 // Index 0 = lunes … 6 = domingo.
 const MENU = {
-  desayuno: [
+  desayuno: {
+    bocadillo: [
+      ["Café con leche en casa", "Tostada integral ({60} g) con aceite y pavo ({50} g)", "1 naranja para el camino"],
+      ["Batido en botella: leche ({300} ml), avena ({50} g) y 1 plátano", "Café"],
+      ["Yogur griego ({200} g) con avena ({40} g) antes de salir", "1 plátano para la furgoneta"],
+      ["Café con leche", "4 tortitas de maíz con pavo ({60} g) y queso fresco ({40} g)", "1 manzana"],
+      ["2 huevos cocidos (de la noche antes)", "Pan integral ({50} g) y 1 fruta", "Café"],
+      ["Yogur proteico con avena ({40} g) en un tarro", "Café con leche"],
+      ["Bocadillo pequeño ({60} g) de tortilla francesa de 1 huevo, hecho la noche antes", "Café con leche"]
+    ],
+    bar: [
+      ["Café con leche", "Tostada de pan integral con tomate y aceite (media si es grande)", "Zumo de naranja natural pequeño"],
+      ["Café con leche", "Pincho de tortilla", "Agua"],
+      ["Café solo o cortado", "Tostada con tomate y jamón serrano"],
+      ["Café con leche", "Bocadillo pequeño de pavo o jamón con tomate, sin mantequilla"],
+      ["Cortado", "Huevos revueltos o a la plancha con una tostada, si los tienen"],
+      ["Café con leche", "Media tostada con aguacate y tomate", "1 fruta que lleves"],
+      ["Café", "Tostada integral con queso fresco y tomate"]
+    ],
+    oficina: [
     ["Café con leche", "Tostada de pan integral ({80} g) con tomate, 1 cucharada de aceite de oliva y jamón serrano ({40} g)", "1 pieza de fruta"],
     ["Yogur griego natural ({200} g) con copos de avena ({50} g) y {20} g de nueces", "1 plátano", "Café o infusión"],
     ["Tortilla francesa de 2 huevos + 2 claras", "Pan integral ({60} g)", "1 kiwi y café"],
@@ -1228,9 +1247,10 @@ const MENU = {
     ["4 tortitas de maíz con pavo ({60} g) y aguacate ({50} g)", "Café con leche"],
     ["Tostada integral ({80} g) con queso fresco ({80} g) y 1 huevo a la plancha", "1 naranja"],
     ["Tortitas caseras: 2 huevos + avena ({60} g) + 1 plátano", "Hilo de miel y café"]
-  ],
+    ]
+  },
   media: {
-    bocadillo: [["1 plátano y {30} g de almendras"], ["Yogur proteico y 1 manzana"], ["2 tortitas de maíz con pavo ({40} g)"], ["Barrita de proteína (unos 20 g de proteína) y 1 fruta"], ["Bocadillo pequeño de pan integral ({40} g) con atún"], ["1 plátano y {30} g de anacardos"], ["Batido de proteína en botella y 1 fruta"]],
+    bocadillo: [["1 plátano y {30} g de almendras"], ["Yogur proteico y 1 manzana"], ["Queso fresco batido en tarrina ({150} g) y 1 fruta"], ["Barrita de proteína (unos 20 g de proteína) y 1 fruta"], ["Bocadillo pequeño de pan integral ({40} g) con atún"], ["1 plátano y {30} g de anacardos"], ["Batido de proteína en botella y 1 fruta"]],
     bar: [["Café con leche y media tostada con tomate"], ["Café solo y 1 pieza de fruta que lleves"], ["Pincho pequeño de tortilla y café"], ["Café con leche y 1 fruta"], ["Media tostada con tomate y aceite, café"], ["Café y {30} g de frutos secos"], ["Café con leche"]],
     oficina: [["Yogur griego con {20} g de nueces"], ["Hummus ({50} g) con palitos de zanahoria"], ["Queso fresco ({100} g) y 1 fruta"], ["Kéfir ({200} ml) y 1 manzana"], ["1 plátano y {30} g de almendras"], ["Yogur proteico y frutos rojos"], ["1 fruta"]]
   },
@@ -1263,10 +1283,14 @@ const MENU = {
       ["Garbanzos ({200} g cocidos) salteados con espinacas y 1 huevo", "Pan ({40} g)"]
     ]
   },
-  merienda: [
-    ["Yogur natural y 1 fruta"], ["Tostada integral ({40} g) con pavo"], ["Batido de proteína con leche o agua"], ["Queso fresco ({100} g) y {15} g de nueces"],
-    ["2 tortitas de maíz con crema de cacahuete ({15} g)"], ["1 fruta y {20} g de frutos secos"], ["Kéfir ({200} ml) con avena ({30} g)"]
-  ],
+  merienda: {
+    bocadillo: [["2 tortitas de maíz con crema de cacahuete ({15} g)"], ["1 fruta y {20} g de frutos secos"], ["Yogur proteico líquido y 1 plátano"], ["1 manzana y 2 quesitos"],
+      ["Barrita de proteína y agua"], ["Batido de proteína en botella"], ["Bocadillo pequeño ({40} g) de pavo"]],
+    bar: [["Café con leche y 1 fruta"], ["Cerveza 0,0 y unas aceitunas"], ["Cortado y {20} g de frutos secos"], ["Infusión y media tostada con tomate"],
+      ["Café y 1 yogur"], ["Café con leche"], ["Zumo natural pequeño"]],
+    oficina: [["Yogur natural y 1 fruta"], ["Tostada integral ({40} g) con pavo"], ["Batido de proteína con leche o agua"], ["Queso fresco ({100} g) y {15} g de nueces"],
+      ["2 tortitas de maíz con crema de cacahuete ({15} g)"], ["1 fruta y {20} g de frutos secos"], ["Kéfir ({200} ml) con avena ({30} g)"]]
+  },
   cena: [
     ["Tortilla de 2 huevos con espinacas", "Ensalada grande con aceite de oliva", "Pan integral ({40} g)"],
     ["Merluza a la plancha ({180} g)", "Verduras salteadas y patata cocida ({150} g)"],
@@ -1282,13 +1306,18 @@ const TIPS = {
   bar: ["Pide la salsa y el aliño aparte.", "Cambia las patatas fritas por ensalada o verdura.", "Un trozo de pan, no la cesta entera.", "Agua, cerveza 0,0 o una caña como mucho."],
   oficina: ["Cocina dos raciones la noche antes: cena y táper del día siguiente.", "Medio plato de verdura, un cuarto de proteína y un cuarto de hidrato.", "Deja la fruta a la vista en la mesa para la media mañana."]
 };
+// Meals that change with where you are; dinner is at home in all three.
+const CIRC_MEALS = ["desayuno", "media", "comida", "merienda"];
+// A dietitian plan day stores each meal as a list, or as one list per circumstance.
+const mealFor = (d, k, circ) => { const v = d[k]; return Array.isArray(v) ? v : (v && Array.isArray(v[circ]) ? v[circ] : []); };
+const planMenu = (d, circ) => Object.fromEntries(MEALS.map(([k]) => [k, mealFor(d, k, circ)]));
 function dayMenu(dayIdx, circ, factor){
   const pick = (arr, i) => arr[i % arr.length].map(t => scaleText(t, factor));
   return {
-    desayuno: pick(MENU.desayuno, dayIdx),
+    desayuno: pick(MENU.desayuno[circ], dayIdx),
     media: pick(MENU.media[circ], dayIdx),
     comida: pick(MENU.comida[circ], dayIdx),
-    merienda: pick(MENU.merienda, dayIdx),
+    merienda: pick(MENU.merienda[circ], dayIdx),
     cena: pick(MENU.cena, dayIdx)
   };
 }
@@ -2497,7 +2526,7 @@ function renderDieta(){
   const { t, w } = targetsFor(dWho), o = targetsFor(other).t, pr = profileOf(dWho), saved = !!(profiles[dWho] && profiles[dWho].height);
   const factor = Math.min(1.45, Math.max(0.7, t.kcal / 2400));
   const dp = me === dWho ? dietPlan() : dietPlan(dWho), pdd = dp && dp.dias.find(d => (parseISO(d.fecha).getDay() + 6) % 7 === dDay);
-  const menu = pdd ? { desayuno: pdd.desayuno, media: pdd.media, comida: pdd.comida[dCirc] || [], merienda: pdd.merienda, cena: pdd.cena } : dayMenu(dDay, dCirc, factor);
+  const menu = pdd ? planMenu(pdd, dCirc) : dayMenu(dDay, dCirc, factor);
   const wk = periodRange("semana"), al = alcoholIn(drk(), dWho, ...wk);
   const editable = me === dWho && dbState === "ready";
   const tile = (l, val, unit, ov) => `<div class="tg"><div class="l">${l}</div><div class="v">${fmt(val)}<small> ${unit}</small></div><div class="o"><i class="dot ${other}"></i> ${ATH[other]}: ${fmt(ov)} ${unit}</div></div>`;
@@ -2539,7 +2568,7 @@ function renderDieta(){
         <div class="circs" role="group" aria-label="Dónde comes hoy">${Object.entries(CIRCS).map(([k, c]) => `<button type="button" data-circ="${k}" aria-pressed="${dCirc === k}"><b>${c.l}</b><span>${c.s}</span></button>`).join("")}</div>
       </div>
       <div class="meals" style="margin-top:10px">
-        ${MEALS.map(([k, l]) => `<div class="meal ${k === "comida" ? "main" : ""}"><div class="when">${l}${k === "comida" || k === "media" ? `<small>${esc(CIRCS[dCirc].l)}</small>` : ""}</div><ul>${menu[k].map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>`).join("")}
+        ${MEALS.map(([k, l]) => `<div class="meal ${k === "comida" ? "main" : ""}"><div class="when">${l}<small>${CIRC_MEALS.includes(k) ? esc(CIRCS[dCirc].l) : "En casa, igual en los tres"}</small></div><ul>${menu[k].map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>`).join("")}
       </div>
       <div style="margin-top:12px"><div class="eyebrow" style="margin-bottom:6px">Trucos para ${esc(CIRCS[dCirc].l.toLowerCase())}</div><ul class="tips">${TIPS[dCirc].map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>
       <p class="note" style="margin:12px 0 0">Cantidades ajustadas a ${fmt(t.kcal)} kcal. ${esc(scaleText("Los días de pierna o de doble sesión añade {40} g de pan o {30} g de arroz en crudo.", factor))} Es una guía orientativa: si tienes alguna patología o alergia, consúltalo con un nutricionista.</p>
@@ -2563,7 +2592,7 @@ async function askMenu(){
   aiBusy = true; aiText = ""; aiErr = ""; aiCtl = new AbortController(); renderDieta();
   const prompt = `Propón el menú de un ${DAYS_LONG[dDay].toLowerCase()} para ${ATH[dWho]} (hombre, ${pr.age} años, ${pr.height} cm, objetivo: ${GOALS[pr.goal].l.toLowerCase()}).
 Objetivo diario: ${t.kcal} kcal, ${t.prot} g de proteína, ${t.carbs} g de hidratos, ${t.fat} g de grasa.
-Situación para la comida y la media mañana: ${CIRCS[dCirc].l} (${CIRCS[dCirc].s}). ${dCirc === "bocadillo" ? "No tiene cocina: solo cosas que se lleven en la mochila (bocadillos, tortitas de maíz, táper frío)." : dCirc === "bar" ? "Di qué pedir en un menú del día o de tapas típico de España y qué evitar." : "Tiene microondas y nevera en la oficina."}
+Situación del día (desayuno, media mañana, comida y merienda; la cena es en casa): ${CIRCS[dCirc].l} (${CIRCS[dCirc].s}). ${dCirc === "bocadillo" ? "No tiene cocina: solo cosas que se lleven en la mochila (bocadillos, tortitas de maíz, táper frío)." : dCirc === "bar" ? "Di qué pedir en un menú del día o de tapas típico de España y qué evitar." : "Tiene microondas y nevera en la oficina."}
 ${keep("d-pref") ? "Preferencias: " + String(keep("d-pref")).slice(0, 300) : ""}
 Formato: cinco apartados (Desayuno, Media mañana, Comida, Merienda, Cena), cada uno con 1 a 3 líneas y cantidades en gramos, y al final una línea con el total aproximado de kcal y proteína. Comida española normal, fácil y barata. Sin emojis ni tablas.`;
   try {
@@ -2708,8 +2737,9 @@ Lo importante es el músculo, no el ejercicio: organiza el entreno por los músc
 Reglas del ENTRENO: que quepa en la duración pedida contando descansos; "reps" para fuerza (kg 0 si es peso corporal), "tiempo" para planchas, intervalos o cardio por tiempo, "distancia" para natación (metros por serie). En "reto" pon cómo superar su última vez o su récord (por ejemplo "Tu mejor: 80 kg × 8. Hoy 82,5 × 8") o cómo ganar a ${"${RIVAL}"}. Progresión prudente: +2,5 kg o +1 rep si la última vez completó todo; nunca más de un 5 %. Para "ejercicio" usa exactamente estos nombres cuando encajen (tienen dibujo): ${Object.keys(GUIDE).join(", ")}. Para natación usa nombres como "Crol", "Braza", "Espalda", "Patada con tabla", "Pull buoy".`;
 const TRAIN_PLAN_SCHEMA = `PLAN_ENTRENO = {"tipo": "semana"|"mes", "titulo": str, "semanas": [{"objetivo": str, "dias": [{"fecha": "YYYY-MM-DD", "dia": "lunes"…, "actividad": "gym"|"calistenia"|"natacion"|"cinta"|"bici"|"descanso"|"otro", "duracion_min": n, "foco": str, "detalle": str}]}], "nota": str}
 Reglas del PLAN_ENTRENO: empieza hoy; semana = 7 días, mes = 4 semanas; cada semana con su objetivo y progresión; incluye descansos; "detalle" en una frase.`;
-const DIET_PLAN_SCHEMA = `PLAN_DIETA = {"titulo": str, "dias": [{"fecha": "YYYY-MM-DD", "dia": "lunes"…, "desayuno": [str], "media": [str], "comida": {"bocadillo": [str], "bar": [str], "oficina": [str]}, "merienda": [str], "cena": [str], "kcal": n}], "consejos": [str]}
-Reglas del PLAN_DIETA: 7 días desde hoy; cantidades en gramos ajustadas a su objetivo de kcal; la comida con 3 versiones: bocadillo o tortitas de maíz (obra, sin cocina), bar o restaurante (qué pedir en un menú del día) y oficina con microondas; comida española normal y barata.`;
+const DIET_PLAN_SCHEMA = `SITIO = {"bocadillo": [str], "bar": [str], "oficina": [str]}
+PLAN_DIETA = {"titulo": str, "dias": [{"fecha": "YYYY-MM-DD", "dia": "lunes"…, "desayuno": SITIO, "media": SITIO, "comida": SITIO, "merienda": SITIO, "cena": [str], "kcal": n}], "consejos": [str]}
+Reglas del PLAN_DIETA: 7 días desde hoy; cantidades en gramos ajustadas a su objetivo de kcal; desayuno, media mañana, comida y merienda con 3 versiones distintas de verdad: "bocadillo" = obra sin cocina (sale temprano, todo va en la mochila: bocadillos, tortitas de maíz, táper frío), "bar" = en un bar o restaurante (qué pedir en un menú del día o de tapas) y "oficina" = oficina con microondas y nevera; la cena es en casa, una sola versión; comida española normal y barata.`;
 
 function agentPrompt(agent, userText){
   const other = OTHER[me], hist = chatMsgs(agent).slice(-12);
@@ -2788,10 +2818,11 @@ function normalizeTrainPlan(o){
 function normalizeDietPlan(o){
   if (!o || !Array.isArray(o.dias)) return null;
   const L = v => (Array.isArray(v) ? v : v ? [v] : []).map(x => String(x).slice(0, 200)).slice(0, 6);
+  // one list per circumstance; a single list counts for all three
+  const S = v => v && typeof v === "object" && !Array.isArray(v) ? Object.fromEntries(Object.keys(CIRCS).map(c => [c, L(v[c])])) : Object.fromEntries(Object.keys(CIRCS).map(c => [c, L(v)]));
   const dias = o.dias.slice(0, 7).filter(d => d && /^\d{4}-\d{2}-\d{2}$/.test(d.fecha)).map(d => ({
-    fecha: d.fecha, dia: String(d.dia || DIA[parseISO(d.fecha).getDay()]), desayuno: L(d.desayuno), media: L(d.media),
-    comida: { bocadillo: L(d.comida && d.comida.bocadillo), bar: L(d.comida && d.comida.bar), oficina: L(d.comida && d.comida.oficina) },
-    merienda: L(d.merienda), cena: L(d.cena), kcal: clampN(d.kcal, 800, 6000) }));
+    fecha: d.fecha, dia: String(d.dia || DIA[parseISO(d.fecha).getDay()]), desayuno: S(d.desayuno), media: S(d.media),
+    comida: S(d.comida), merienda: S(d.merienda), cena: L(d.cena), kcal: clampN(d.kcal, 800, 6000) }));
   if (!dias.length) return null;
   return { titulo: String(o.titulo || "Menú semanal").slice(0, 80), dias, consejos: L(o.consejos) };
 }
@@ -2947,28 +2978,58 @@ async function quickWorkout({ tipo, minutos, plan, checkin } = {}){
 
 /* speech recognition (web only: inside Claude the microphone is blocked) */
 const SR = WEB ? (window.SpeechRecognition || window.webkitSpeechRecognition) : null;
-let rec = null, recTarget = null;
+let rec = null, recTarget = null, recWant = false;
 function micButton(targetId){
   if (!SR) return "";
   const on = rec && recTarget === targetId;
   return `<button type="button" class="mic ${on ? "on" : ""}" data-mic="${targetId}" aria-label="${on ? "Parar el dictado" : "Dictar por voz"}" aria-pressed="${on}"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>`;
 }
-function toggleMic(targetId){
-  if (rec) { rec.stop(); return; }
-  const el = $("#" + targetId); if (!el) return;
-  rec = new SR(); rec.lang = "es-ES"; rec.continuous = true; rec.interimResults = true; recTarget = targetId;
-  const base = el.value ? el.value.replace(/\s*$/, " ") : "";
-  let finalText = "";
-  rec.onresult = ev => {
-    let interim = "";
-    for (let i = ev.resultIndex; i < ev.results.length; i++) { const r = ev.results[i]; if (r.isFinal) finalText += r[0].transcript + " "; else interim += r[0].transcript; }
-    const f = $("#" + targetId); if (f) { f.value = base + finalText + interim; kept[targetId] = f.value; store.set("gym.kept", kept); }
-  };
-  rec.onerror = ev => { if (ev.error === "not-allowed") toast("Permite el micrófono en el navegador para dictar"); };
-  rec.onend = () => { rec = null; recTarget = null; document.querySelectorAll("[data-mic]").forEach(b => { b.classList.remove("on"); b.setAttribute("aria-pressed", "false"); }); };
-  try { rec.start(); document.querySelectorAll(`[data-mic="${targetId}"]`).forEach(b => { b.classList.add("on"); b.setAttribute("aria-pressed", "true"); }); }
-  catch { rec = null; toast("No se ha podido usar el micrófono"); }
+// Chrome on Android repeats itself: each result can carry the whole phrase so far ("hazme", "hazme el",
+// "hazme el menú"…). Keep only the longest version of each phrase instead of adding them all up.
+function joinResults(results){
+  const parts = [];
+  for (let i = 0; i < results.length; i++) {
+    const t = String(results[i][0].transcript || "").trim(); if (!t) continue;
+    const prev = parts[parts.length - 1], nt = normName(t), np = prev ? normName(prev) : "";
+    if (prev && nt.startsWith(np)) parts[parts.length - 1] = t;
+    else if (prev && np.startsWith(nt)) continue;
+    else parts.push(t);
+  }
+  return parts.join(" ");
 }
+function toggleMic(targetId){
+  if (rec) { recWant = false; rec.stop(); return; }
+  const el = $("#" + targetId); if (!el) return;
+  let committed = el.value ? el.value.replace(/\s*$/, " ") : "", heard = "", fails = 0;
+  const write = () => { const f = $("#" + targetId); if (!f) return; f.value = committed + heard; kept[targetId] = f.value; store.set("gym.kept", kept); autoGrow(f); f.scrollTop = f.scrollHeight; };
+  const start = () => {
+    rec = new SR(); rec.lang = "es-ES"; rec.continuous = true; rec.interimResults = true; recTarget = targetId;
+    rec.onresult = ev => { heard = joinResults(ev.results); fails = 0; write(); };
+    rec.onerror = ev => { if (ev.error === "not-allowed" || ev.error === "service-not-allowed") { recWant = false; toast("Permite el micrófono en el navegador para dictar"); } else if (ev.error !== "no-speech" && ev.error !== "aborted") fails++; };
+    rec.onend = () => {
+      if (heard) committed = (committed + heard).replace(/\s*$/, " ");
+      heard = "";
+      // the phone stops listening after a pause: carry on until the button is pressed again
+      if (recWant && fails < 3) { try { start(); return; } catch {} }
+      rec = null; recTarget = null; recWant = false;
+      document.querySelectorAll("[data-mic]").forEach(b => { b.classList.remove("on"); b.setAttribute("aria-pressed", "false"); b.setAttribute("aria-label", "Dictar por voz"); });
+    };
+    rec.start();
+  };
+  try {
+    recWant = true; start();
+    document.querySelectorAll(`[data-mic="${targetId}"]`).forEach(b => { b.classList.add("on"); b.setAttribute("aria-pressed", "true"); b.setAttribute("aria-label", "Parar el dictado"); });
+  } catch { rec = null; recWant = false; toast("No se ha podido usar el micrófono"); }
+}
+// text boxes grow with what is written or dictated, so it can be read whole
+function autoGrow(el){
+  if (!el || el.tagName !== "TEXTAREA") return;
+  el.style.height = "auto";
+  el.style.height = Math.min(el.scrollHeight + 2, Math.round(innerHeight * 0.4)) + "px";
+}
+document.addEventListener("input", e => { if (e.target.tagName === "TEXTAREA") autoGrow(e.target); });
+new MutationObserver(() => document.querySelectorAll(".composer textarea, .voice textarea").forEach(t => { if (t.value && !t.style.height) autoGrow(t); }))
+  .observe(document.querySelector("main") || document.body, { childList: true, subtree: true });
 document.addEventListener("click", e => { const t = e.target.closest("button[data-mic]"); if (t) { e.preventDefault(); toggleMic(t.dataset.mic); } });
 
 /* ===== 11-player.js ===== */
@@ -3256,7 +3317,7 @@ function nextPlanDay(){
 function greeting(){ const h = new Date().getHours(); return h < 6 ? "Buenas noches" : h < 13 ? "Buenos días" : h < 21 ? "Buenas tardes" : "Buenas noches"; }
 function todayMenu(){
   const dp = dietPlan(), d = dp && dp.dias.find(x => x.fecha === todayISO());
-  if (d) return { src: "plan", desayuno: d.desayuno, media: d.media, comida: d.comida[dCirc] || [], merienda: d.merienda, cena: d.cena };
+  if (d) return { src: "plan", ...planMenu(d, dCirc) };
   const { t } = targetsFor(me), f = Math.min(1.45, Math.max(0.7, t.kcal / 2400));
   return { src: "base", ...dayMenu((today().getDay() + 6) % 7, dCirc, f) };
 }

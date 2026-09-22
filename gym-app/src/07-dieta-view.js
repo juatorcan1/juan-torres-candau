@@ -19,7 +19,7 @@ function renderDieta(){
   const { t, w } = targetsFor(dWho), o = targetsFor(other).t, pr = profileOf(dWho), saved = !!(profiles[dWho] && profiles[dWho].height);
   const factor = Math.min(1.45, Math.max(0.7, t.kcal / 2400));
   const dp = me === dWho ? dietPlan() : dietPlan(dWho), pdd = dp && dp.dias.find(d => (parseISO(d.fecha).getDay() + 6) % 7 === dDay);
-  const menu = pdd ? { desayuno: pdd.desayuno, media: pdd.media, comida: pdd.comida[dCirc] || [], merienda: pdd.merienda, cena: pdd.cena } : dayMenu(dDay, dCirc, factor);
+  const menu = pdd ? planMenu(pdd, dCirc) : dayMenu(dDay, dCirc, factor);
   const wk = periodRange("semana"), al = alcoholIn(drk(), dWho, ...wk);
   const editable = me === dWho && dbState === "ready";
   const tile = (l, val, unit, ov) => `<div class="tg"><div class="l">${l}</div><div class="v">${fmt(val)}<small> ${unit}</small></div><div class="o"><i class="dot ${other}"></i> ${ATH[other]}: ${fmt(ov)} ${unit}</div></div>`;
@@ -61,7 +61,7 @@ function renderDieta(){
         <div class="circs" role="group" aria-label="Dónde comes hoy">${Object.entries(CIRCS).map(([k, c]) => `<button type="button" data-circ="${k}" aria-pressed="${dCirc === k}"><b>${c.l}</b><span>${c.s}</span></button>`).join("")}</div>
       </div>
       <div class="meals" style="margin-top:10px">
-        ${MEALS.map(([k, l]) => `<div class="meal ${k === "comida" ? "main" : ""}"><div class="when">${l}${k === "comida" || k === "media" ? `<small>${esc(CIRCS[dCirc].l)}</small>` : ""}</div><ul>${menu[k].map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>`).join("")}
+        ${MEALS.map(([k, l]) => `<div class="meal ${k === "comida" ? "main" : ""}"><div class="when">${l}<small>${CIRC_MEALS.includes(k) ? esc(CIRCS[dCirc].l) : "En casa, igual en los tres"}</small></div><ul>${menu[k].map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>`).join("")}
       </div>
       <div style="margin-top:12px"><div class="eyebrow" style="margin-bottom:6px">Trucos para ${esc(CIRCS[dCirc].l.toLowerCase())}</div><ul class="tips">${TIPS[dCirc].map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>
       <p class="note" style="margin:12px 0 0">Cantidades ajustadas a ${fmt(t.kcal)} kcal. ${esc(scaleText("Los días de pierna o de doble sesión añade {40} g de pan o {30} g de arroz en crudo.", factor))} Es una guía orientativa: si tienes alguna patología o alergia, consúltalo con un nutricionista.</p>
@@ -85,7 +85,7 @@ async function askMenu(){
   aiBusy = true; aiText = ""; aiErr = ""; aiCtl = new AbortController(); renderDieta();
   const prompt = `Propón el menú de un ${DAYS_LONG[dDay].toLowerCase()} para ${ATH[dWho]} (hombre, ${pr.age} años, ${pr.height} cm, objetivo: ${GOALS[pr.goal].l.toLowerCase()}).
 Objetivo diario: ${t.kcal} kcal, ${t.prot} g de proteína, ${t.carbs} g de hidratos, ${t.fat} g de grasa.
-Situación para la comida y la media mañana: ${CIRCS[dCirc].l} (${CIRCS[dCirc].s}). ${dCirc === "bocadillo" ? "No tiene cocina: solo cosas que se lleven en la mochila (bocadillos, tortitas de maíz, táper frío)." : dCirc === "bar" ? "Di qué pedir en un menú del día o de tapas típico de España y qué evitar." : "Tiene microondas y nevera en la oficina."}
+Situación del día (desayuno, media mañana, comida y merienda; la cena es en casa): ${CIRCS[dCirc].l} (${CIRCS[dCirc].s}). ${dCirc === "bocadillo" ? "No tiene cocina: solo cosas que se lleven en la mochila (bocadillos, tortitas de maíz, táper frío)." : dCirc === "bar" ? "Di qué pedir en un menú del día o de tapas típico de España y qué evitar." : "Tiene microondas y nevera en la oficina."}
 ${keep("d-pref") ? "Preferencias: " + String(keep("d-pref")).slice(0, 300) : ""}
 Formato: cinco apartados (Desayuno, Media mañana, Comida, Merienda, Cena), cada uno con 1 a 3 líneas y cantidades en gramos, y al final una línea con el total aproximado de kcal y proteína. Comida española normal, fácil y barata. Sin emojis ni tablas.`;
   try {

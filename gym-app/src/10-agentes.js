@@ -55,8 +55,9 @@ Lo importante es el músculo, no el ejercicio: organiza el entreno por los músc
 Reglas del ENTRENO: que quepa en la duración pedida contando descansos; "reps" para fuerza (kg 0 si es peso corporal), "tiempo" para planchas, intervalos o cardio por tiempo, "distancia" para natación (metros por serie). En "reto" pon cómo superar su última vez o su récord (por ejemplo "Tu mejor: 80 kg × 8. Hoy 82,5 × 8") o cómo ganar a ${"${RIVAL}"}. Progresión prudente: +2,5 kg o +1 rep si la última vez completó todo; nunca más de un 5 %. Para "ejercicio" usa exactamente estos nombres cuando encajen (tienen dibujo): ${Object.keys(GUIDE).join(", ")}. Para natación usa nombres como "Crol", "Braza", "Espalda", "Patada con tabla", "Pull buoy".`;
 const TRAIN_PLAN_SCHEMA = `PLAN_ENTRENO = {"tipo": "semana"|"mes", "titulo": str, "semanas": [{"objetivo": str, "dias": [{"fecha": "YYYY-MM-DD", "dia": "lunes"…, "actividad": "gym"|"calistenia"|"natacion"|"cinta"|"bici"|"descanso"|"otro", "duracion_min": n, "foco": str, "detalle": str}]}], "nota": str}
 Reglas del PLAN_ENTRENO: empieza hoy; semana = 7 días, mes = 4 semanas; cada semana con su objetivo y progresión; incluye descansos; "detalle" en una frase.`;
-const DIET_PLAN_SCHEMA = `PLAN_DIETA = {"titulo": str, "dias": [{"fecha": "YYYY-MM-DD", "dia": "lunes"…, "desayuno": [str], "media": [str], "comida": {"bocadillo": [str], "bar": [str], "oficina": [str]}, "merienda": [str], "cena": [str], "kcal": n}], "consejos": [str]}
-Reglas del PLAN_DIETA: 7 días desde hoy; cantidades en gramos ajustadas a su objetivo de kcal; la comida con 3 versiones: bocadillo o tortitas de maíz (obra, sin cocina), bar o restaurante (qué pedir en un menú del día) y oficina con microondas; comida española normal y barata.`;
+const DIET_PLAN_SCHEMA = `SITIO = {"bocadillo": [str], "bar": [str], "oficina": [str]}
+PLAN_DIETA = {"titulo": str, "dias": [{"fecha": "YYYY-MM-DD", "dia": "lunes"…, "desayuno": SITIO, "media": SITIO, "comida": SITIO, "merienda": SITIO, "cena": [str], "kcal": n}], "consejos": [str]}
+Reglas del PLAN_DIETA: 7 días desde hoy; cantidades en gramos ajustadas a su objetivo de kcal; desayuno, media mañana, comida y merienda con 3 versiones distintas de verdad: "bocadillo" = obra sin cocina (sale temprano, todo va en la mochila: bocadillos, tortitas de maíz, táper frío), "bar" = en un bar o restaurante (qué pedir en un menú del día o de tapas) y "oficina" = oficina con microondas y nevera; la cena es en casa, una sola versión; comida española normal y barata.`;
 
 function agentPrompt(agent, userText){
   const other = OTHER[me], hist = chatMsgs(agent).slice(-12);
@@ -135,10 +136,11 @@ function normalizeTrainPlan(o){
 function normalizeDietPlan(o){
   if (!o || !Array.isArray(o.dias)) return null;
   const L = v => (Array.isArray(v) ? v : v ? [v] : []).map(x => String(x).slice(0, 200)).slice(0, 6);
+  // one list per circumstance; a single list counts for all three
+  const S = v => v && typeof v === "object" && !Array.isArray(v) ? Object.fromEntries(Object.keys(CIRCS).map(c => [c, L(v[c])])) : Object.fromEntries(Object.keys(CIRCS).map(c => [c, L(v)]));
   const dias = o.dias.slice(0, 7).filter(d => d && /^\d{4}-\d{2}-\d{2}$/.test(d.fecha)).map(d => ({
-    fecha: d.fecha, dia: String(d.dia || DIA[parseISO(d.fecha).getDay()]), desayuno: L(d.desayuno), media: L(d.media),
-    comida: { bocadillo: L(d.comida && d.comida.bocadillo), bar: L(d.comida && d.comida.bar), oficina: L(d.comida && d.comida.oficina) },
-    merienda: L(d.merienda), cena: L(d.cena), kcal: clampN(d.kcal, 800, 6000) }));
+    fecha: d.fecha, dia: String(d.dia || DIA[parseISO(d.fecha).getDay()]), desayuno: S(d.desayuno), media: S(d.media),
+    comida: S(d.comida), merienda: S(d.merienda), cena: L(d.cena), kcal: clampN(d.kcal, 800, 6000) }));
   if (!dias.length) return null;
   return { titulo: String(o.titulo || "Menú semanal").slice(0, 80), dias, consejos: L(o.consejos) };
 }
@@ -294,26 +296,56 @@ async function quickWorkout({ tipo, minutos, plan, checkin } = {}){
 
 /* speech recognition (web only: inside Claude the microphone is blocked) */
 const SR = WEB ? (window.SpeechRecognition || window.webkitSpeechRecognition) : null;
-let rec = null, recTarget = null;
+let rec = null, recTarget = null, recWant = false;
 function micButton(targetId){
   if (!SR) return "";
   const on = rec && recTarget === targetId;
   return `<button type="button" class="mic ${on ? "on" : ""}" data-mic="${targetId}" aria-label="${on ? "Parar el dictado" : "Dictar por voz"}" aria-pressed="${on}"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>`;
 }
-function toggleMic(targetId){
-  if (rec) { rec.stop(); return; }
-  const el = $("#" + targetId); if (!el) return;
-  rec = new SR(); rec.lang = "es-ES"; rec.continuous = true; rec.interimResults = true; recTarget = targetId;
-  const base = el.value ? el.value.replace(/\s*$/, " ") : "";
-  let finalText = "";
-  rec.onresult = ev => {
-    let interim = "";
-    for (let i = ev.resultIndex; i < ev.results.length; i++) { const r = ev.results[i]; if (r.isFinal) finalText += r[0].transcript + " "; else interim += r[0].transcript; }
-    const f = $("#" + targetId); if (f) { f.value = base + finalText + interim; kept[targetId] = f.value; store.set("gym.kept", kept); }
-  };
-  rec.onerror = ev => { if (ev.error === "not-allowed") toast("Permite el micrófono en el navegador para dictar"); };
-  rec.onend = () => { rec = null; recTarget = null; document.querySelectorAll("[data-mic]").forEach(b => { b.classList.remove("on"); b.setAttribute("aria-pressed", "false"); }); };
-  try { rec.start(); document.querySelectorAll(`[data-mic="${targetId}"]`).forEach(b => { b.classList.add("on"); b.setAttribute("aria-pressed", "true"); }); }
-  catch { rec = null; toast("No se ha podido usar el micrófono"); }
+// Chrome on Android repeats itself: each result can carry the whole phrase so far ("hazme", "hazme el",
+// "hazme el menú"…). Keep only the longest version of each phrase instead of adding them all up.
+function joinResults(results){
+  const parts = [];
+  for (let i = 0; i < results.length; i++) {
+    const t = String(results[i][0].transcript || "").trim(); if (!t) continue;
+    const prev = parts[parts.length - 1], nt = normName(t), np = prev ? normName(prev) : "";
+    if (prev && nt.startsWith(np)) parts[parts.length - 1] = t;
+    else if (prev && np.startsWith(nt)) continue;
+    else parts.push(t);
+  }
+  return parts.join(" ");
 }
+function toggleMic(targetId){
+  if (rec) { recWant = false; rec.stop(); return; }
+  const el = $("#" + targetId); if (!el) return;
+  let committed = el.value ? el.value.replace(/\s*$/, " ") : "", heard = "", fails = 0;
+  const write = () => { const f = $("#" + targetId); if (!f) return; f.value = committed + heard; kept[targetId] = f.value; store.set("gym.kept", kept); autoGrow(f); f.scrollTop = f.scrollHeight; };
+  const start = () => {
+    rec = new SR(); rec.lang = "es-ES"; rec.continuous = true; rec.interimResults = true; recTarget = targetId;
+    rec.onresult = ev => { heard = joinResults(ev.results); fails = 0; write(); };
+    rec.onerror = ev => { if (ev.error === "not-allowed" || ev.error === "service-not-allowed") { recWant = false; toast("Permite el micrófono en el navegador para dictar"); } else if (ev.error !== "no-speech" && ev.error !== "aborted") fails++; };
+    rec.onend = () => {
+      if (heard) committed = (committed + heard).replace(/\s*$/, " ");
+      heard = "";
+      // the phone stops listening after a pause: carry on until the button is pressed again
+      if (recWant && fails < 3) { try { start(); return; } catch {} }
+      rec = null; recTarget = null; recWant = false;
+      document.querySelectorAll("[data-mic]").forEach(b => { b.classList.remove("on"); b.setAttribute("aria-pressed", "false"); b.setAttribute("aria-label", "Dictar por voz"); });
+    };
+    rec.start();
+  };
+  try {
+    recWant = true; start();
+    document.querySelectorAll(`[data-mic="${targetId}"]`).forEach(b => { b.classList.add("on"); b.setAttribute("aria-pressed", "true"); b.setAttribute("aria-label", "Parar el dictado"); });
+  } catch { rec = null; recWant = false; toast("No se ha podido usar el micrófono"); }
+}
+// text boxes grow with what is written or dictated, so it can be read whole
+function autoGrow(el){
+  if (!el || el.tagName !== "TEXTAREA") return;
+  el.style.height = "auto";
+  el.style.height = Math.min(el.scrollHeight + 2, Math.round(innerHeight * 0.4)) + "px";
+}
+document.addEventListener("input", e => { if (e.target.tagName === "TEXTAREA") autoGrow(e.target); });
+new MutationObserver(() => document.querySelectorAll(".composer textarea, .voice textarea").forEach(t => { if (t.value && !t.style.height) autoGrow(t); }))
+  .observe(document.querySelector("main") || document.body, { childList: true, subtree: true });
 document.addEventListener("click", e => { const t = e.target.closest("button[data-mic]"); if (t) { e.preventDefault(); toggleMic(t.dataset.mic); } });

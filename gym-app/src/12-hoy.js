@@ -38,7 +38,7 @@ function nextPlanDay(){
 function greeting(){ const h = new Date().getHours(); return h < 6 ? "Buenas noches" : h < 13 ? "Buenos días" : h < 21 ? "Buenas tardes" : "Buenas noches"; }
 function todayMenu(){
   const dp = dietPlan(), d = dp && dp.dias.find(x => x.fecha === todayISO());
-  if (d) return { src: "plan", desayuno: d.desayuno, media: d.media, comida: d.comida[dCirc] || [], merienda: d.merienda, cena: d.cena };
+  if (d) return { src: "plan", ...planMenu(d, dCirc) };
   const { t } = targetsFor(me), f = Math.min(1.45, Math.max(0.7, t.kcal / 2400));
   return { src: "base", ...dayMenu((today().getDay() + 6) % 7, dCirc, f) };
 }

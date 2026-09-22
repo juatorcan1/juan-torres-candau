@@ -1,0 +1,30 @@
+<div class="wrap">
+  <div class="brand">
+    <h1>Juan<span class="vs">vs</span>Ignacio</h1>
+    <div class="whoami" id="whoami"></div>
+  </div>
+
+  <div class="strip">
+    <div class="score" id="score"></div>
+    <nav class="tabs" role="tablist" aria-label="Secciones">
+      <button role="tab" id="tab-duelo" data-tab="duelo">Duelo</button>
+      <button role="tab" id="tab-apuntar" data-tab="apuntar">Apuntar</button>
+      <button role="tab" id="tab-historial" data-tab="historial">Historial</button>
+      <button role="tab" id="tab-records" data-tab="records">Récords</button>
+      <button role="tab" id="tab-cuerpo" data-tab="cuerpo">Peso y copas</button>
+      <button role="tab" id="tab-dieta" data-tab="dieta">Dieta</button>
+      <button role="tab" id="tab-ejercicios" data-tab="ejercicios">Ejercicios</button>
+    </nav>
+  </div>
+
+  <main>
+    <section id="view-duelo" role="tabpanel" aria-labelledby="tab-duelo"></section>
+    <section id="view-apuntar" role="tabpanel" aria-labelledby="tab-apuntar" hidden></section>
+    <section id="view-historial" role="tabpanel" aria-labelledby="tab-historial" hidden></section>
+    <section id="view-records" role="tabpanel" aria-labelledby="tab-records" hidden></section>
+    <section id="view-cuerpo" role="tabpanel" aria-labelledby="tab-cuerpo" hidden></section>
+    <section id="view-dieta" role="tabpanel" aria-labelledby="tab-dieta" hidden></section>
+    <section id="view-ejercicios" role="tabpanel" aria-labelledby="tab-ejercicios" hidden></section>
+  </main>
+</div>
+<div class="toast" id="toast" hidden></div>

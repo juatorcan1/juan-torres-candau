@@ -94,7 +94,7 @@ function renderHoy(){
       <div class="qlog">
         <button type="button" data-tab="apuntar"><b>Cuéntaselo</b><span>Habla y Claude lo apunta</span></button>
         <button type="button" data-tab="cuerpo"><b>Peso</b><span>${(() => { const w = latestWeight(wts(), me); return w ? fmt(w.kg, 1) + " kg · " + relDay(w.date) : "Sin pesaje"; })()}</span></button>
-        <button type="button" data-tab="cuerpo"><b>Copas</b><span>${fmt(alcoholIn(drk(), me, ...periodRange("semana")).ube, 1)} UBE esta semana</span></button>
+        <button type="button" data-tab="cuerpo"><b>Alcohol</b><span>${fmt(alcoholIn(drk(), me, ...periodRange("semana")).ube, 1)} UBE esta semana</span></button>
       </div>
     </div>
   </div>`;

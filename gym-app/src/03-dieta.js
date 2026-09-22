@@ -104,7 +104,7 @@ const MENU = {
     ["Pechuga de pollo ({150} g) a la plancha", "Ensalada de tomate y aguacate ({50} g)", "Pan ({40} g)"],
     ["Crema de verduras", "Revuelto de 2 huevos con pavo ({60} g)"],
     ["Salmón ({150} g) al horno con verduras", "Arroz ({40} g en crudo)"],
-    ["Cena fuera: 1 ración de proteína (pescado, carne o huevos) y 1 ensalada o verduras", "Si hay copas, cada cubata son unas 240 kcal: compénsalo con menos pan y nada de postre"],
+    ["Cena fuera: 1 ración de proteína (pescado, carne o huevos) y 1 ensalada o verduras", "Si hay alcohol, cada cubata son unas 240 kcal: compénsalo con menos pan y nada de postre"],
     ["Revuelto de gambas y espárragos (2 huevos)", "Ensalada", "Yogur natural"]
   ]
 };

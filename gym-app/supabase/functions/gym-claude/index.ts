@@ -30,8 +30,10 @@ Deno.serve(async (req: Request) => {
   const { data: gymUser } = await admin.from("gym_usuarios").select("athlete").eq("user_id", user.id).maybeSingle();
   if (!gymUser) return reply({ code: "forbidden", error: "Este usuario no es del gimnasio" }, 403);
 
-  // The key lives in the function secrets (ANTHROPIC_API_KEY) or, failing that, in the Vault.
-  let apiKey = Deno.env.get("ANTHROPIC_API_KEY");
+  // The key lives in the function secrets (ANTHROPIC_API_KEY, or a secret whose name starts with it or
+  // whose value is an Anthropic key, in case it was saved as "ANTHROPIC_API_KEY <nombre>") or in the Vault.
+  const env = Deno.env.toObject();
+  let apiKey = (env["ANTHROPIC_API_KEY"] || Object.entries(env).find(([k, v]) => k.startsWith("ANTHROPIC_API_KEY") || /^sk-ant-/.test(v || ""))?.[1])?.trim();
   if (!apiKey) apiKey = (await admin.rpc("gym_anthropic_key")).data ?? undefined;
   if (!apiKey) return reply({ code: "no_key", error: "Falta la clave de Anthropic (ANTHROPIC_API_KEY o Vault)" }, 503);
 

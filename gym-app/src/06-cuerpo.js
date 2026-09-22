@@ -1,4 +1,4 @@
-/* ---------- Peso y copas ---------- */
+/* ---------- Peso y alcohol ---------- */
 let bDate = toISO(today());
 let bPending = {};           // bebidas/<id> -> counts not yet confirmed by the store
 let bTimer = {};
@@ -59,7 +59,7 @@ function renderCuerpo(){
         ${myW.length ? `<div class="tscroll" style="margin-top:12px"><table><thead><tr><th>Tus últimos pesajes</th><th class="n">Kg</th><th class="n">Cintura</th><th></th></tr></thead><tbody>${myW.map(w => `<tr><td>${shortDate(parseISO(w.date))}</td><td class="n">${fmt(w.kg, 1)}</td><td class="n">${w.waist ? fmt(w.waist) + " cm" : "–"}</td><td class="n">${!w.demo && dbState === "ready" ? `<button type="button" class="btn sm ghost" data-act="w-del" data-id="${esc(w.id)}">Borrar</button>` : ""}</td></tr>`).join("")}</tbody></table></div>` : ""}
       </div>
       <div class="panel">
-        <div class="panel-head"><h2>Tus copas</h2><span class="pill ${dU > DAILY_LOW_RISK ? (dU >= BINGE ? "over" : "warn") : dU ? "ok" : "neutral"}">${fmt(dU, 1)} UBE · ${fmt(dK)} kcal</span></div>
+        <div class="panel-head"><h2>Tu alcohol</h2><span class="pill ${dU > DAILY_LOW_RISK ? (dU >= BINGE ? "over" : "warn") : dU ? "ok" : "neutral"}">${fmt(dU, 1)} UBE · ${fmt(dK)} kcal</span></div>
         <div class="datebar" style="margin-bottom:12px">
           <div class="chips" role="group" aria-label="Día">
             ${[["Hoy", toISO(today())], ["Ayer", toISO(addDays(today(), -1))], ["Viernes", lastWeekday(4)], ["Sábado", lastWeekday(5)], ["Domingo", lastWeekday(6)]]
@@ -74,7 +74,7 @@ function renderCuerpo(){
         </div>`; }).join("")}</div>
         <p class="note" style="margin:10px 0 0">Cada toque se guarda solo. Para el finde entero es más rápido contárselo a Claude en <b>Apuntar</b>.</p>
       </div>
-    </div>` : `<div class="panel"><p style="margin:0">Elige quién eres en <b>Apuntar</b> para registrar tu peso y tus copas.</p></div>`}
+    </div>` : `<div class="panel"><p style="margin:0">Elige quién eres en <b>Apuntar</b> para registrar tu peso y el alcohol.</p></div>`}
 
     <div class="panel">
       <div class="panel-head"><h2>Evolución del peso</h2><div class="legend"><span><i class="dot juan"></i>Juan</span><span><i class="dot ignacio"></i>Ignacio</span></div></div>
@@ -83,7 +83,7 @@ function renderCuerpo(){
     </div>
 
     <div class="panel">
-      <div class="panel-head"><h2>Copas por semana</h2><span class="muted" style="font-size:13px">● = quien menos ha bebido</span></div>
+      <div class="panel-head"><h2>Alcohol por semana</h2><span class="muted" style="font-size:13px">● = quien menos ha bebido</span></div>
       <div class="tscroll"><table><thead><tr><th>Semana</th><th class="n">Juan</th><th class="n">Ignacio</th><th class="n">kcal Juan</th><th class="n">kcal Ignacio</th></tr></thead><tbody>
         ${weeks.slice().reverse().map(([a, b, s]) => { const j = alcoholIn(drk(), "juan", a, b), i = alcoholIn(drk(), "ignacio", a, b);
           return `<tr><td>${a === weeks[weeks.length - 1][0] ? "Esta semana" : shortDate(s)}</td><td class="n ${j.ube < i.ube ? "win" : ""}">${fmt(j.ube, 1)} UBE</td><td class="n ${i.ube < j.ube ? "win" : ""}">${fmt(i.ube, 1)} UBE</td><td class="n">${fmt(j.kcal)}</td><td class="n">${fmt(i.kcal)}</td></tr>`; }).join("")}
@@ -156,7 +156,7 @@ function bumpDrink(type, delta){
     try {
       if (Object.keys(c).length) await db.doc(`bebidas/${d.id}`).set({ athlete: me, date, counts: c, updatedAt: Date.now() });
       else await db.doc(`bebidas/${d.id}`).delete();
-    } catch { toast("No se han podido guardar las copas"); }
+    } catch { toast("No se ha podido guardar el alcohol"); }
     if (bPending[d.id] === c) delete bPending[d.id];
   }, 700);
 }

@@ -36,7 +36,7 @@ function renderDieta(){
         ${tile("Grasa", t.fat, "g", o.fat)}
       </div>
       ${!saved ? `<div class="banner" style="margin-top:12px"><strong>Perfil sin completar.</strong> Se están usando valores por defecto (${PROFILE_DEFAULT.height} cm, ${PROFILE_DEFAULT.age} años). ${me === dWho ? "Rellena tus datos abajo para afinar los números." : `${ATH[dWho]} tiene que rellenar su perfil.`}</div>` : ""}
-      ${al.kcal ? `<p class="note" style="margin:12px 0 0">Esta semana las copas de ${ATH[dWho]} suman <b>${fmt(al.kcal)} kcal</b>, casi un ${fmt(al.kcal / t.kcal * 100)} % de un día entero de comida.</p>` : ""}
+      ${al.kcal ? `<p class="note" style="margin:12px 0 0">Esta semana el alcohol de ${ATH[dWho]} suma <b>${fmt(al.kcal)} kcal</b>, casi un ${fmt(al.kcal / t.kcal * 100)} % de un día entero de comida.</p>` : ""}
       <details style="margin-top:14px" ${!saved && me === dWho ? "open" : ""}>
         <summary style="cursor:pointer;font-weight:600;color:var(--ink-2)">Datos de ${ATH[dWho]}</summary>
         <form id="pform" novalidate style="margin-top:12px;gap:12px">

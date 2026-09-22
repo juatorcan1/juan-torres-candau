@@ -36,7 +36,7 @@ function renderVoz(){
   const canAsk = !!sample, canSave = dbState === "ready";
   el.innerHTML = `<div class="panel voice">
     <div class="panel-head" style="margin-bottom:0">
-      <div><h2>Cuéntaselo a Claude</h2><div class="muted" style="font-size:13.5px;margin-top:2px">Sesiones, series, kilos, minutos, tu peso y las copas del finde: todo de una vez y sin formato.</div></div>
+      <div><h2>Cuéntaselo a Claude</h2><div class="muted" style="font-size:13.5px;margin-top:2px">Sesiones, series, kilos, minutos, tu peso y el alcohol del finde: todo de una vez y sin formato.</div></div>
     </div>
     <div class="mic-help">${MIC}<div>${SR ? `<b>Pulsa el micrófono azul y habla.</b> Lo que digas se escribe solo; vuelve a pulsarlo para parar. También vale el micrófono del teclado.` : `<b>Pulsa el micrófono del teclado del móvil y habla.</b> En iPhone está abajo a la derecha del teclado; en Android, en la barra superior del teclado o manteniendo pulsada la barra espaciadora. Lo que digas se escribe solo aquí.`}</div></div>
     <label for="voz" class="eyebrow">Lo que has hecho</label>
@@ -72,7 +72,7 @@ function previewHTML(r, canSave){
     <div class="t">${ATH[w.athlete]} · peso ${relDay(w.date)}</div><div class="d">${fmt(w.kg, 1)} kg${w.waist ? ` · cintura ${fmt(w.waist)} cm` : ""}${w.fat ? ` · ${fmt(w.fat, 1)} % grasa` : ""}</div>
   </div><button type="button" class="x" data-act="voz-rm" data-kind="pesajes" data-i="${i}" aria-label="Quitar">×</button></div>`));
   r.bebidas.forEach((b, i) => items.push(`<div class="pv-item"><span class="dot ${b.athlete}"></span><div>
-    <div class="t">${ATH[b.athlete]} · copas ${relDay(b.date)}</div><div class="d">${b.qty} × ${esc(DRINKS[b.type].l)} · ${fmt(DRINKS[b.type].ube * b.qty, 1)} UBE · ${fmt(DRINKS[b.type].kcal * b.qty)} kcal</div>
+    <div class="t">${ATH[b.athlete]} · alcohol ${relDay(b.date)}</div><div class="d">${b.qty} × ${esc(DRINKS[b.type].l)} · ${fmt(DRINKS[b.type].ube * b.qty, 1)} UBE · ${fmt(DRINKS[b.type].kcal * b.qty)} kcal</div>
   </div><button type="button" class="x" data-act="voz-rm" data-kind="bebidas" data-i="${i}" aria-label="Quitar">×</button></div>`));
   return `<div class="preview">
     <div class="eyebrow">Revisa antes de guardar</div>

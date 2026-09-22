@@ -16,10 +16,13 @@ let histWho = "ambos", histSport = "todos";
 let openSess = new Set();
 let confirmDel = null;
 let draft = null;
-const isDemo = () => real.length === 0;
+// Example data only while nothing real has been saved at all: once there is a session, a weight or a
+// drink, every screen shows real data (and empty where nothing has been logged yet).
+const noRealData = () => real.length === 0 && weights.length === 0 && drinks.length === 0;
+const isDemo = noRealData;
 const data = () => isDemo() ? DEMO : real;
-const wDemo = () => weights.length === 0;
-const dDemo = () => drinks.length === 0;
+const wDemo = noRealData;
+const dDemo = noRealData;
 const wts = () => wDemo() ? DEMO_BODY.ws : weights;
 const drk = () => dDemo() ? DEMO_BODY.ds : drinks;
 const profileOf = who => ({ ...PROFILE_DEFAULT, ...(profiles[who] || {}) });
@@ -190,7 +193,7 @@ function bodyRows(){
 function demoBanner(kind = "s"){
   const demo = kind === "s" ? isDemo() : kind === "w" ? wDemo() : kind === "d" ? dDemo() : wDemo() && dDemo();
   if (!demo) return "";
-  const [art, what, first] = kind === "s" ? ["Las", "sesiones", "primeras"] : kind === "w" ? ["Los", "pesajes", "primeros"] : kind === "d" ? ["Las", "copas", "primeras"] : ["Los", "pesajes y copas", "primeros"];
+  const [art, what, first] = kind === "s" ? ["Las", "sesiones", "primeras"] : kind === "w" ? ["Los", "pesajes", "primeros"] : kind === "d" ? ["Los", "datos de alcohol", "primeros"] : ["Los", "pesajes y el alcohol", "primeros"];
   const why = dbState === "none"
     ? (WEB ? "No hay conexión con la base de datos: revisa internet y recarga." : "Esta vista no está conectada a la base de datos, así que no se guardará nada. Ábrela desde su enlace de Claude.")
     : `Desaparecen en cuanto apuntéis vuestros ${first} ${what} reales.`;

@@ -48,7 +48,7 @@ function renderVoz(){
         : `<button type="button" class="btn primary" data-act="voz-go" ${canAsk ? "" : "disabled"}>Apuntar con Claude</button>
            <button type="button" class="btn ghost" data-act="voz-clear">Borrar texto</button>`}
     </div>
-    ${!canAsk ? `<div class="banner">${sampleState === "loading" ? "Conectando con Claude…" : "Esta vista no puede usar Claude. Ábrela desde su enlace de Claude o usa el formulario."}</div>` : ""}
+    ${!canAsk ? `<div class="banner">${sampleState === "loading" ? "Conectando con Claude…" : (WEB ? "Claude no está disponible ahora mismo. Usa el formulario." : "Esta vista no puede usar Claude. Ábrela desde su enlace de Claude o usa el formulario.")}</div>` : ""}
     ${vBusy ? `<div class="thinking"><span class="spin"></span>${vStream ? "Claude está ordenando lo que has contado…" : "Pensando…"}</div>` : ""}
     ${vErr ? `<div class="err" role="alert">${esc(vErr)}</div>` : ""}
     ${vResult ? previewHTML(vResult, canSave) : ""}
@@ -76,6 +76,7 @@ function previewHTML(r, canSave){
   </div><button type="button" class="x" data-act="voz-rm" data-kind="bebidas" data-i="${i}" aria-label="Quitar">×</button></div>`));
   return `<div class="preview">
     <div class="eyebrow">Revisa antes de guardar</div>
+    ${r.skipped ? `<div class="banner">He quitado ${r.skipped} cosa${r.skipped > 1 ? "s" : ""} de ${ATH[OTHER[me]]}: cada uno apunta lo suyo desde su usuario.</div>` : ""}
     ${items.length ? items.join("") : `<div class="empty">Claude no ha encontrado nada que apuntar. Prueba a contarlo con más detalle.</div>`}
     ${r.comentario ? `<div class="comment"><span class="by">Claude dice</span>${esc(r.comentario)}</div>` : ""}
     ${items.length ? `<div class="row-btns"><button type="button" class="btn primary" data-act="voz-save" ${canSave && !vBusy ? "" : "disabled"}>Guardar todo</button><button type="button" class="btn ghost" data-act="voz-discard">Descartar</button></div>` : ""}
@@ -149,13 +150,19 @@ function normalizeParsed(o){
   for (const w of arr(o.pesajes)) { const kg = pos(w && w.kg, 250); if (kg && kg > 30) out.pesajes.push(clean({ athlete: okA(w.athlete), date: okD(w.date), kg, waist: pos(w.waist, 200), fat: pos(w.fat, 60) })); }
   for (const b of arr(o.bebidas)) { const q = Math.round(num(b && b.qty) || 1); if (b && DRINKS[b.type] && q > 0 && q <= 40) out.bebidas.push({ athlete: okA(b.athlete), date: okD(b.date), type: b.type, qty: q }); }
   out.comentario = String(o.comentario || "").slice(0, 900);
+  if (WEB) {
+    const before = out.sesiones.length + out.pesajes.length + out.bebidas.length;
+    for (const k of ["sesiones", "pesajes", "bebidas"]) out[k] = out[k].filter(x => x.athlete === me);
+    out.skipped = before - (out.sesiones.length + out.pesajes.length + out.bebidas.length);
+  }
   return out;
 }
 const SAMPLE_ERR = {
   not_granted: "No has dado permiso para usar Claude en esta página.", sampling_disabled: "Claude no está disponible para esta cuenta.",
   rate_limited: "Demasiadas peticiones seguidas. Espera un poco y vuelve a intentarlo.", session_expired: "Tu sesión ha caducado: vuelve a iniciar sesión.",
   invalid_json: "Claude no ha devuelto los datos bien ordenados. Pulsa otra vez.", refused: "Claude no ha querido procesar este texto. Cámbialo un poco.",
-  prompt_too_large: "El texto es demasiado largo. Cuéntalo en dos partes."
+  prompt_too_large: "El texto es demasiado largo. Cuéntalo en dos partes.",
+  no_key: "Claude todavía no está configurado en el servidor (falta la clave de Anthropic).", upstream_error: "No se ha podido hablar con Claude. Vuelve a intentarlo."
 };
 const sampleMsg = e => SAMPLE_ERR[e && e.code] || "No se ha podido hablar con Claude. Vuelve a intentarlo.";
 async function vozGo(){
@@ -190,7 +197,7 @@ async function vozSave(){
     vResult = null; kept.voz = ""; store.set("gym.kept", kept);
     toast("Apuntado. " + ATH[OTHER[me]] + " ya lo puede ver.");
   } catch (e) {
-    vErr = e && e.code === "invalid_argument" ? "No tienes permiso para guardar aquí: pide acceso “Puede interactuar” a la página." : "No se ha podido guardar todo. Revisa la conexión y vuelve a intentarlo.";
+    vErr = e && e.code === "invalid_argument" ? (WEB ? "No se puede guardar: solo puedes apuntar tus propios datos." : "No tienes permiso para guardar aquí: pide acceso “Puede interactuar” a la página.") : "No se ha podido guardar todo. Revisa la conexión y vuelve a intentarlo.";
   }
   vBusy = false; renderVoz();
 }

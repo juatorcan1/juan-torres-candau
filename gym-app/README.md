@@ -9,8 +9,14 @@ App de gimnasio compartida entre Juan e Ignacio, con una comparativa siempre vis
 - **Dieta**: objetivos de kcal y macros según peso, altura, edad, entreno y trabajo; menú de lunes a domingo con tres situaciones (obra con bocadillo o tortitas, bar o restaurante, oficina con cocina) y propuestas extra con Claude.
 - **Ejercicios**: dibujo animado esquemático de cada ejercicio con el músculo que trabaja, pasos y errores típicos.
 
-## Cómo está hecho
+## Dos versiones, mismo código
 
-Es una página de Artifacts de Claude: los datos viven en la base de datos compartida del artifact (`sesiones`, `pesajes`, `bebidas`, `perfiles`) y Claude se usa con la capacidad `sample`.
+**Web con usuarios** (la que se usa): https://juatorcan1.github.io/juan-torres-candau/
+- Cada uno entra con su usuario (Juan o Ignacio) y su contraseña, que se cambia desde la propia app.
+- Datos en Supabase (proyecto `senda-memoria`, tablas `gym_usuarios`, `gym_docs` y `gym_claude_uso`, separadas de Senda). Row Level Security: los dos leen todo y cada uno solo escribe lo suyo.
+- Claude (dictado, valoración, menús) pasa por la Edge Function `supabase/functions/gym-claude`, que necesita el secreto `ANTHROPIC_API_KEY` en el proyecto. Tope de 80 llamadas por persona y día.
+- `./build-web.sh` genera `web/index.html`; el workflow `.github/workflows/gym-web.yml` lo publica en GitHub Pages en cada push a `main`.
 
-El código está en `src/` y `./build.sh` lo junta en `index.html`, que es lo que se publica.
+**Artifact de Claude**: `./build.sh` genera `index.html`, que se publica como Artifact (base de datos del artifact y capacidad `sample`).
+
+El código compartido está en `src/`; lo propio de la web (inicio de sesión y conexión con Supabase) en `src/web/`.

@@ -57,5 +57,6 @@ renderAll();
   sub("sesiones", rows => { real = rows.filter(s => ATH[s.athlete] && s.date); });
   sub("pesajes", rows => { weights = rows.filter(w => ATH[w.athlete] && w.date && num(w.kg) > 0); });
   sub("bebidas", rows => { drinks = rows.filter(d => ATH[d.athlete] && d.date && Object.keys(d.counts || {}).length); });
+  if (WEB) setInterval(() => { if (!document.hidden) db.refresh?.(); }, 60000);
   sub("perfiles", rows => { profiles = {}; for (const r of rows) if (ATH[r.id]) profiles[r.id] = r; });
 })();

@@ -27,6 +27,8 @@ function relDay(iso){
 }
 
 /* ---------- domain ---------- */
+// WEB = the standalone site (Supabase login); otherwise the Claude Artifact.
+const WEB = !!window.GYM_WEB;
 const ATH = { juan: "Juan", ignacio: "Ignacio" };
 const KEYS = ["juan", "ignacio"];
 const OTHER = { juan: "ignacio", ignacio: "juan" };

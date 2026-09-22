@@ -45,7 +45,7 @@ function renderHeader(){
   document.body.classList.toggle("me-juan", me === "juan");
   document.body.classList.toggle("me-ignacio", me === "ignacio");
   $("#whoami").innerHTML = me
-    ? `<span class="dot ${me}"></span><span>Registras como <b>${ATH[me]}</b></span><button class="linkbtn" id="switch-me" type="button">Cambiar</button>`
+    ? `<span class="dot ${me}"></span><span>${WEB ? "Hola," : "Registras como"} <b>${ATH[me]}</b></span>${WEB ? `<button class="linkbtn" id="pw-open" type="button">Contraseña</button><button class="linkbtn" id="logout" type="button">Salir</button>` : `<button class="linkbtn" id="switch-me" type="button">Cambiar</button>`}`
     : `<span>Elige quién eres para registrar</span>`;
   const { T, wins } = computeDuel();
   const side = k => `
@@ -188,7 +188,7 @@ function demoBanner(kind = "s"){
   if (!demo) return "";
   const [art, what, first] = kind === "s" ? ["Las", "sesiones", "primeras"] : kind === "w" ? ["Los", "pesajes", "primeros"] : kind === "d" ? ["Las", "copas", "primeras"] : ["Los", "pesajes y copas", "primeros"];
   const why = dbState === "none"
-    ? "Esta vista no está conectada a la base de datos, así que no se guardará nada. Ábrela desde su enlace de Claude."
+    ? (WEB ? "No hay conexión con la base de datos: revisa internet y recarga." : "Esta vista no está conectada a la base de datos, así que no se guardará nada. Ábrela desde su enlace de Claude.")
     : `Desaparecen en cuanto apuntéis vuestros ${first} ${what} reales.`;
   return `<div class="banner"><strong>Datos de ejemplo.</strong> ${art} ${what} que ves son ${art === "Las" ? "inventadas" : "inventados"} para enseñar cómo funciona. ${why}</div>`;
 }
@@ -528,7 +528,7 @@ function renderRegistrar(){
       <div class="form-foot">
         <button type="submit" class="btn primary" ${canSave && !saving ? "" : "disabled"}>${saving ? "Guardando…" : d.id ? "Guardar cambios" : "Guardar sesión"}</button>
         <button type="button" class="btn ghost" data-act="reset">Vaciar</button>
-        ${!canSave ? `<span class="err">${dbState === "loading" ? "Conectando con la base de datos…" : "Abre la página desde su enlace de Claude para poder guardar."}</span>` : ""}
+        ${!canSave ? `<span class="err">${dbState === "loading" ? "Conectando con la base de datos…" : (WEB ? "Sin conexión con la base de datos." : "Abre la página desde su enlace de Claude para poder guardar.")}</span>` : ""}
         ${formErr ? `<span class="err" role="alert">${esc(formErr)}</span>` : ""}
       </div>
     </form>
@@ -669,7 +669,7 @@ async function submit(){
     return;
   } catch (e) {
     const c = e && e.code;
-    formErr = c === "invalid_argument" ? "No tienes permiso para guardar aquí: pide al dueño que te comparta la página con acceso “Puede interactuar”."
+    formErr = c === "invalid_argument" ? (WEB ? "No se puede guardar: solo puedes apuntar tus propios datos." : "No tienes permiso para guardar aquí: pide al dueño que te comparta la página con acceso “Puede interactuar”.")
       : c === "quota_exceeded" ? "La base de datos está llena. Borra sesiones antiguas para seguir guardando."
       : "No se ha podido guardar. Revisa la conexión y vuelve a intentarlo.";
   }

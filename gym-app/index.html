@@ -542,13 +542,31 @@ body.playing{overflow:hidden}
 .swap-dis{display:flex;gap:8px;align-items:center;font-size:14px;font-weight:600;padding:10px 12px;border-radius:9px;background:var(--surface-2);cursor:pointer}
 .swap-dis input{width:20px;height:20px;accent-color:var(--muscle)}
 .swap-list{display:grid;gap:8px}
-.swap-opt{display:grid;grid-template-columns:64px minmax(0,1fr);gap:10px;align-items:center;text-align:left;padding:8px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;cursor:pointer}
-.swap-opt:hover,.swap-opt:focus-visible{border-color:var(--muscle)}
-.swap-opt b{display:block}
-.swap-opt small{display:block;color:var(--muted);font-size:13px}
+.swap-opt{display:grid;grid-template-columns:64px minmax(0,1fr);gap:10px;align-items:center;padding:8px;border-radius:10px;border:1px solid var(--line);background:var(--surface)}
+.swap-opt:hover,.swap-opt:focus-within{border-color:var(--muscle)}
+.swap-pick{display:block;text-align:left;border:0;background:none;padding:6px 2px;color:var(--ink);font:inherit;cursor:pointer;min-height:56px}
+.swap-pick b{display:block}
+.swap-pick small{display:block;color:var(--muted);font-size:13px}
 .swap-sheet .btn{justify-self:start}
 .plan-list{margin:2px 0 0;padding-left:18px;font-size:13.5px;color:var(--ink-2)}
 .pl-item .mus-chip{display:block}
+
+/* tap a drawing to see it big */
+.figbtn{display:block;border:0;padding:0;background:none;cursor:zoom-in;border-radius:6px;position:relative;flex:none}
+.figbtn::after{content:"";position:absolute;right:3px;bottom:3px;width:14px;height:14px;border-radius:50%;background:var(--surface-2) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236B737A' stroke-width='3' stroke-linecap='round'%3E%3Ccircle cx='10' cy='10' r='6'/%3E%3Cpath d='M15 15l5 5'/%3E%3C/svg%3E") center/9px no-repeat}
+.pl-fig.small.figbtn{padding:2px}
+.figzoom{position:fixed;inset:0;z-index:90;display:grid;place-items:center;padding:16px}
+.figzoom[hidden]{display:none}
+.fz-back{position:fixed;inset:0;background:rgba(0,0,0,.55)}
+.fz-card{position:relative;width:min(100%,460px);max-height:calc(100vh - 32px);overflow-y:auto;display:grid;gap:12px;background:var(--surface);border-radius:16px;padding:16px 18px 18px;box-shadow:0 10px 40px rgba(0,0,0,.3)}
+.fz-x{position:absolute;top:10px;right:10px;z-index:1;background:var(--surface);width:36px;height:36px;padding:0;border-radius:50%}
+.fz-fig{background:var(--surface-2);border-radius:12px;padding:8px;display:flex;justify-content:center}
+.fz-fig .fig{max-width:min(100%,340px)}
+.fz-card h3{font-family:var(--display);font-weight:800;font-size:26px;text-transform:uppercase;letter-spacing:.02em;line-height:1.05}
+.fz-card ol{margin:0;padding-left:20px;display:grid;gap:5px;font-size:15px}
+.fz-card .ojo{font-size:14px;color:var(--ink-2)}
+.fz-card .ojo b{color:var(--over)}
+.fz-card > .btn.primary{width:100%}
 </style>
 <div class="wrap">
   <div class="brand">
@@ -915,6 +933,7 @@ function drawProps(props, J, layer){
     else if (p.t === "pad") s += `<circle class="prop fill" cx="${at[0]}" cy="${at[1]}" r="6"/>`;
     else if (p.t === "bench") s += `<rect class="prop2" x="${p.x}" y="${p.y}" width="${p.w}" height="${p.h || 7}" rx="2"/>${p.legs === false ? "" : `<line class="prop2s" stroke-width="4" x1="${p.x + 8}" y1="${p.y + 4}" x2="${p.x + 8}" y2="188"/><line class="prop2s" stroke-width="4" x1="${p.x + p.w - 8}" y1="${p.y + 4}" x2="${p.x + p.w - 8}" y2="188"/>`}`;
     else if (p.t === "line") s += `<line class="prop2s" stroke-width="${p.w || 6}" x1="${p.x1}" y1="${p.y1}" x2="${p.x2}" y2="${p.y2}"/>`;
+    else if (p.t === "circle") s += `<circle class="prop" cx="${p.x}" cy="${p.y}" r="${p.r}"/>`;
     else if (p.t === "bar") s += `<line class="prop" stroke-width="4" x1="${p.x1}" y1="${p.y1}" x2="${p.x2}" y2="${p.y2}"/>`;
     else if (p.t === "cable") { const w = J[p.j || "wr"]; s += `<circle class="prop" cx="${p.from[0]}" cy="${p.from[1]}" r="4"/><line class="cable" x1="${p.from[0]}" y1="${p.from[1]}" x2="${w[0]}" y2="${w[1]}"/>`; }
     else if (p.t === "plat") { const a = J.toe, d = p.d; s += `<line class="prop" stroke-width="4" x1="${a[0] - d[0] * 20 + 3}" y1="${a[1] - d[1] * 20}" x2="${a[0] + d[0] * 20 + 3}" y2="${a[1] + d[1] * 20}"/>`; }
@@ -1038,6 +1057,15 @@ const GUIDE = {
     fig: { a: { hip: [110, 150], to: -72, ank: [166, 186], kb: "up", wr: [62, 80] }, b: { hip: [108, 128], to: -75, ank: [166, 186], kb: "up", wr: [62, 80], eb: "down" }, hl: ["torso", "ua"], props: [{ t: "bar", x1: 30, y1: 80, x2: 100, y2: 80 }, { t: "line", x1: 34, y1: 80, x2: 34, y2: 188, w: 4 }] } },
   "Mountain climbers": { m: "Core, hombros y cardio", steps: ["Posición de flexión con los brazos estirados.", "Lleva una rodilla hacia el pecho y vuelve, alternando rápido.", "Mantén la cadera baja y los hombros sobre las manos."], ojo: "Subir la cadera o mover los hombros atrás.",
     fig: { a: { hip: [88, 150], to: 78, hd: 100, ank: [12, 176], ank2: [12, 176], ft: 160, ft2: 160, wr: [141, 188] }, b: { hip: [88, 146], to: 76, hd: 100, ank: [106, 172], ank2: [12, 176], ft: 150, ft2: 160, wr: [141, 188] }, hl: ["torso", "thigh"], props: [] } },
+  "Carrera en cinta": { m: "Cuádriceps, gemelos y glúteo; corazón y pulmones", steps: ["Empieza caminando y sube la velocidad poco a poco.", "Cuerpo recto y un poco adelantado; pisa bajo la cadera, no por delante.", "Brazos doblados a 90° acompañando la zancada; respira por nariz y boca."], ojo: "Agarrarte a la barandilla o correr pegado al frontal.",
+    fig: { a: { hip: [100, 104], to: 8, ank: [124, 176], kb: "fwd", ft: 80, ank2: [72, 158], kb2: "fwd", ft2: 150, wr: [124, 90], eb: "back", wr2: [88, 100], eb2: "back" },
+      b: { hip: [100, 104], to: 8, ank: [72, 158], kb: "fwd", ft: 150, ank2: [124, 176], kb2: "fwd", ft2: 80, wr: [88, 100], eb: "back", wr2: [124, 90], eb2: "back" },
+      hl: ["thigh", "shin"], props: [{ t: "line", x1: 28, y1: 181, x2: 178, y2: 181, w: 6 }, { t: "line", x1: 174, y1: 181, x2: 160, y2: 84, w: 4 }, { t: "line", x1: 160, y1: 88, x2: 138, y2: 96, w: 4 }] } },
+  "Bici": { m: "Cuádriceps y glúteo; corazón y pulmones", steps: ["Sillín a la altura de la cadera: abajo la rodilla queda casi estirada.", "Pedalea redondo empujando y tirando, con el cuerpo quieto.", "Ajusta la resistencia para poder hablar a ritmo suave o apretar en los cambios."], ojo: "Sillín bajo: castiga las rodillas.",
+    fig: { a: { hip: [86, 118], to: 30, ank: [124, 148], kb: "fwd", ft: 95, ank2: [100, 172], kb2: "fwd", ft2: 95, wr: [146, 98] },
+      b: { hip: [86, 118], to: 30, ank: [100, 172], kb: "fwd", ft: 95, ank2: [124, 148], kb2: "fwd", ft2: 95, wr: [146, 98] },
+      hl: ["thigh", "shin"], props: [{ t: "circle", x: 144, y: 164, r: 18 }, { t: "line", x1: 72, y1: 186, x2: 172, y2: 186, w: 5 }, { t: "line", x1: 76, y1: 124, x2: 98, y2: 124, w: 6 },
+        { t: "line", x1: 90, y1: 124, x2: 112, y2: 160, w: 4 }, { t: "line", x1: 112, y1: 160, x2: 150, y2: 100, w: 4 }, { t: "line", x1: 144, y1: 96, x2: 156, y2: 100, w: 5 }, { t: "line", x1: 112, y1: 160, x2: 112, y2: 186, w: 4 }] } },
   "Sentadilla sin peso": { m: "Cuádriceps y glúteo", steps: ["Pies a la anchura de hombros, puntas algo abiertas.", "Baja con la cadera atrás y los brazos al frente para equilibrarte.", "Sube empujando con todo el pie."], ojo: "Talones que se levantan.",
     fig: { a: { hip: [92, 106], to: 3, ank: [92, 186], wr: [95, 106], eb: "fwd" }, b: { hip: [66, 141], to: 45, ank: [92, 186], wr: [150, 104] }, hl: ["thigh"], props: [] } },
   "Pike push-up": { m: "Hombro y tríceps", steps: ["Cadera arriba formando una V invertida, manos y pies en el suelo.", "Dobla los codos llevando la cabeza hacia el suelo, delante de las manos.", "Empuja hasta estirar los brazos."], ojo: "Abrir los codos hacia fuera.",
@@ -2816,7 +2844,7 @@ function workoutCard(w, ref){
   const n = w.bloques.reduce((a, b) => a + b.items.length, 0);
   return `<div class="wcard">
     <div class="wcard-h"><span class="chip">${esc(SPORTS[w.tipo === "calistenia" ? "gym" : w.tipo] || "Entreno")}${w.tipo === "calistenia" ? " · calistenia" : ""}</span><b>${esc(w.titulo)}</b><span class="muted">${w.duracion_min} min · ${n} ejercicios</span></div>
-    <div class="wcard-figs">${w.bloques.flatMap(b => b.items).filter(it => GUIDE[it.ejercicio]).slice(0, 4).map(it => `<svg class="fig mini" viewBox="0 -14 200 206" aria-hidden="true">${figSVG(it.ejercicio, 1, false)}</svg>`).join("")}</div>
+    <div class="wcard-figs">${w.bloques.flatMap(b => b.items).filter(it => GUIDE[it.ejercicio]).slice(0, 4).map(it => figMini(it.ejercicio)).join("")}</div>
     <button type="button" class="btn primary" data-start="${esc(ref)}">Ver y empezar</button>
   </div>`;
 }
@@ -3029,7 +3057,7 @@ function renderPlayer(){
         return main.length ? `<div class="pl-today"><div class="eyebrow">Hoy trabajas</div><div class="mus-title" style="font-size:24px">${esc(musNames(main))}</div>${bodyMap(lv, { cls: "small" })}<div class="mus-legend"><span><i style="background:var(--muscle)"></i>principal</span><span><i style="background:var(--mus-help)"></i>ayuda</span></div></div>` : ""; })()}
       ${run.swapped && run.swapped.length ? `<p class="note">Cambiado porque no te gusta: ${run.swapped.map(([a, b]) => `${esc(a)} → <b>${esc(b)}</b>`).join(", ")}.</p>` : ""}
       ${w.bloques.map((b, bi) => `<div class="pl-block"><div class="eyebrow">${esc(b.nombre)}</div>${b.items.map((x, ii) => `<div class="pl-item">
-        ${GUIDE[x.ejercicio] ? `<svg class="fig mini" viewBox="0 -14 200 206" aria-hidden="true">${figSVG(x.ejercicio, 1, false)}</svg>` : `<div class="fig mini nofig">${esc(x.ejercicio.slice(0, 2))}</div>`}
+        ${figMini(x.ejercicio)}
         <div>${musclesOf(x).main.length ? `<div class="mus-chip">${esc(musNames(musclesOf(x).main))}</div>` : ""}<b>${esc(x.ejercicio)}</b><div class="muted" style="font-size:13px">${x.series} × ${target(x)} · descanso ${x.descanso_s} s</div>${x.reto ? `<div class="reto">${esc(x.reto)}</div>` : ""}</div>
         <button type="button" class="btn sm ghost" data-swap-item="${bi}.${ii}" aria-label="Cambiar ${esc(x.ejercicio)}">Cambiar</button></div>`).join("")}</div>`).join("")}
       ${w.nota ? `<p class="note">${esc(w.nota)}</p>` : ""}
@@ -3048,7 +3076,7 @@ function renderPlayer(){
     body = `<div class="pl-body center">
       <div class="eyebrow">${esc(w.bloques[st.bi].nombre)} · trabajas</div>
       <h2 class="mus-title">${esc(musNames(mu.main) || it.ejercicio)}</h2>
-      <div class="pl-how">${GUIDE[it.ejercicio] ? `<div class="pl-fig small">${figMarkup(it.ejercicio)}</div>` : ""}<div><div class="muted" style="font-size:12px">cómo</div><b>${esc(it.ejercicio)}</b><div class="pl-set">Serie <b>${st.s}</b> de ${it.series} · <b>${target(it)}</b></div></div></div>
+      <div class="pl-how">${GUIDE[it.ejercicio] ? `<button type="button" class="pl-fig small figbtn" data-figzoom="${esc(it.ejercicio)}" aria-label="Ver en grande cómo se hace ${esc(it.ejercicio)}">${figMarkup(it.ejercicio)}</button>` : ""}<div><div class="muted" style="font-size:12px">cómo</div><b>${esc(it.ejercicio)}</b><div class="pl-set">Serie <b>${st.s}</b> de ${it.series} · <b>${target(it)}</b></div></div></div>
       ${resting || working ? `<div class="ring ${resting ? "rest" : "work"}">
           <svg viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="52" class="rt"/><circle cx="60" cy="60" r="52" class="rv" id="pl-ring" style="stroke-dasharray:326.7;stroke-dashoffset:${326.7 * (1 - Math.max(0, secsLeft) / span)}"/></svg>
           <div class="ring-txt"><span id="pl-count">${mmssS(secsLeft)}</span><small>${resting ? "descanso" : "¡dale!"}</small></div></div>
@@ -3395,9 +3423,8 @@ function openSwap(bi, ii){
 function swapSheetHTML(){
   if (!swap || !run) return "";
   const it = run.w.bloques[swap.bi].items[swap.ii], mu = musclesOf(it);
-  const opt = (o, i, src) => `<button type="button" class="swap-opt" data-swap-pick="${src}:${i}">
-      ${GUIDE[o.name] ? `<svg class="fig mini" viewBox="0 -14 200 206" aria-hidden="true">${figSVG(o.name, 1, false)}</svg>` : `<div class="fig mini nofig">${esc(o.name.slice(0, 2))}</div>`}
-      <span><span class="mus-chip">${esc(o.why)}</span><b>${esc(o.name)}</b><small>${esc(o.item.series + " × " + target(o.item))}</small></span></button>`;
+  const opt = (o, i, src) => `<div class="swap-opt">${figMini(o.name)}
+      <button type="button" class="swap-pick" data-swap-pick="${src}:${i}"><span class="mus-chip">${esc(o.why)}</span><b>${esc(o.name)}</b><small>${esc(o.item.series + " × " + target(o.item))}</small></button></div>`;
   return `<div class="swap-back" data-swap="close"></div>
   <div class="swap-sheet" role="dialog" aria-modal="true" aria-labelledby="swap-t">
     <div class="swap-h"><div><div class="eyebrow">Cambiar ejercicio</div><b id="swap-t">${esc(it.ejercicio)}</b>${mu.main.length ? `<div class="muted" style="font-size:13px">Otros que trabajan ${esc(musNames(mu.main).toLowerCase())}</div>` : ""}</div>
@@ -3466,6 +3493,45 @@ document.addEventListener("click", async e => {
 });
 document.addEventListener("change", e => { if (e.target.id === "swap-dis" && swap) swap.dislike = e.target.checked; });
 document.addEventListener("keydown", e => { if (e.key === "Escape" && swap) { swap = null; renderPlayer(); } });
+
+/* ===== 14-zoom.js ===== */
+/* ---------- tap a small drawing to see it big ----------
+   Every small figure is a button (data-figzoom); it opens the animated drawing with the muscles,
+   the steps and the usual mistake, above everything else, including the guided workout. */
+function figMini(name){
+  if (!GUIDE[name]) return `<div class="fig mini nofig">${esc(String(name).slice(0, 2))}</div>`;
+  return `<button type="button" class="figbtn" data-figzoom="${esc(name)}" aria-label="Ver cómo se hace ${esc(name)}"><svg class="fig mini" viewBox="0 -14 200 206" aria-hidden="true">${figSVG(name, 1, false)}</svg></button>`;
+}
+let zoomEl = null, zoomBack = null;
+function openZoom(name){
+  const g = GUIDE[name]; if (!g) return;
+  const m = musclesOf(name);
+  if (!zoomEl) { zoomEl = document.createElement("div"); zoomEl.className = "figzoom"; document.body.appendChild(zoomEl); }
+  zoomBack = document.activeElement;
+  zoomEl.innerHTML = `<div class="fz-back" data-fz="close"></div>
+    <div class="fz-card" role="dialog" aria-modal="true" aria-labelledby="fz-t">
+      <button type="button" class="btn sm ghost fz-x" data-fz="close" aria-label="Cerrar">✕</button>
+      <div class="fz-fig">${figMarkup(name)}</div>
+      <div>${m.main.length ? `<div class="mus-chip">${esc(musNames(m.main))}</div>` : ""}<h3 id="fz-t">${esc(name)}</h3>${m.help.length ? `<div class="muted" style="font-size:13px">Ayudan: ${esc(musNames(m.help))}</div>` : ""}</div>
+      <ol>${g.steps.map(s => `<li>${esc(s)}</li>`).join("")}</ol>
+      <div class="ojo"><b>Ojo:</b> ${esc(g.ojo)}</div>
+      <button type="button" class="btn primary" data-fz="close">Entendido</button>
+    </div>`;
+  zoomEl.hidden = false; mountFigs();
+  zoomEl.querySelector(".fz-x")?.focus();
+}
+function closeZoom(){
+  if (!zoomEl || zoomEl.hidden) return false;
+  zoomEl.hidden = true; zoomEl.innerHTML = "";
+  if (zoomBack && zoomBack.isConnected) zoomBack.focus();
+  return true;
+}
+document.addEventListener("click", e => {
+  const t = e.target.closest("[data-figzoom],[data-fz]"); if (!t) return;
+  if (t.dataset.figzoom) { e.preventDefault(); e.stopPropagation(); openZoom(t.dataset.figzoom); }
+  else closeZoom();
+}, true);
+document.addEventListener("keydown", e => { if (e.key === "Escape" && closeZoom()) e.stopImmediatePropagation(); }, true);
 
 /* ===== 99-boot.js ===== */
 /* ---------- navigation ---------- */

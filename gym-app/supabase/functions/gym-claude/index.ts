@@ -1,6 +1,7 @@
 // Edge Function gym-claude: la app web de gimnasio (Juan vs Ignacio) pide aquí a Claude que
 // ordene lo dictado, valore la semana o proponga un menú. Solo para los usuarios de gym_usuarios,
-// con tope diario de llamadas. Necesita el secreto ANTHROPIC_API_KEY en el proyecto.
+// con tope diario de llamadas. Necesita la clave de Anthropic: secreto ANTHROPIC_API_KEY o,
+// si no está, el secreto del Vault 'gym_anthropic_api_key' (función SQL gym_anthropic_key).
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import Anthropic from "npm:@anthropic-ai/sdk@0.128.0";
 import { createClient } from "npm:@supabase/supabase-js@2.117.0";
@@ -29,8 +30,10 @@ Deno.serve(async (req: Request) => {
   const { data: gymUser } = await admin.from("gym_usuarios").select("athlete").eq("user_id", user.id).maybeSingle();
   if (!gymUser) return reply({ code: "forbidden", error: "Este usuario no es del gimnasio" }, 403);
 
-  const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
-  if (!apiKey) return reply({ code: "no_key", error: "Falta el secreto ANTHROPIC_API_KEY" }, 503);
+  // The key lives in the function secrets (ANTHROPIC_API_KEY) or, failing that, in the Vault.
+  let apiKey = Deno.env.get("ANTHROPIC_API_KEY");
+  if (!apiKey) apiKey = (await admin.rpc("gym_anthropic_key")).data ?? undefined;
+  if (!apiKey) return reply({ code: "no_key", error: "Falta la clave de Anthropic (ANTHROPIC_API_KEY o Vault)" }, 503);
 
   let prompt = "";
   try { prompt = String((await req.json())?.prompt ?? ""); } catch { /* cuerpo vacío o no JSON */ }

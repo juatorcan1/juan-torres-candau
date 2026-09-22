@@ -43,7 +43,9 @@ const CATALOG = {
   "Press militar":"Hombro","Elevaciones laterales":"Hombro","Pájaros":"Hombro","Face pull":"Hombro",
   "Curl con barra":"Bíceps","Curl martillo":"Bíceps","Curl en banco Scott":"Bíceps",
   "Extensión en polea":"Tríceps","Press francés":"Tríceps",
-  "Plancha":"Core","Crunch":"Core","Rueda abdominal":"Core","Elevación de piernas":"Core"
+  "Plancha":"Core","Crunch":"Core","Rueda abdominal":"Core","Elevación de piernas":"Core",
+  "Flexiones":"Pecho","Remo invertido":"Espalda","Mountain climbers":"Core","Sentadilla sin peso":"Piernas","Pike push-up":"Hombro",
+  "Burpee":"Full body","Puente de glúteo":"Glúteo","Fondos en banco":"Tríceps"
 };
 const normName = s => String(s || "").trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 

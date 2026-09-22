@@ -18,7 +18,8 @@ function renderDieta(){
   const v = $("#view-dieta"), other = OTHER[dWho];
   const { t, w } = targetsFor(dWho), o = targetsFor(other).t, pr = profileOf(dWho), saved = !!profiles[dWho];
   const factor = Math.min(1.45, Math.max(0.7, t.kcal / 2400));
-  const menu = dayMenu(dDay, dCirc, factor);
+  const dp = me === dWho ? dietPlan() : dietPlan(dWho), pdd = dp && dp.dias.find(d => (parseISO(d.fecha).getDay() + 6) % 7 === dDay);
+  const menu = pdd ? { desayuno: pdd.desayuno, media: pdd.media, comida: pdd.comida[dCirc] || [], merienda: pdd.merienda, cena: pdd.cena } : dayMenu(dDay, dCirc, factor);
   const wk = periodRange("semana"), al = alcoholIn(drk(), dWho, ...wk);
   const editable = me === dWho && dbState === "ready";
   const tile = (l, val, unit, ov) => `<div class="tg"><div class="l">${l}</div><div class="v">${fmt(val)}<small> ${unit}</small></div><div class="o"><i class="dot ${other}"></i> ${ATH[other]}: ${fmt(ov)} ${unit}</div></div>`;
@@ -53,7 +54,8 @@ function renderDieta(){
     </div>
 
     <div class="panel">
-      <div class="panel-head"><h2>Menú del ${DAYS_LONG[dDay].toLowerCase()}</h2></div>
+      <div class="panel-head"><div><h2>Menú del ${DAYS_LONG[dDay].toLowerCase()}</h2><div class="muted" style="font-size:13px;margin-top:2px">${pdd ? `De tu dietista: ${esc(dp.titulo)}${pdd.kcal ? ` · unas ${fmt(pdd.kcal)} kcal` : ""}` : "Menú base de la app. Pídele uno a medida a tu dietista."}</div></div>
+        <button type="button" class="btn sm" data-say="nutri" data-text="Hazme el menú de la semana" data-go="nutri">${pdd ? "Nuevo menú semanal" : "Menú a medida"}</button></div>
       <div style="display:grid;gap:12px">
         <div class="days" role="group" aria-label="Día de la semana">${DAYS_SHORT.map((d, i) => `<button type="button" data-dday="${i}" aria-pressed="${dDay === i}" class="${i === (today().getDay() + 6) % 7 ? "today" : ""}" aria-label="${DAYS_LONG[i]}">${d}</button>`).join("")}</div>
         <div class="circs" role="group" aria-label="Dónde comes hoy">${Object.entries(CIRCS).map(([k, c]) => `<button type="button" data-circ="${k}" aria-pressed="${dCirc === k}"><b>${c.l}</b><span>${c.s}</span></button>`).join("")}</div>
@@ -106,7 +108,7 @@ document.addEventListener("click", e => {
   const t = e.target.closest("button"); if (!t) return;
   if (t.dataset.dwho) { dWho = t.dataset.dwho; aiText = ""; renderDieta(); }
   else if (t.dataset.dday) { dDay = +t.dataset.dday; renderDieta(); }
-  else if (t.dataset.circ) { dCirc = t.dataset.circ; store.set("gym.circ", dCirc); renderDieta(); }
+  else if (t.dataset.circ) { dCirc = t.dataset.circ; store.set("gym.circ", dCirc); renderView(); }
   else if (t.dataset.act === "ai-go") askMenu();
   else if (t.dataset.act === "ai-stop") aiCtl?.abort();
 });

@@ -6,25 +6,59 @@
 
   <div class="strip">
     <div class="score" id="score"></div>
-    <nav class="tabs" role="tablist" aria-label="Secciones">
-      <button role="tab" id="tab-duelo" data-tab="duelo">Duelo</button>
-      <button role="tab" id="tab-apuntar" data-tab="apuntar">Apuntar</button>
-      <button role="tab" id="tab-historial" data-tab="historial">Historial</button>
-      <button role="tab" id="tab-records" data-tab="records">Récords</button>
-      <button role="tab" id="tab-cuerpo" data-tab="cuerpo">Peso y copas</button>
-      <button role="tab" id="tab-dieta" data-tab="dieta">Dieta</button>
-      <button role="tab" id="tab-ejercicios" data-tab="ejercicios">Ejercicios</button>
-    </nav>
   </div>
 
   <main>
-    <section id="view-duelo" role="tabpanel" aria-labelledby="tab-duelo"></section>
-    <section id="view-apuntar" role="tabpanel" aria-labelledby="tab-apuntar" hidden></section>
-    <section id="view-historial" role="tabpanel" aria-labelledby="tab-historial" hidden></section>
-    <section id="view-records" role="tabpanel" aria-labelledby="tab-records" hidden></section>
-    <section id="view-cuerpo" role="tabpanel" aria-labelledby="tab-cuerpo" hidden></section>
-    <section id="view-dieta" role="tabpanel" aria-labelledby="tab-dieta" hidden></section>
-    <section id="view-ejercicios" role="tabpanel" aria-labelledby="tab-ejercicios" hidden></section>
+    <section id="top-hoy" class="top">
+      <div id="view-hoy" class="leaf"></div>
+    </section>
+
+    <section id="top-entrenador" class="top" hidden>
+      <div class="subnav" role="tablist" aria-label="Entrenador">
+        <button role="tab" data-leaf="coach">Chat</button>
+        <button role="tab" data-leaf="plan">Plan</button>
+        <button role="tab" data-leaf="ejercicios">Ejercicios</button>
+      </div>
+      <div id="view-coach" class="leaf"></div>
+      <div id="view-plan" class="leaf" hidden></div>
+      <div id="view-ejercicios" class="leaf" hidden></div>
+    </section>
+
+    <section id="top-apuntar" class="top" hidden>
+      <div id="view-apuntar" class="leaf"></div>
+    </section>
+
+    <section id="top-dietista" class="top" hidden>
+      <div class="subnav" role="tablist" aria-label="Dietista">
+        <button role="tab" data-leaf="nutri">Chat</button>
+        <button role="tab" data-leaf="dieta">Menú</button>
+      </div>
+      <div id="view-nutri" class="leaf"></div>
+      <div id="view-dieta" class="leaf" hidden></div>
+    </section>
+
+    <section id="top-duelo" class="top" hidden>
+      <div class="subnav" role="tablist" aria-label="Duelo">
+        <button role="tab" data-leaf="duelo">Resumen</button>
+        <button role="tab" data-leaf="historial">Historial</button>
+        <button role="tab" data-leaf="records">Récords</button>
+        <button role="tab" data-leaf="cuerpo">Peso y copas</button>
+      </div>
+      <div id="view-duelo" class="leaf"></div>
+      <div id="view-historial" class="leaf" hidden></div>
+      <div id="view-records" class="leaf" hidden></div>
+      <div id="view-cuerpo" class="leaf" hidden></div>
+    </section>
   </main>
 </div>
+
+<nav class="bnav" aria-label="Secciones">
+  <button type="button" data-top="hoy"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 5l8 6.5V20a1 1 0 0 1-1 1h-5v-6h-4v6H5a1 1 0 0 1-1-1z"/></svg><span>Hoy</span></button>
+  <button type="button" data-top="entrenador"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10v4M6 7v10M18 7v10M21 10v4M6 12h12"/></svg><span>Entrenador</span></button>
+  <button type="button" data-top="apuntar" class="plus" aria-label="Apuntar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+  <button type="button" data-top="dietista"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3v8a2 2 0 0 0 4 0V3M9 11v10M16 21V3c2.5 1.5 3.5 4 3.5 7s-1.5 4-3.5 4"/></svg><span>Dietista</span></button>
+  <button type="button" data-top="duelo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0zM7 6H4v1a3 3 0 0 0 3 3M17 6h3v1a3 3 0 0 1-3 3"/></svg><span>Duelo</span></button>
+</nav>
+
+<div id="player" class="player" hidden></div>
 <div class="toast" id="toast" hidden></div>

@@ -1,30 +1,31 @@
-/* ---------- tabs ---------- */
+/* ---------- navigation ---------- */
 let sampleState = "loading"; // loading | ready | none
 let staleView = false;
+const lastLeaf = store.get("gym.leaves", { entrenador: "coach", dietista: "nutri", duelo: "duelo" });
 function setTab(t){
-  if (!TABS.includes(t)) t = "duelo";
+  if (!TABS.includes(t)) t = "hoy";
   tab = t; store.set("gym.tab", t);
-  for (const k of TABS) $("#view-" + k).hidden = k !== t;
-  for (const b of document.querySelectorAll(".tabs button")) b.setAttribute("aria-selected", String(b.dataset.tab === t));
-  $(`.tabs button[data-tab="${t}"]`)?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  const top = LEAF_TOP[t];
+  lastLeaf[top] = t; store.set("gym.leaves", lastLeaf);
+  for (const sec of document.querySelectorAll("main > .top")) sec.hidden = sec.id !== "top-" + top;
+  for (const k of TABS) { const el = $("#view-" + k); if (el) el.hidden = k !== t; }
+  for (const b of document.querySelectorAll(".bnav button")) b.setAttribute("aria-current", b.dataset.top === top ? "page" : "false");
+  for (const b of document.querySelectorAll(".subnav button")) b.setAttribute("aria-selected", String(b.dataset.leaf === t));
   renderView();
   window.scrollTo({ top: 0 });
 }
 function renderView(){
   staleView = false;
-  if (tab === "duelo") renderDuelo();
-  else if (tab === "apuntar") renderApuntar();
-  else if (tab === "historial") renderHistorial();
-  else if (tab === "records") renderRecords();
-  else if (tab === "cuerpo") renderCuerpo();
-  else if (tab === "dieta") renderDieta();
-  else renderEjercicios();
+  const r = { hoy: renderHoy, coach: () => renderChat("coach"), plan: renderPlan, ejercicios: renderEjercicios, apuntar: renderApuntar,
+    nutri: () => renderChat("nutri"), dieta: renderDieta, duelo: renderDuelo, historial: renderHistorial, records: renderRecords, cuerpo: renderCuerpo }[tab];
+  (r || renderHoy)();
 }
 function renderAll(){ renderHeader(); renderView(); }
 // Live data re-renders the view, except while someone is typing in it.
 function typing(){ const a = document.activeElement; return !!(a && a.closest && a.closest("main") && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)); }
 function onData(){
   renderHeader();
+  if (playerOpen()) renderPlayerSoft();
   if (tab === "apuntar" && apMode === "form") {
     if (!$("#form") || !$("#form .btn.primary:not([disabled])")) renderRegistrar();
     else draft.exercises.forEach((_, i) => updateHint(i));
@@ -34,6 +35,11 @@ function onData(){
   renderView();
 }
 document.addEventListener("focusout", () => setTimeout(() => { if (staleView && !typing()) renderView(); }, 0));
+document.addEventListener("click", e => {
+  const t = e.target.closest("button"); if (!t) return;
+  if (t.dataset.top) { const top = t.dataset.top; setTab(top === "hoy" || top === "apuntar" ? top : (lastLeaf[top] || top)); }
+  else if (t.dataset.leaf) setTab(t.dataset.leaf);
+});
 let keepT;
 document.addEventListener("input", e => {
   const t = e.target;
@@ -44,8 +50,9 @@ document.addEventListener("keydown", e => {
 });
 
 /* ---------- boot ---------- */
-for (const k of TABS) $("#view-" + k).hidden = k !== tab;
-renderAll();
+setTab(tab);
+renderHeader();
+resumePlayer();
 
 (async () => {
   const use = name => (window.claude && window.claude.use ? window.claude.use(name).catch(() => null) : Promise.resolve(null));
@@ -57,6 +64,8 @@ renderAll();
   sub("sesiones", rows => { real = rows.filter(s => ATH[s.athlete] && s.date); });
   sub("pesajes", rows => { weights = rows.filter(w => ATH[w.athlete] && w.date && num(w.kg) > 0); });
   sub("bebidas", rows => { drinks = rows.filter(d => ATH[d.athlete] && d.date && Object.keys(d.counts || {}).length); });
-  if (WEB) setInterval(() => { if (!document.hidden) db.refresh?.(); }, 60000);
   sub("perfiles", rows => { profiles = {}; for (const r of rows) if (ATH[r.id]) profiles[r.id] = r; });
+  sub("planes", rows => { plans = {}; for (const r of rows) plans[r.id] = r; });
+  sub("chats", rows => { chats = {}; for (const r of rows) chats[r.id] = r; });
+  if (WEB) setInterval(() => { if (!document.hidden) db.refresh?.(); }, 60000);
 })();

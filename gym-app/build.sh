@@ -11,7 +11,7 @@ cd "$(dirname "$0")"
   echo '<style>'; cat src/style.css; echo '</style>'
   cat src/body.html
   echo '<script>'; echo '(function(){'; echo '"use strict";'
-  for f in src/0*.js; do echo; echo "/* ===== $(basename "$f") ===== */"; cat "$f"; done
+  for f in $(ls src/[0-9]*.js | sort); do echo; echo "/* ===== $(basename "$f") ===== */"; cat "$f"; done
   echo '})();'; echo '</script>'
 } > index.html
 echo "index.html: $(wc -c < index.html) bytes"

@@ -83,9 +83,8 @@ function openSwap(bi, ii){
 function swapSheetHTML(){
   if (!swap || !run) return "";
   const it = run.w.bloques[swap.bi].items[swap.ii], mu = musclesOf(it);
-  const opt = (o, i, src) => `<button type="button" class="swap-opt" data-swap-pick="${src}:${i}">
-      ${GUIDE[o.name] ? `<svg class="fig mini" viewBox="0 -14 200 206" aria-hidden="true">${figSVG(o.name, 1, false)}</svg>` : `<div class="fig mini nofig">${esc(o.name.slice(0, 2))}</div>`}
-      <span><span class="mus-chip">${esc(o.why)}</span><b>${esc(o.name)}</b><small>${esc(o.item.series + " × " + target(o.item))}</small></span></button>`;
+  const opt = (o, i, src) => `<div class="swap-opt">${figMini(o.name)}
+      <button type="button" class="swap-pick" data-swap-pick="${src}:${i}"><span class="mus-chip">${esc(o.why)}</span><b>${esc(o.name)}</b><small>${esc(o.item.series + " × " + target(o.item))}</small></button></div>`;
   return `<div class="swap-back" data-swap="close"></div>
   <div class="swap-sheet" role="dialog" aria-modal="true" aria-labelledby="swap-t">
     <div class="swap-h"><div><div class="eyebrow">Cambiar ejercicio</div><b id="swap-t">${esc(it.ejercicio)}</b>${mu.main.length ? `<div class="muted" style="font-size:13px">Otros que trabajan ${esc(musNames(mu.main).toLowerCase())}</div>` : ""}</div>

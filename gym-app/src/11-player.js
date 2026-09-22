@@ -83,7 +83,7 @@ function renderPlayer(){
         return main.length ? `<div class="pl-today"><div class="eyebrow">Hoy trabajas</div><div class="mus-title" style="font-size:24px">${esc(musNames(main))}</div>${bodyMap(lv, { cls: "small" })}<div class="mus-legend"><span><i style="background:var(--muscle)"></i>principal</span><span><i style="background:var(--mus-help)"></i>ayuda</span></div></div>` : ""; })()}
       ${run.swapped && run.swapped.length ? `<p class="note">Cambiado porque no te gusta: ${run.swapped.map(([a, b]) => `${esc(a)} → <b>${esc(b)}</b>`).join(", ")}.</p>` : ""}
       ${w.bloques.map((b, bi) => `<div class="pl-block"><div class="eyebrow">${esc(b.nombre)}</div>${b.items.map((x, ii) => `<div class="pl-item">
-        ${GUIDE[x.ejercicio] ? `<svg class="fig mini" viewBox="0 -14 200 206" aria-hidden="true">${figSVG(x.ejercicio, 1, false)}</svg>` : `<div class="fig mini nofig">${esc(x.ejercicio.slice(0, 2))}</div>`}
+        ${figMini(x.ejercicio)}
         <div>${musclesOf(x).main.length ? `<div class="mus-chip">${esc(musNames(musclesOf(x).main))}</div>` : ""}<b>${esc(x.ejercicio)}</b><div class="muted" style="font-size:13px">${x.series} × ${target(x)} · descanso ${x.descanso_s} s</div>${x.reto ? `<div class="reto">${esc(x.reto)}</div>` : ""}</div>
         <button type="button" class="btn sm ghost" data-swap-item="${bi}.${ii}" aria-label="Cambiar ${esc(x.ejercicio)}">Cambiar</button></div>`).join("")}</div>`).join("")}
       ${w.nota ? `<p class="note">${esc(w.nota)}</p>` : ""}
@@ -102,7 +102,7 @@ function renderPlayer(){
     body = `<div class="pl-body center">
       <div class="eyebrow">${esc(w.bloques[st.bi].nombre)} · trabajas</div>
       <h2 class="mus-title">${esc(musNames(mu.main) || it.ejercicio)}</h2>
-      <div class="pl-how">${GUIDE[it.ejercicio] ? `<div class="pl-fig small">${figMarkup(it.ejercicio)}</div>` : ""}<div><div class="muted" style="font-size:12px">cómo</div><b>${esc(it.ejercicio)}</b><div class="pl-set">Serie <b>${st.s}</b> de ${it.series} · <b>${target(it)}</b></div></div></div>
+      <div class="pl-how">${GUIDE[it.ejercicio] ? `<button type="button" class="pl-fig small figbtn" data-figzoom="${esc(it.ejercicio)}" aria-label="Ver en grande cómo se hace ${esc(it.ejercicio)}">${figMarkup(it.ejercicio)}</button>` : ""}<div><div class="muted" style="font-size:12px">cómo</div><b>${esc(it.ejercicio)}</b><div class="pl-set">Serie <b>${st.s}</b> de ${it.series} · <b>${target(it)}</b></div></div></div>
       ${resting || working ? `<div class="ring ${resting ? "rest" : "work"}">
           <svg viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="52" class="rt"/><circle cx="60" cy="60" r="52" class="rv" id="pl-ring" style="stroke-dasharray:326.7;stroke-dashoffset:${326.7 * (1 - Math.max(0, secsLeft) / span)}"/></svg>
           <div class="ring-txt"><span id="pl-count">${mmssS(secsLeft)}</span><small>${resting ? "descanso" : "¡dale!"}</small></div></div>

@@ -191,7 +191,7 @@ function workoutCard(w, ref){
   const n = w.bloques.reduce((a, b) => a + b.items.length, 0);
   return `<div class="wcard">
     <div class="wcard-h"><span class="chip">${esc(SPORTS[w.tipo === "calistenia" ? "gym" : w.tipo] || "Entreno")}${w.tipo === "calistenia" ? " · calistenia" : ""}</span><b>${esc(w.titulo)}</b><span class="muted">${w.duracion_min} min · ${n} ejercicios</span></div>
-    <div class="wcard-figs">${w.bloques.flatMap(b => b.items).filter(it => GUIDE[it.ejercicio]).slice(0, 4).map(it => `<svg class="fig mini" viewBox="0 -14 200 206" aria-hidden="true">${figSVG(it.ejercicio, 1, false)}</svg>`).join("")}</div>
+    <div class="wcard-figs">${w.bloques.flatMap(b => b.items).filter(it => GUIDE[it.ejercicio]).slice(0, 4).map(it => figMini(it.ejercicio)).join("")}</div>
     <button type="button" class="btn primary" data-start="${esc(ref)}">Ver y empezar</button>
   </div>`;
 }

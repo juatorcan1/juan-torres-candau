@@ -5,8 +5,9 @@
    cuentas-claude y `assets` es la carpeta privada cuentas-tickets. */
 const CFG = window.CJ_WEB;
 const sb = window.supabase.createClient(CFG.url, CFG.key, { auth: { persistSession: true, autoRefreshToken: true } });
-// Juan entra con su usuario del gimnasio: la misma contraseña sirve para las dos webs.
-const LOGIN_EMAIL = "juan@gym.example.com";
+// Se entra con el mismo usuario del gimnasio ("juan") y su contraseña: sirve para las dos webs.
+// Detrás, cada usuario es un correo de Supabase: "juan" -> juan@gym.example.com.
+const loginEmail = u => { u = String(u || "").trim().toLowerCase(); return u.includes("@") ? u : u + "@gym.example.com"; };
 let resolveReady, uidNow = null;
 const ready = new Promise(r => { resolveReady = r; });
 
@@ -122,12 +123,13 @@ function showLogin(msg = ""){
   document.body.classList.add("locked");
   loginEl.innerHTML = `<form id="login-form" class="login-card" novalidate>
     <h1>Las cuentas de Juan</h1>
-    <p class="muted" style="margin:0">Entra con tu contraseña. Es la misma que la del gimnasio.</p>
+    <p class="muted" style="margin:0">Entra con tu usuario y tu contraseña. Son los mismos que los del gimnasio.</p>
+    <div class="f"><label for="l-user">Usuario</label><input id="l-user" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" value="${esc(store.get("cj.lastuser", ""))}" required></div>
     <div class="f"><label for="l-pass">Contraseña</label><input id="l-pass" type="password" autocomplete="current-password" required></div>
     ${msg ? `<div class="err" role="alert">${esc(msg)}</div>` : ""}
     <button type="submit" class="btn primary">Entrar</button>
   </form>`;
-  setTimeout(() => { const p = $("#l-pass"); if (p) p.focus(); }, 0);
+  setTimeout(() => { const u = $("#l-user"), p = $("#l-pass"); if (u && !u.value) u.focus(); else if (p) p.focus(); }, 0);
 }
 function webBar(){
   let w = $("#webbar");
@@ -143,11 +145,12 @@ async function enter(session){
 }
 loginEl.addEventListener("submit", async e => {
   e.preventDefault();
-  const pass = $("#l-pass").value;
-  if (!pass) { showLogin("Escribe tu contraseña."); return; }
+  const user = $("#l-user").value.trim(), pass = $("#l-pass").value;
+  store.set("cj.lastuser", user);
+  if (!user || !pass) { showLogin("Escribe tu usuario y tu contraseña."); return; }
   const btn = loginEl.querySelector("button[type=submit]"); btn.disabled = true; btn.textContent = "Entrando…";
-  const { data, error } = await sb.auth.signInWithPassword({ email: LOGIN_EMAIL, password: pass });
-  if (error || !data.session) { showLogin(/invalid/i.test((error && error.message) || "") ? "Contraseña incorrecta." : "No se ha podido entrar. Revisa la conexión."); return; }
+  const { data, error } = await sb.auth.signInWithPassword({ email: loginEmail(user), password: pass });
+  if (error || !data.session) { showLogin(/invalid/i.test((error && error.message) || "") ? "Usuario o contraseña incorrectos." : "No se ha podido entrar. Revisa la conexión."); return; }
   enter(data.session);
 });
 

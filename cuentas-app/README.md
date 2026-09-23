@@ -4,13 +4,15 @@ Las cuentas personales de Juan, ejercicio a ejercicio: gastos e ingresos por cat
 efectivo, depósitos, deudas, objetivos y la previsión año a año hasta 2040. Los tickets se leen con
 una foto y la IA reparte cada importe en su categoría, como las facturas en Senda 360.
 
-Abajo hay cinco botones:
+Abajo hay cinco botones, y uno redondo (＋) para apuntar:
 
 - **El año**: lo que ha entrado, salido y ahorrado; mes a mes; cómo acabarás el año; hasta 2040.
 - **Movimientos**: todo lo apuntado, por días, con filtros.
-- **＋**: foto del ticket (o factura en PDF), contárselo con palabras, a mano o el extracto del banco.
+- **＋** (el redondo): foto del ticket (o factura en PDF), contárselo con palabras, a mano o el extracto del banco.
 - **En qué se va**: gastos e ingresos por grupos y categorías, presupuesto y la curva del año.
-- **Dinero**: cuentas, deudas, objetivos, fijos, presupuesto, categorías y copia de seguridad.
+- **Previsión**: cómo acabarás el año, la previsión de gastos y de ingresos por categorías, lo que viene
+  los próximos seis meses, hasta 2040, y los fijos y el presupuesto de cada ejercicio.
+- **Dinero**: cuentas, deudas, objetivos, categorías y copia de seguridad.
 
 ## Dos versiones, mismo código
 

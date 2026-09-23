@@ -44,24 +44,8 @@ function renderAnio(){
     <div class="legend"><span><span class="sw" style="background:var(--ing)"></span>Ingresos</span><span><span class="sw" style="background:var(--gas)"></span>Gastos</span>${phase !== "pasado" ? `<span><span class="sw" style="background:transparent;border:1.5px dashed var(--prev)"></span>Previsto</span>` : ""}</div>
     ${tablaMeses(f)}</div>`;
 
-  // previsión
-  if (phase !== "pasado") {
-    const nFijos = f.recs.length;
-    h += `<div class="panel"><div class="panel-head"><div><h2>Así acabarás ${Y}</h2><p>Si sigues como vas.</p></div><button class="btn sm" data-go="dinero" data-sub="prevision">Ajustar lo fijo</button></div>
-      <dl class="fore">
-        <div><dt>Entrará</dt><dd>${eur(f.I)}</dd></div>
-        <div><dt>Saldrá</dt><dd>${eur(f.G)}</dd></div>
-        <div class="big"><dt>Ahorrarás</dt><dd style="color:${f.ahorro < 0 ? "var(--over)" : "inherit"}">${eur(f.ahorro)}</dd></div>
-        ${f.hayCuentas ? `<div class="big"><dt>Tendrás el 31 de diciembre</dt><dd>${eur(f.saldoFin)}</dd></div>` : ""}
-        ${f.hayDeudas ? `<div><dt>Deberás el 31 de diciembre</dt><dd>${eur(f.deudaFinTotal)}</dd></div>` : ""}
-      </dl>
-      <p class="why">Cuento lo que ya ha pasado${nFijos ? `, lo fijo que tienes apuntado (${nFijos} ${nFijos === 1 ? "cosa" : "cosas"})` : ""}${f.varAvg > 0 ? ` y, para el resto del gasto, ${f.varBase}: unos ${eur(f.varAvg)} al mes` : ""}. Los ingresos que no son fijos no los cuento, por prudencia.${f.intereses > 0 ? ` Incluye ${eur(f.intereses)} de intereses de tus depósitos.` : ""}${f.interesesDeuda > 0 ? ` De las cuotas de tus préstamos, los intereses (${eur(f.interesesDeuda)} hasta fin de año) los cuento como gasto y el resto como deuda que devuelves.` : ""}${!nFijos ? ` <b>Apunta tu nómina y tus gastos fijos</b> y la previsión será mucho mejor.` : ""}${!f.hayCuentas ? ` Para saber cuánto tendrás a final de año, dime cuánto tienes hoy en cada cuenta.` : ""}</p>
-      ${f.hayCuentas ? `<h3 class="eyebrow" style="margin-top:16px">Dinero en tus cuentas, mes a mes</h3><div class="chart" id="ch-saldo"></div>` : ""}
-    </div>`;
-    h += largoPlazoHTML();
-  } else if (st.n) {
-    h += `<div class="panel"><h2>Así cerró ${Y}</h2><dl class="fore" style="margin-top:12px"><div><dt>Entró</dt><dd>${eur(st.I)}</dd></div><div><dt>Salió</dt><dd>${eur(st.G)}</dd></div><div class="big"><dt>Ahorro</dt><dd>${eur(st.I - st.G)}</dd></div></dl></div>`;
-  }
+  // previsión (el resumen; lo demás está en la pantalla Previsión)
+  h += asiAcabarasHTML(f, false);
 
   // en qué se va
   const grupos = Object.entries(st.byGroupMonth.gasto).map(([g, a]) => [g, sum(a)]).filter(([, v]) => v > 0.005).sort((a, b) => b[1] - a[1]);
@@ -88,17 +72,6 @@ function renderAnio(){
     { label: "Ingresos", color: "var(--ing)", real: f.ing, prev: f.pIng },
     { label: "Gastos", color: "var(--gas)", real: f.gas, prev: f.pGas }
   ], { label: "Ingresos y gastos por mes" });
-  if ($("#ch-largo")) {
-    const ys = []; for (let y = CUR_Y; y <= MAX_Y; y++) ys.push(y);
-    const fs = ys.map(y => forecast(y));
-    const series = [{ label: "Dinero", color: "var(--sal)", values: fs.map(f => f.saldoFin), dashFrom: 0 }];
-    if (fs[0].hayDeudas) series.push({ label: "Deuda", color: "var(--over)", values: fs.map(f => f.deudaFinTotal), dashFrom: 0 });
-    monthLines($("#ch-largo"), series, { labels: ys.map(String), tipLabels: ys.map(y => "31 dic " + y), label: "Dinero a fin de cada año hasta " + MAX_Y });
-  }
-  if ($("#ch-saldo")) {
-    const firstP = f.saldoMes.findIndex(s => s.prev);
-    monthLines($("#ch-saldo"), [{ label: "Dinero", color: "var(--sal)", values: f.saldoMes.map(s => s.v), dashFrom: firstP < 0 ? null : firstP, area: true }], { label: "Dinero en cuentas por mes" });
-  }
   if (askState.text || askState.busy) paintAsk();
 }
 // De aquí a 2040: el dinero y la deuda a 31 de diciembre de cada año
@@ -107,7 +80,7 @@ function largoPlazoHTML(){
   let rows = "";
   for (let y = CUR_Y; y <= MAX_Y; y++) { const f = forecast(y); rows += `<tr${y === Y ? ' style="font-weight:700"' : ""}><td>${y}</td><td class="n">${eur(f.I)}</td><td class="n">${eur(f.G)}</td><td class="n">${eur(f.ahorro)}</td><td class="n">${eur(f.saldoFin)}</td>${f.hayDeudas ? `<td class="n">${eur(f.deudaFinTotal)}</td>` : ""}</tr>`; }
   const fin = forecast(MAX_Y), hd = fin.hayDeudas;
-  return `<div class="panel"><div class="panel-head"><div><h2>Hasta ${MAX_Y}</h2><p>Si todo sigue como hoy, el 31 de diciembre de ${MAX_Y} tendrás unos <b class="num">${eur(fin.saldoFin)}</b>${hd ? ` y deberás <b class="num">${eur(fin.deudaFinTotal)}</b>` : ""}.</p></div><button class="btn sm" data-go="dinero" data-sub="prevision">Cambiar la subida</button></div>
+  return `<div class="panel"><div class="panel-head"><div><h2>Hasta ${MAX_Y}</h2><p>Si todo sigue como hoy, el 31 de diciembre de ${MAX_Y} tendrás unos <b class="num">${eur(fin.saldoFin)}</b>${hd ? ` y deberás <b class="num">${eur(fin.deudaFinTotal)}</b>` : ""}.</p></div><button class="btn sm" data-go="prevision" data-psub="fijos">Cambiar la subida</button></div>
     <div class="chart" id="ch-largo"></div>
     <div class="legend"><span><span class="ln dash" style="border-color:var(--sal)"></span>Dinero a 31 de diciembre</span>${hd ? `<span><span class="ln dash" style="border-color:var(--over)"></span>Lo que debes</span>` : ""}</div>
     <p class="why">Es una cuenta, no una promesa: uso tus fijos de hoy, lo que gastas de media y los gastos subiendo un ${NF2.format(subida())} % al año. Los ingresos no los subo. Si algún año cambia algo, ponle sus fijos a ese año.</p>
@@ -130,7 +103,7 @@ function firstSteps(){
   return `<div class="panel"><div class="panel-head"><div><h2>Para empezar</h2><p>Tres pasos y la app empieza a trabajar para ti.</p></div></div>
   <ol class="steps">
     <li class="${hasAcc ? "done" : ""}"><div><b>Tus bancos y el efectivo</b><span>En qué bancos tienes dinero y cuánto hay hoy.</span></div><button class="btn sm" data-go="dinero" data-sub="cuentas">Poner</button></li>
-    <li class="${hasRec ? "done" : ""}"><div><b>Lo fijo</b><span>Nómina, hipoteca, luz, seguros… lo que entra y sale siempre.</span></div><button class="btn sm" data-go="dinero" data-sub="prevision">Poner</button></li>
+    <li class="${hasRec ? "done" : ""}"><div><b>Lo fijo</b><span>Nómina, hipoteca, luz, seguros… lo que entra y sale siempre.</span></div><button class="btn sm" data-go="prevision" data-psub="fijos">Poner</button></li>
     <li><div><b>Tu primer ticket</b><span>Hazle una foto y la IA lo reparte por categorías.</span></div><button class="btn sm primary" data-go="apuntar">Escanear</button></li>
   </ol></div>`;
 }

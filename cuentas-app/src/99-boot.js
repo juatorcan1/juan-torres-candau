@@ -1,5 +1,5 @@
 /* ================= navegación ================= */
-const TABS = ["anio", "movs", "apuntar", "analisis", "dinero"];
+const TABS = ["anio", "movs", "apuntar", "analisis", "prevision", "dinero"];
 function renderHeader(){
   $("#y-lab").textContent = Y;
   $("#y-prev").disabled = Y <= CUR_Y - 15; $("#y-next").disabled = Y >= MAX_Y;
@@ -11,7 +11,7 @@ function renderView(){
   const a = document.activeElement;
   const keep = a && a.id && $("#main").contains(a) ? { id: a.id, s: (() => { try { return [a.selectionStart, a.selectionEnd]; } catch { return null; } })() } : null;
   stale = false;
-  ({ anio: renderAnio, movs: renderMovs, apuntar: renderApuntar, analisis: renderAnalisis, dinero: renderDinero }[tab] || renderAnio)();
+  ({ anio: renderAnio, movs: renderMovs, apuntar: renderApuntar, analisis: renderAnalisis, prevision: renderPrevision, dinero: renderDinero }[tab] || renderAnio)();
   if (keep) { const n = document.getElementById(keep.id); if (n && n !== document.activeElement) { n.focus({ preventScroll: true }); try { if (keep.s && keep.s[0] != null) n.setSelectionRange(keep.s[0], keep.s[1]); } catch {} } }
 }
 function renderAll(){ renderHeader(); renderView(); }
@@ -19,7 +19,7 @@ function setTab(t){
   if (!TABS.includes(t)) t = "anio";
   tab = t; store.set("cj.tab", t);
   for (const k of TABS) $("#v-" + k).hidden = k !== t;
-  for (const b of $$(".bnav button")) b.setAttribute("aria-current", b.dataset.tab === t ? "page" : "false");
+  for (const b of $$(".bnav button, .fab")) b.setAttribute("aria-current", b.dataset.tab === t ? "page" : "false");
   renderView();
   window.scrollTo({ top: 0 });
 }
@@ -40,7 +40,8 @@ document.addEventListener("click", async e => {
   const ds = t.dataset;
   if (t.classList.contains("zoom")) { t.remove(); return; }
   if (ds.tab) return setTab(ds.tab);
-  if (ds.go) { if (ds.sub) { dSub = ds.sub; store.set("cj.dsub", dSub); } if (ds.rev) { Object.assign(mf, { rev: true, mes: "", tipo: "", grupo: "", cuenta: "", q: "" }); } return setTab(ds.go); }
+  if (ds.psub && !ds.go) { pSub = ds.psub; store.set("cj.psub", pSub); renderView(); window.scrollTo({ top: 0 }); return; }
+  if (ds.go) { if (ds.psub) { pSub = ds.psub; store.set("cj.psub", pSub); } if (ds.sub) { dSub = ds.sub; store.set("cj.dsub", dSub); } if (ds.rev) { Object.assign(mf, { rev: true, mes: "", tipo: "", grupo: "", cuenta: "", q: "" }); } return setTab(ds.go); }
   if (t.id === "y-prev" || t.id === "y-next") { Y += t.id === "y-prev" ? -1 : 1; store.set("cj.year", Y); anOpen = null; askState.text = ""; askState.q = ""; return renderAll(); }
   if (ds.close) return closeSheet();
   if (ds.zoom) { const z = document.createElement("div"); z.className = "zoom"; z.innerHTML = `<img src="${esc(ds.zoom)}" alt="Ticket">`; document.body.appendChild(z); return; }

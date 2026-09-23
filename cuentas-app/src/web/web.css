@@ -4,7 +4,7 @@ html{-webkit-text-size-adjust:100%}
 body{margin:0}
 img{max-width:100%}
 [hidden]{display:none!important}
-body.locked .wrap,body.locked .bnav,body.locked #toast,body.locked #sheet-root{display:none}
+body.locked .wrap,body.locked .bnav,body.locked .fab,body.locked #toast,body.locked #sheet-root{display:none}
 #login:empty{display:none}
 #login{min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding-block:24px}
 .login-card{width:100%;max-width:380px;display:grid;gap:14px;background:var(--surface);border:1px solid var(--line-2);border-radius:14px;padding:24px 20px}

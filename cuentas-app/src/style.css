@@ -33,7 +33,8 @@
   --focus:#8CA2F0;
 }
 *{box-sizing:border-box}
-body{background:var(--bg);color:var(--ink);font:15px/1.45 var(--body);padding-inline:16px;padding-bottom:calc(88px + env(safe-area-inset-bottom,0px));-webkit-font-smoothing:antialiased}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font:15px/1.45 var(--body);padding-inline:16px;padding-bottom:calc(150px + env(safe-area-inset-bottom,0px));-webkit-font-smoothing:antialiased}
 .wrap{max-width:980px;margin:0 auto}
 h1,h2,h3{margin:0;text-wrap:balance}
 button,input,select,textarea{font:inherit;color:inherit}
@@ -288,6 +289,13 @@ input,select,textarea{min-width:0}
 .bnav button svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .bnav button[aria-current="page"]{color:var(--ink)}
 .bnav button[aria-current="page"] svg{stroke:var(--acc)}
-.bnav .plus{justify-self:center;width:58px;height:58px;border-radius:50%;background:var(--acc-strong);color:#fff;margin-top:-24px;box-shadow:0 4px 14px rgba(0,0,0,.2);padding:0;place-items:center}
-.bnav .plus svg,.bnav .plus[aria-current="page"] svg{width:28px;height:28px;stroke:#fff;stroke-width:2.4}
-.toast{position:fixed;left:50%;bottom:calc(92px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:9px;font-weight:600;font-size:14px;z-index:95;max-width:calc(100% - 32px)}
+.bnav button span{line-height:1.15;text-align:center}
+/* botón redondo para apuntar, siempre a mano encima de la barra */
+.fab{position:fixed;z-index:45;right:16px;bottom:calc(78px + env(safe-area-inset-bottom,0px));width:60px;height:60px;border-radius:50%;border:0;background:var(--acc-strong);color:#fff;display:grid;place-items:center;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.25)}
+.fab svg{width:30px;height:30px;fill:none;stroke:#fff;stroke-width:2.4;stroke-linecap:round}
+.fab[aria-current="page"]{outline:3px solid var(--acc-wash);outline-offset:2px}
+@media (min-width:1040px){.fab{right:calc(50% - 490px)}}
+tr.grp td{font-weight:700;background:var(--surface-2)}
+tr.subrow td{font-size:13px;color:var(--ink-2)}
+tr.subrow td:first-child{padding-left:22px}
+.toast{position:fixed;left:50%;bottom:calc(150px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:9px;font-weight:600;font-size:14px;z-index:95;max-width:calc(100% - 32px)}

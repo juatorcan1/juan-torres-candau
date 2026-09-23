@@ -39,7 +39,8 @@
   --focus:#8CA2F0;
 }
 *{box-sizing:border-box}
-body{background:var(--bg);color:var(--ink);font:15px/1.45 var(--body);padding-inline:16px;padding-bottom:calc(88px + env(safe-area-inset-bottom,0px));-webkit-font-smoothing:antialiased}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font:15px/1.45 var(--body);padding-inline:16px;padding-bottom:calc(150px + env(safe-area-inset-bottom,0px));-webkit-font-smoothing:antialiased}
 .wrap{max-width:980px;margin:0 auto}
 h1,h2,h3{margin:0;text-wrap:balance}
 button,input,select,textarea{font:inherit;color:inherit}
@@ -294,9 +295,16 @@ input,select,textarea{min-width:0}
 .bnav button svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .bnav button[aria-current="page"]{color:var(--ink)}
 .bnav button[aria-current="page"] svg{stroke:var(--acc)}
-.bnav .plus{justify-self:center;width:58px;height:58px;border-radius:50%;background:var(--acc-strong);color:#fff;margin-top:-24px;box-shadow:0 4px 14px rgba(0,0,0,.2);padding:0;place-items:center}
-.bnav .plus svg,.bnav .plus[aria-current="page"] svg{width:28px;height:28px;stroke:#fff;stroke-width:2.4}
-.toast{position:fixed;left:50%;bottom:calc(92px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:9px;font-weight:600;font-size:14px;z-index:95;max-width:calc(100% - 32px)}
+.bnav button span{line-height:1.15;text-align:center}
+/* botón redondo para apuntar, siempre a mano encima de la barra */
+.fab{position:fixed;z-index:45;right:16px;bottom:calc(78px + env(safe-area-inset-bottom,0px));width:60px;height:60px;border-radius:50%;border:0;background:var(--acc-strong);color:#fff;display:grid;place-items:center;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.25)}
+.fab svg{width:30px;height:30px;fill:none;stroke:#fff;stroke-width:2.4;stroke-linecap:round}
+.fab[aria-current="page"]{outline:3px solid var(--acc-wash);outline-offset:2px}
+@media (min-width:1040px){.fab{right:calc(50% - 490px)}}
+tr.grp td{font-weight:700;background:var(--surface-2)}
+tr.subrow td{font-size:13px;color:var(--ink-2)}
+tr.subrow td:first-child{padding-left:22px}
+.toast{position:fixed;left:50%;bottom:calc(150px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:9px;font-weight:600;font-size:14px;z-index:95;max-width:calc(100% - 32px)}
 </style>
 <div class="wrap">
   <div class="strip">
@@ -314,6 +322,7 @@ input,select,textarea{min-width:0}
     <section id="v-movs" hidden></section>
     <section id="v-apuntar" hidden></section>
     <section id="v-analisis" hidden></section>
+    <section id="v-prevision" hidden></section>
     <section id="v-dinero" hidden></section>
   </main>
 </div>
@@ -321,10 +330,11 @@ input,select,textarea{min-width:0}
 <nav class="bnav" aria-label="Secciones">
   <button type="button" data-tab="anio"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>El año</span></button>
   <button type="button" data-tab="movs"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg><span>Movimientos</span></button>
-  <button type="button" data-tab="apuntar" class="plus" aria-label="Apuntar o escanear"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
   <button type="button" data-tab="analisis"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12A9 9 0 1 1 12 3v9z"/><path d="M15 3.5A9 9 0 0 1 20.5 9H15z"/></svg><span>En qué se va</span></button>
+  <button type="button" data-tab="prevision"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17l5-5 4 3 8-8M15 7h5v5"/></svg><span>Previsión</span></button>
   <button type="button" data-tab="dinero"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h13v4M3 7v11a2 2 0 0 0 2 2h15V9H5a2 2 0 0 1-2-2zM16 14.5h.01"/></svg><span>Dinero</span></button>
 </nav>
+<button type="button" class="fab" data-tab="apuntar" aria-label="Apuntar o escanear un ticket"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
 <div id="sheet-root"></div>
 <div class="toast" id="toast" role="status" hidden></div>
 <input type="file" id="f-ticket" accept="image/*,application/pdf" multiple hidden>
@@ -858,24 +868,8 @@ function renderAnio(){
     <div class="legend"><span><span class="sw" style="background:var(--ing)"></span>Ingresos</span><span><span class="sw" style="background:var(--gas)"></span>Gastos</span>${phase !== "pasado" ? `<span><span class="sw" style="background:transparent;border:1.5px dashed var(--prev)"></span>Previsto</span>` : ""}</div>
     ${tablaMeses(f)}</div>`;
 
-  // previsión
-  if (phase !== "pasado") {
-    const nFijos = f.recs.length;
-    h += `<div class="panel"><div class="panel-head"><div><h2>Así acabarás ${Y}</h2><p>Si sigues como vas.</p></div><button class="btn sm" data-go="dinero" data-sub="prevision">Ajustar lo fijo</button></div>
-      <dl class="fore">
-        <div><dt>Entrará</dt><dd>${eur(f.I)}</dd></div>
-        <div><dt>Saldrá</dt><dd>${eur(f.G)}</dd></div>
-        <div class="big"><dt>Ahorrarás</dt><dd style="color:${f.ahorro < 0 ? "var(--over)" : "inherit"}">${eur(f.ahorro)}</dd></div>
-        ${f.hayCuentas ? `<div class="big"><dt>Tendrás el 31 de diciembre</dt><dd>${eur(f.saldoFin)}</dd></div>` : ""}
-        ${f.hayDeudas ? `<div><dt>Deberás el 31 de diciembre</dt><dd>${eur(f.deudaFinTotal)}</dd></div>` : ""}
-      </dl>
-      <p class="why">Cuento lo que ya ha pasado${nFijos ? `, lo fijo que tienes apuntado (${nFijos} ${nFijos === 1 ? "cosa" : "cosas"})` : ""}${f.varAvg > 0 ? ` y, para el resto del gasto, ${f.varBase}: unos ${eur(f.varAvg)} al mes` : ""}. Los ingresos que no son fijos no los cuento, por prudencia.${f.intereses > 0 ? ` Incluye ${eur(f.intereses)} de intereses de tus depósitos.` : ""}${f.interesesDeuda > 0 ? ` De las cuotas de tus préstamos, los intereses (${eur(f.interesesDeuda)} hasta fin de año) los cuento como gasto y el resto como deuda que devuelves.` : ""}${!nFijos ? ` <b>Apunta tu nómina y tus gastos fijos</b> y la previsión será mucho mejor.` : ""}${!f.hayCuentas ? ` Para saber cuánto tendrás a final de año, dime cuánto tienes hoy en cada cuenta.` : ""}</p>
-      ${f.hayCuentas ? `<h3 class="eyebrow" style="margin-top:16px">Dinero en tus cuentas, mes a mes</h3><div class="chart" id="ch-saldo"></div>` : ""}
-    </div>`;
-    h += largoPlazoHTML();
-  } else if (st.n) {
-    h += `<div class="panel"><h2>Así cerró ${Y}</h2><dl class="fore" style="margin-top:12px"><div><dt>Entró</dt><dd>${eur(st.I)}</dd></div><div><dt>Salió</dt><dd>${eur(st.G)}</dd></div><div class="big"><dt>Ahorro</dt><dd>${eur(st.I - st.G)}</dd></div></dl></div>`;
-  }
+  // previsión (el resumen; lo demás está en la pantalla Previsión)
+  h += asiAcabarasHTML(f, false);
 
   // en qué se va
   const grupos = Object.entries(st.byGroupMonth.gasto).map(([g, a]) => [g, sum(a)]).filter(([, v]) => v > 0.005).sort((a, b) => b[1] - a[1]);
@@ -902,17 +896,6 @@ function renderAnio(){
     { label: "Ingresos", color: "var(--ing)", real: f.ing, prev: f.pIng },
     { label: "Gastos", color: "var(--gas)", real: f.gas, prev: f.pGas }
   ], { label: "Ingresos y gastos por mes" });
-  if ($("#ch-largo")) {
-    const ys = []; for (let y = CUR_Y; y <= MAX_Y; y++) ys.push(y);
-    const fs = ys.map(y => forecast(y));
-    const series = [{ label: "Dinero", color: "var(--sal)", values: fs.map(f => f.saldoFin), dashFrom: 0 }];
-    if (fs[0].hayDeudas) series.push({ label: "Deuda", color: "var(--over)", values: fs.map(f => f.deudaFinTotal), dashFrom: 0 });
-    monthLines($("#ch-largo"), series, { labels: ys.map(String), tipLabels: ys.map(y => "31 dic " + y), label: "Dinero a fin de cada año hasta " + MAX_Y });
-  }
-  if ($("#ch-saldo")) {
-    const firstP = f.saldoMes.findIndex(s => s.prev);
-    monthLines($("#ch-saldo"), [{ label: "Dinero", color: "var(--sal)", values: f.saldoMes.map(s => s.v), dashFrom: firstP < 0 ? null : firstP, area: true }], { label: "Dinero en cuentas por mes" });
-  }
   if (askState.text || askState.busy) paintAsk();
 }
 // De aquí a 2040: el dinero y la deuda a 31 de diciembre de cada año
@@ -921,7 +904,7 @@ function largoPlazoHTML(){
   let rows = "";
   for (let y = CUR_Y; y <= MAX_Y; y++) { const f = forecast(y); rows += `<tr${y === Y ? ' style="font-weight:700"' : ""}><td>${y}</td><td class="n">${eur(f.I)}</td><td class="n">${eur(f.G)}</td><td class="n">${eur(f.ahorro)}</td><td class="n">${eur(f.saldoFin)}</td>${f.hayDeudas ? `<td class="n">${eur(f.deudaFinTotal)}</td>` : ""}</tr>`; }
   const fin = forecast(MAX_Y), hd = fin.hayDeudas;
-  return `<div class="panel"><div class="panel-head"><div><h2>Hasta ${MAX_Y}</h2><p>Si todo sigue como hoy, el 31 de diciembre de ${MAX_Y} tendrás unos <b class="num">${eur(fin.saldoFin)}</b>${hd ? ` y deberás <b class="num">${eur(fin.deudaFinTotal)}</b>` : ""}.</p></div><button class="btn sm" data-go="dinero" data-sub="prevision">Cambiar la subida</button></div>
+  return `<div class="panel"><div class="panel-head"><div><h2>Hasta ${MAX_Y}</h2><p>Si todo sigue como hoy, el 31 de diciembre de ${MAX_Y} tendrás unos <b class="num">${eur(fin.saldoFin)}</b>${hd ? ` y deberás <b class="num">${eur(fin.deudaFinTotal)}</b>` : ""}.</p></div><button class="btn sm" data-go="prevision" data-psub="fijos">Cambiar la subida</button></div>
     <div class="chart" id="ch-largo"></div>
     <div class="legend"><span><span class="ln dash" style="border-color:var(--sal)"></span>Dinero a 31 de diciembre</span>${hd ? `<span><span class="ln dash" style="border-color:var(--over)"></span>Lo que debes</span>` : ""}</div>
     <p class="why">Es una cuenta, no una promesa: uso tus fijos de hoy, lo que gastas de media y los gastos subiendo un ${NF2.format(subida())} % al año. Los ingresos no los subo. Si algún año cambia algo, ponle sus fijos a ese año.</p>
@@ -944,7 +927,7 @@ function firstSteps(){
   return `<div class="panel"><div class="panel-head"><div><h2>Para empezar</h2><p>Tres pasos y la app empieza a trabajar para ti.</p></div></div>
   <ol class="steps">
     <li class="${hasAcc ? "done" : ""}"><div><b>Tus bancos y el efectivo</b><span>En qué bancos tienes dinero y cuánto hay hoy.</span></div><button class="btn sm" data-go="dinero" data-sub="cuentas">Poner</button></li>
-    <li class="${hasRec ? "done" : ""}"><div><b>Lo fijo</b><span>Nómina, hipoteca, luz, seguros… lo que entra y sale siempre.</span></div><button class="btn sm" data-go="dinero" data-sub="prevision">Poner</button></li>
+    <li class="${hasRec ? "done" : ""}"><div><b>Lo fijo</b><span>Nómina, hipoteca, luz, seguros… lo que entra y sale siempre.</span></div><button class="btn sm" data-go="prevision" data-psub="fijos">Poner</button></li>
     <li><div><b>Tu primer ticket</b><span>Hazle una foto y la IA lo reparte por categorías.</span></div><button class="btn sm primary" data-go="apuntar">Escanear</button></li>
   </ol></div>`;
 }
@@ -1702,12 +1685,12 @@ let cuadrar = null;      // {id, saldo}
 let goalForm = null, recForm = null, catForm = null;
 function renderDinero(){
   const el = $("#v-dinero");
+  if (!["cuentas", "objetivos", "categorias"].includes(dSub)) dSub = "cuentas";   // los fijos y el presupuesto están ahora en Previsión
   let h = `<div class="subnav" role="tablist" aria-label="Dinero">
     <button role="tab" data-dsub="cuentas" aria-selected="${dSub === "cuentas"}">Cuentas</button>
     <button role="tab" data-dsub="objetivos" aria-selected="${dSub === "objetivos"}">Objetivos</button>
-    <button role="tab" data-dsub="prevision" aria-selected="${dSub === "prevision"}">Fijos y presupuesto</button>
     <button role="tab" data-dsub="categorias" aria-selected="${dSub === "categorias"}">Categorías</button></div>`;
-  h += dSub === "cuentas" ? cuentasHTML() : dSub === "objetivos" ? objetivosHTML() : dSub === "prevision" ? previsionHTML() : categoriasHTML();
+  h += dSub === "cuentas" ? cuentasHTML() : dSub === "objetivos" ? objetivosHTML() : categoriasHTML();
   el.innerHTML = h;
 }
 
@@ -2056,9 +2039,151 @@ async function saveCatForm(){
   catch (e) { $("#cf-err").textContent = saveErr(e); }
 }
 
+/* ===== 07-prevision.js ===== */
+/* ================= pantalla: previsión ================= */
+let pSub = store.get("cj.psub", "resumen");
+const PSUBS = () => [["resumen", "Resumen"], ["gastos", "Gastos"], ["ingresos", "Ingresos"], ["viene", "Lo que viene"], ["largo", "Hasta " + MAX_Y], ["fijos", "Fijos y presupuesto"]];
+
+function renderPrevision(){
+  const el = $("#v-prevision");
+  if (dbState === "loading") { el.innerHTML = `<div class="panel"><div class="thinking"><span class="spin"></span>Cargando…</div></div>`; return; }
+  if (!PSUBS().some(([k]) => k === pSub)) pSub = "resumen";
+  const f = forecast(Y);
+  let h = `<div class="subnav" role="tablist" aria-label="Previsión">${PSUBS().map(([k, n]) => `<button role="tab" data-psub="${k}" aria-selected="${pSub === k}">${esc(n)}</button>`).join("")}</div>`;
+  if (f.phase === "pasado" && ["resumen", "gastos", "ingresos"].includes(pSub)) h += `<div class="banner">${Y} ya está cerrado: aquí ves lo que pasó de verdad, no una previsión.</div>`;
+  if (pSub === "resumen") h += asiAcabarasHTML(f, true) + mesesPrevisionHTML(f);
+  else if (pSub === "gastos" || pSub === "ingresos") h += prevTipoHTML(pSub === "gastos" ? "gasto" : "ingreso");
+  else if (pSub === "viene") h += loQueVieneHTML();
+  else if (pSub === "largo") h += largoPlazoHTML() || `<div class="panel"><h2>Hasta ${MAX_Y}</h2><p class="why">Para ver cuánto tendrás cada año, primero dime cuánto tienes hoy en cada cuenta.</p><div class="row" style="margin-top:10px"><button class="btn primary sm" data-go="dinero" data-sub="cuentas">Poner mis cuentas</button></div></div>`;
+  else h += previsionHTML();
+  el.innerHTML = h;
+  // gráficos de cada apartado
+  if ($("#ch-pmes")) monthBars($("#ch-pmes"), [
+    { label: "Ingresos", color: "var(--ing)", real: f.ing, prev: f.pIng },
+    { label: "Gastos", color: "var(--gas)", real: f.gas, prev: f.pGas }
+  ], { label: "Ingresos y gastos por mes, con lo previsto" });
+  if ($("#ch-saldo")) {
+    const firstP = f.saldoMes.findIndex(s => s.prev);
+    monthLines($("#ch-saldo"), [{ label: "Dinero", color: "var(--sal)", values: f.saldoMes.map(s => s.v), dashFrom: firstP < 0 ? null : firstP, area: true }], { label: "Dinero en cuentas por mes" });
+  }
+  if ($("#ch-ptipo")) {
+    const g = pSub === "gastos";
+    monthBars($("#ch-ptipo"), [{ label: g ? "Gastos" : "Ingresos", color: g ? "var(--gas)" : "var(--ing)", real: g ? f.gas : f.ing, prev: g ? f.pGas : f.pIng }], { h: 200, label: (g ? "Gastos" : "Ingresos") + " por mes, con lo previsto" });
+  }
+  if ($("#ch-largo")) {
+    const ys = []; for (let y = CUR_Y; y <= MAX_Y; y++) ys.push(y);
+    const fs = ys.map(y => forecast(y));
+    const series = [{ label: "Dinero", color: "var(--sal)", values: fs.map(x => x.saldoFin), dashFrom: 0 }];
+    if (fs[0].hayDeudas) series.push({ label: "Deuda", color: "var(--over)", values: fs.map(x => x.deudaFinTotal), dashFrom: 0 });
+    monthLines($("#ch-largo"), series, { labels: ys.map(String), tipLabels: ys.map(y => "31 dic " + y), label: "Dinero a fin de cada año hasta " + MAX_Y });
+  }
+}
+
+// «Así acabarás el año»: el resumen de la previsión (también sale en «El año»)
+function asiAcabarasHTML(f, full){
+  if (f.phase === "pasado") {
+    const st = yearStats(Y);
+    return st.n ? `<div class="panel"><h2>Así cerró ${Y}</h2><dl class="fore" style="margin-top:12px"><div><dt>Entró</dt><dd>${eur(st.I)}</dd></div><div><dt>Salió</dt><dd>${eur(st.G)}</dd></div><div class="big"><dt>Ahorro</dt><dd>${eur(st.I - st.G)}</dd></div></dl></div>` : "";
+  }
+  const nFijos = f.recs.length;
+  return `<div class="panel"><div class="panel-head"><div><h2>Así acabarás ${Y}</h2><p>Si sigues como vas.</p></div>${full ? `<button class="btn sm" data-psub="fijos">Cambiar lo fijo</button>` : `<button class="btn sm" data-go="prevision" data-psub="resumen">Ver la previsión</button>`}</div>
+    <dl class="fore">
+      <div><dt>Entrará</dt><dd>${eur(f.I)}</dd></div>
+      <div><dt>Saldrá</dt><dd>${eur(f.G)}</dd></div>
+      <div class="big"><dt>Ahorrarás</dt><dd style="color:${f.ahorro < 0 ? "var(--over)" : "inherit"}">${eur(f.ahorro)}</dd></div>
+      ${f.hayCuentas ? `<div class="big"><dt>Tendrás el 31 de diciembre</dt><dd>${eur(f.saldoFin)}</dd></div>` : ""}
+      ${f.hayDeudas ? `<div><dt>Deberás el 31 de diciembre</dt><dd>${eur(f.deudaFinTotal)}</dd></div>` : ""}
+    </dl>
+    <p class="why">Cuento lo que ya ha pasado${nFijos ? `, lo fijo que tienes apuntado (${nFijos} ${nFijos === 1 ? "cosa" : "cosas"})` : ""}${f.varAvg > 0 ? ` y, para el resto del gasto, ${f.varBase}: unos ${eur(f.varAvg)} al mes` : ""}. Los ingresos que no son fijos no los cuento, por prudencia.${f.intereses > 0 ? ` Incluye ${eur(f.intereses)} de intereses de tus depósitos.` : ""}${f.interesesDeuda > 0 ? ` De las cuotas de tus préstamos, los intereses (${eur(f.interesesDeuda)} hasta fin de año) los cuento como gasto y el resto como deuda que devuelves.` : ""}${f.recsFrom !== Y ? ` Uso los fijos de ${f.recsFrom}, con los gastos subidos un ${NF2.format(subida())} % al año.` : ""}${!nFijos ? ` <b>Apunta tu nómina y tus gastos fijos</b> y la previsión será mucho mejor.` : ""}${!f.hayCuentas ? ` Para saber cuánto tendrás a final de año, dime cuánto tienes hoy en cada cuenta.` : ""}</p>
+    ${full && f.hayCuentas ? `<h3 class="eyebrow" style="margin-top:16px">Dinero en tus cuentas, mes a mes</h3><div class="chart" id="ch-saldo"></div><div class="legend"><span><span class="ln" style="border-color:var(--sal)"></span>Lo que ha habido</span><span><span class="ln dash" style="border-color:var(--sal)"></span>Lo que calculo</span></div>` : ""}
+  </div>`;
+}
+
+// Mes a mes: lo real, lo previsto y el dinero a fin de cada mes
+function mesesPrevisionHTML(f){
+  let rows = "";
+  for (let i = 0; i < 12; i++) {
+    const pv = f.pIng[i] + f.pGas[i] + (f.pCap ? f.pCap[i] : 0) > 0.005;
+    const I = f.ing[i] + f.pIng[i], G = f.gas[i] + f.pGas[i];
+    const s = f.saldoMes[i];
+    rows += `<tr class="${pv && !f.ing[i] && !f.gas[i] ? "prev" : ""}"><td>${cap(MESL[i])}${pv ? (f.ing[i] || f.gas[i] ? " <span class='muted'>(real + lo que falta)</span>" : " <span class='muted'>(previsto)</span>") : ""}</td><td class="n">${eur(I)}</td><td class="n">${eur(G)}</td><td class="n">${eur(I - G)}</td>${f.hayCuentas ? `<td class="n">${eur(s.v)}</td>` : ""}</tr>`;
+  }
+  return `<div class="panel"><div class="panel-head"><div><h2>Mes a mes</h2><p>${f.phase === "pasado" ? "Lo que entró y salió cada mes." : "Lo que ya ha pasado, y lo que calculo para los meses que quedan (punteado)."}</p></div></div>
+    <div class="chart" id="ch-pmes"></div>
+    <div class="legend"><span><span class="sw" style="background:var(--ing)"></span>Ingresos</span><span><span class="sw" style="background:var(--gas)"></span>Gastos</span>${f.phase !== "pasado" ? `<span><span class="sw" style="background:transparent;border:1.5px dashed var(--prev)"></span>Previsto</span>` : ""}</div>
+    <div class="tscroll" style="margin-top:12px"><table><thead><tr><th>Mes</th><th class="n">Entra</th><th class="n">Sale</th><th class="n">Queda</th>${f.hayCuentas ? `<th class="n">Dinero a fin de mes</th>` : ""}</tr></thead><tbody>${rows}</tbody>
+    <tfoot><tr><th>${Y}</th><th class="n">${eur(f.I)}</th><th class="n">${eur(f.G)}</th><th class="n">${eur(f.I - f.G)}</th>${f.hayCuentas ? `<th class="n">${eur(f.saldoFin)}</th>` : ""}</tr></tfoot></table></div></div>`;
+}
+
+// Previsión de gastos o de ingresos, por grupos y categorías
+function prevTipoHTML(tipo){
+  const st = yearStats(Y), prev = yearStats(Y - 1), f = forecast(Y);
+  const g = tipo === "gasto";
+  const real = g ? st.G : st.I, falta = sum(g ? f.pGas : f.pIng), fin = real + falta, ant = g ? prev.G : prev.I;
+  const pres = g ? anio(Y).presupuesto : {};
+  const grupos = (cats()[tipo] || []).map(x => ({ id: x.id, nombre: x.nombre, cats: x.cats.map(([cid, n]) => [x.id + "." + cid, n]) }));
+  grupos.push({ id: "_sin", nombre: "Sin categoría", cats: [["_sin", "Sin categoría"]] });
+  const rows = grupos.map(gr => {
+    const cs = gr.cats.map(([k, n]) => ({ n, real: st.byCat[tipo][k] || 0, falta: f.catPrev[tipo][k] || 0, ant: prev.byCat[tipo][k] || 0 })).filter(c => c.real + c.falta + c.ant > 0.005);
+    const r = { ...gr, cs, real: sum(cs.map(c => c.real)), falta: sum(cs.map(c => c.falta)), ant: sum(cs.map(c => c.ant)), pres: num(pres[gr.id]) };
+    r.fin = r.real + r.falta;
+    return r;
+  }).filter(r => r.fin + r.ant + r.pres > 0.005).sort((a, b) => b.fin - a.fin);
+  const dif = ant > 0 ? (fin - ant) / ant * 100 : null;
+  let h = `<div class="panel"><div class="panel-head"><div><h2>Previsión de ${g ? "gastos" : "ingresos"} de ${Y}</h2><p>${f.phase === "pasado" ? `En ${Y} ${g ? "salieron" : "entraron"} ${eur(real)}.` : `Llevas ${eur(real)}. Calculo que ${g ? "saldrán" : "entrarán"} ${eur(falta)} más hasta fin de año.`}${dif != null ? ` Frente a ${Y - 1} (${eur(ant)}), ${Math.abs(dif) < 0.5 ? "casi igual" : dif > 0 ? "un " + pct(dif) + " más" : "un " + pct(-dif) + " menos"}.` : ""}</p></div>${f.phase !== "pasado" ? `<button class="btn sm" data-psub="fijos">Cambiar lo fijo</button>` : ""}</div>
+    <div class="tiles">
+      <div class="tile"><span class="l">Llevas</span><span class="v">${eur(real)}</span></div>
+      <div class="tile"><span class="l">Falta</span><span class="v">${eur(falta)}</span><span class="s">previsto</span></div>
+      <div class="tile"><span class="l">A fin de año</span><span class="v">${eur(fin)}</span></div>
+      <div class="tile"><span class="l">${Y - 1}</span><span class="v">${ant ? eur(ant) : "—"}</span></div>
+    </div>
+    <h3 class="eyebrow" style="margin-top:16px">Mes a mes</h3><div class="chart" id="ch-ptipo"></div>
+    <div class="legend"><span><span class="sw" style="background:${g ? "var(--gas)" : "var(--ing)"}"></span>Real</span>${f.phase !== "pasado" ? `<span><span class="sw" style="background:transparent;border:1.5px dashed var(--prev)"></span>Previsto</span>` : ""}</div>
+    <p class="why">${g ? `Para lo fijo (hipoteca, luz, seguros…) cuento lo que tienes apuntado en «Fijos». Para lo demás, lo que gastas de media estos últimos meses${f.phase === "futuro" ? `, subido un ${NF2.format(subida())} % al año` : ""}.` : `Sólo cuento lo que entra seguro: tus ingresos fijos${f.intereses > 0 ? " y los intereses de tus depósitos" : ""}. Lo que no es fijo (una venta, un regalo…) no lo doy por hecho.`}</p></div>`;
+  h += `<div class="panel"><h2>Por ${g ? "gastos" : "ingresos"}: grupo a grupo</h2><div class="tscroll" style="margin-top:12px"><table><thead><tr><th>Qué</th><th class="n">Llevas</th><th class="n">Falta</th><th class="n">A fin de año</th><th class="n">${Y - 1}</th>${g ? `<th class="n">Presupuesto</th>` : ""}</tr></thead><tbody>`;
+  if (!rows.length) h += `<tr><td colspan="6" class="muted">Todavía no hay nada que prever: apunta tus ${g ? "gastos fijos" : "ingresos fijos"} en «Fijos y presupuesto».</td></tr>`;
+  for (const r of rows) {
+    let pill = "";
+    if (r.pres > 0) pill = r.fin > r.pres + 0.005 ? `<span class="pill over">Te pasas ${eur(r.fin - r.pres)}</span>` : r.fin > r.pres * 0.9 ? `<span class="pill warn">Justo</span>` : `<span class="pill ok">Bien</span>`;
+    h += `<tr class="grp"><td>${esc(r.nombre)}</td><td class="n">${eur(r.real)}</td><td class="n">${r.falta > 0.005 ? eur(r.falta) : "—"}</td><td class="n">${eur(r.fin)}</td><td class="n">${r.ant ? eur(r.ant) : "—"}</td>${g ? `<td class="n">${r.pres ? eur(r.pres) + " " + pill : "—"}</td>` : ""}</tr>`;
+    if (r.cs.length > 1 || (r.cs.length === 1 && r.cs[0].n !== r.nombre)) for (const c of r.cs.sort((a, b) => (b.real + b.falta) - (a.real + a.falta))) h += `<tr class="subrow"><td>${esc(c.n)}</td><td class="n">${eur(c.real)}</td><td class="n">${c.falta > 0.005 ? eur(c.falta) : "—"}</td><td class="n">${eur(c.real + c.falta)}</td><td class="n">${c.ant ? eur(c.ant) : "—"}</td>${g ? "<td></td>" : ""}</tr>`;
+  }
+  h += `</tbody><tfoot><tr><th>Total</th><th class="n">${eur(real)}</th><th class="n">${eur(falta)}</th><th class="n">${eur(fin)}</th><th class="n">${ant ? eur(ant) : "—"}</th>${g ? `<th class="n">${sum(Object.values(pres).map(num)) ? eur(sum(Object.values(pres).map(num))) : "—"}</th>` : ""}</tr></tfoot></table></div></div>`;
+  return h;
+}
+
+// Lo que viene: los próximos seis meses, con lo fijo, las cuotas, los vencimientos y los objetivos
+function loQueVieneHTML(){
+  let h = `<div class="panel"><div class="panel-head"><div><h2>Lo que viene</h2><p>Los próximos seis meses: lo que entra y sale fijo, las cuotas, lo que vence y tus objetivos, y cuánto tendrás a final de cada mes.</p></div><button class="btn sm" data-psub="fijos">Cambiar lo fijo</button></div>`;
+  let alguno = false;
+  for (let k = 0; k < 6; k++) {
+    const d = new Date(NOW.getFullYear(), NOW.getMonth() + k, 1), y = d.getFullYear(), mo = d.getMonth();
+    if (y > MAX_Y) break;
+    const f = forecast(y), key = y + "-" + pad(mo + 1);
+    const items = [];
+    const hecho = (r) => MOVS.some(m => m.fecha.startsWith(key) && m.tipo === (r.tipo === "ingreso" ? "ingreso" : "gasto") && ((r.cat && m.lineas.some(l => l.cat === r.cat)) || norm(m.comercio) === norm(r.nombre)) && Math.abs(num(m.total) - num(r.importe)) <= num(r.importe) * 0.15 + 1);
+    for (const r of f.recs) if (recHits(r, mo)) items.push({ n: r.nombre, v: (r.tipo === "ingreso" ? 1 : -1) * num(r.importe), ok: k === 0 && hecho(r), t: r.tipo === "ingreso" ? "Entra" : "Sale" });
+    for (const c of cuentas()) {
+      if (c.tipo === "prestamo" && num(c.cuota) > 0 && c.ancla && debe(c, toISO(NOW)) > 0.005 && !(c.termina && d > parseISO(c.termina))) items.push({ n: "Cuota de " + c.nombre, v: -num(c.cuota), ok: k === 0 && cuotaPagada(c, y, mo), t: "Cuota" });
+      if (c.tipo === "deposito" && c.vence && c.vence.startsWith(key)) items.push({ n: "Vence " + c.nombre, v: 0, info: `el ${shortDate(c.vence)}: ${eur(saldo(c, toISO(NOW)))} vuelven a estar libres`, t: "Vence" });
+    }
+    for (let yy = CUR_Y; yy <= y; yy++) for (const o of anio(yy).objetivos) if (!o.hecho && o.fecha && o.fecha.startsWith(key)) items.push({ n: "Objetivo: " + o.nombre, v: 0, info: `para el ${shortDate(o.fecha)}: ${eur(o.importe)} (te faltan ${eur(Math.max(0, num(o.importe) - goalSaved(o)))})`, t: "Objetivo" });
+    const vari = f.varAvg || 0;
+    const entra = f.pIng[mo] + (k === 0 ? f.ing[mo] : 0), sale = f.pGas[mo] + (f.pCap ? f.pCap[mo] : 0) + (k === 0 ? f.gas[mo] : 0);
+    const s = f.saldoMes[mo];
+    if (items.length || entra || sale) alguno = true;
+    h += `<div class="day"><h3><span>${cap(MESL[mo])}${y !== CUR_Y ? " " + y : ""}${k === 0 ? " · este mes" : ""}</span><span class="num">${f.hayCuentas ? "a fin de mes: " + eur(s.v) : ""}</span></h3>`;
+    for (const it of items.sort((a, b) => a.v - b.v)) h += `<div class="rec"><div><div class="n"${it.ok ? ' style="text-decoration:line-through;color:var(--muted)"' : ""}>${esc(it.n)}</div><div class="m">${esc(it.t)}${it.ok ? " · ya está apuntado" : ""}${it.info ? " · " + esc(it.info) : ""}</div></div><span class="a" style="color:${it.v > 0 ? "var(--ok)" : "inherit"}">${it.v ? (it.v > 0 ? "+" : "−") + eur(Math.abs(it.v)) : ""}</span><span></span></div>`;
+    if (vari > 0) h += `<div class="rec"><div><div class="n">Gasto del día a día</div><div class="m">súper, gasolina, comer fuera… (la media de estos meses)</div></div><span class="a">−${eur(vari)}</span><span></span></div>`;
+    h += `<p class="small" style="margin:6px 0 0;display:flex;gap:14px;flex-wrap:wrap"><span>Entra <b class="num" style="color:var(--ok)">${eur(entra)}</b></span><span>Sale <b class="num">${eur(sale)}</b></span><span>Queda <b class="num"${entra - sale < 0 ? ' style="color:var(--over)"' : ""}>${eur(entra - sale)}</b></span>${k === 0 ? `<span class="muted">(lo de este mes: lo apuntado más lo que calculo que falta)</span>` : ""}</p></div>`;
+  }
+  if (!alguno) h += `<p class="empty">Todavía no hay nada que prever. Apunta tus fijos (nómina, hipoteca, recibos…) y lo verás aquí mes a mes.</p>`;
+  return h + `</div>`;
+}
+
 /* ===== 99-boot.js ===== */
 /* ================= navegación ================= */
-const TABS = ["anio", "movs", "apuntar", "analisis", "dinero"];
+const TABS = ["anio", "movs", "apuntar", "analisis", "prevision", "dinero"];
 function renderHeader(){
   $("#y-lab").textContent = Y;
   $("#y-prev").disabled = Y <= CUR_Y - 15; $("#y-next").disabled = Y >= MAX_Y;
@@ -2070,7 +2195,7 @@ function renderView(){
   const a = document.activeElement;
   const keep = a && a.id && $("#main").contains(a) ? { id: a.id, s: (() => { try { return [a.selectionStart, a.selectionEnd]; } catch { return null; } })() } : null;
   stale = false;
-  ({ anio: renderAnio, movs: renderMovs, apuntar: renderApuntar, analisis: renderAnalisis, dinero: renderDinero }[tab] || renderAnio)();
+  ({ anio: renderAnio, movs: renderMovs, apuntar: renderApuntar, analisis: renderAnalisis, prevision: renderPrevision, dinero: renderDinero }[tab] || renderAnio)();
   if (keep) { const n = document.getElementById(keep.id); if (n && n !== document.activeElement) { n.focus({ preventScroll: true }); try { if (keep.s && keep.s[0] != null) n.setSelectionRange(keep.s[0], keep.s[1]); } catch {} } }
 }
 function renderAll(){ renderHeader(); renderView(); }
@@ -2078,7 +2203,7 @@ function setTab(t){
   if (!TABS.includes(t)) t = "anio";
   tab = t; store.set("cj.tab", t);
   for (const k of TABS) $("#v-" + k).hidden = k !== t;
-  for (const b of $$(".bnav button")) b.setAttribute("aria-current", b.dataset.tab === t ? "page" : "false");
+  for (const b of $$(".bnav button, .fab")) b.setAttribute("aria-current", b.dataset.tab === t ? "page" : "false");
   renderView();
   window.scrollTo({ top: 0 });
 }
@@ -2099,7 +2224,8 @@ document.addEventListener("click", async e => {
   const ds = t.dataset;
   if (t.classList.contains("zoom")) { t.remove(); return; }
   if (ds.tab) return setTab(ds.tab);
-  if (ds.go) { if (ds.sub) { dSub = ds.sub; store.set("cj.dsub", dSub); } if (ds.rev) { Object.assign(mf, { rev: true, mes: "", tipo: "", grupo: "", cuenta: "", q: "" }); } return setTab(ds.go); }
+  if (ds.psub && !ds.go) { pSub = ds.psub; store.set("cj.psub", pSub); renderView(); window.scrollTo({ top: 0 }); return; }
+  if (ds.go) { if (ds.psub) { pSub = ds.psub; store.set("cj.psub", pSub); } if (ds.sub) { dSub = ds.sub; store.set("cj.dsub", dSub); } if (ds.rev) { Object.assign(mf, { rev: true, mes: "", tipo: "", grupo: "", cuenta: "", q: "" }); } return setTab(ds.go); }
   if (t.id === "y-prev" || t.id === "y-next") { Y += t.id === "y-prev" ? -1 : 1; store.set("cj.year", Y); anOpen = null; askState.text = ""; askState.q = ""; return renderAll(); }
   if (ds.close) return closeSheet();
   if (ds.zoom) { const z = document.createElement("div"); z.className = "zoom"; z.innerHTML = `<img src="${esc(ds.zoom)}" alt="Ticket">`; document.body.appendChild(z); return; }

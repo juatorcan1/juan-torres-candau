@@ -5,12 +5,12 @@ let cuadrar = null;      // {id, saldo}
 let goalForm = null, recForm = null, catForm = null;
 function renderDinero(){
   const el = $("#v-dinero");
+  if (!["cuentas", "objetivos", "categorias"].includes(dSub)) dSub = "cuentas";   // los fijos y el presupuesto están ahora en Previsión
   let h = `<div class="subnav" role="tablist" aria-label="Dinero">
     <button role="tab" data-dsub="cuentas" aria-selected="${dSub === "cuentas"}">Cuentas</button>
     <button role="tab" data-dsub="objetivos" aria-selected="${dSub === "objetivos"}">Objetivos</button>
-    <button role="tab" data-dsub="prevision" aria-selected="${dSub === "prevision"}">Fijos y presupuesto</button>
     <button role="tab" data-dsub="categorias" aria-selected="${dSub === "categorias"}">Categorías</button></div>`;
-  h += dSub === "cuentas" ? cuentasHTML() : dSub === "objetivos" ? objetivosHTML() : dSub === "prevision" ? previsionHTML() : categoriasHTML();
+  h += dSub === "cuentas" ? cuentasHTML() : dSub === "objetivos" ? objetivosHTML() : categoriasHTML();
   el.innerHTML = h;
 }
 

@@ -1,0 +1,31 @@
+<div class="wrap">
+  <div class="strip">
+    <div class="strip-in">
+      <div class="brand">Las cuentas de Juan<small id="sub">&nbsp;</small></div>
+      <div class="year" role="group" aria-label="Ejercicio">
+        <button type="button" id="y-prev" aria-label="Año anterior">‹</button>
+        <div><b id="y-lab">2026</b><span>ejercicio</span></div>
+        <button type="button" id="y-next" aria-label="Año siguiente">›</button>
+      </div>
+    </div>
+  </div>
+  <main id="main">
+    <section id="v-anio"></section>
+    <section id="v-movs" hidden></section>
+    <section id="v-apuntar" hidden></section>
+    <section id="v-analisis" hidden></section>
+    <section id="v-dinero" hidden></section>
+  </main>
+</div>
+
+<nav class="bnav" aria-label="Secciones">
+  <button type="button" data-tab="anio"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>El año</span></button>
+  <button type="button" data-tab="movs"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg><span>Movimientos</span></button>
+  <button type="button" data-tab="apuntar" class="plus" aria-label="Apuntar o escanear"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+  <button type="button" data-tab="analisis"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12A9 9 0 1 1 12 3v9z"/><path d="M15 3.5A9 9 0 0 1 20.5 9H15z"/></svg><span>En qué se va</span></button>
+  <button type="button" data-tab="dinero"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h13v4M3 7v11a2 2 0 0 0 2 2h15V9H5a2 2 0 0 1-2-2zM16 14.5h.01"/></svg><span>Dinero</span></button>
+</nav>
+<div id="sheet-root"></div>
+<div class="toast" id="toast" role="status" hidden></div>
+<input type="file" id="f-ticket" accept="image/*,application/pdf" multiple hidden>
+<input type="file" id="f-extracto" accept=".csv,.xls,.xlsx,.txt,.n43,.q43,text/csv,text/plain,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>

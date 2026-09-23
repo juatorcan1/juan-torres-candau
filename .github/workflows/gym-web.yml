@@ -1,12 +1,14 @@
-name: Publicar web del gimnasio
+name: Publicar las webs (gimnasio y cuentas)
 
-# Genera la web (gym-app/build-web.sh) y la sube a la rama gh-pages, que es la que
-# publica GitHub Pages en https://juatorcan1.github.io/juan-torres-candau/.
-# gh-pages solo contiene la web generada: se reescribe entera en cada publicación.
+# Genera las dos webs y las sube a la rama gh-pages, que es la que publica GitHub Pages:
+#   gimnasio (gym-app/build-web.sh)    -> https://juatorcan1.github.io/juan-torres-candau/
+#   cuentas  (cuentas-app/build-web.sh) -> https://juatorcan1.github.io/juan-torres-candau/cuentas/
+# gh-pages solo contiene las webs generadas: se reescribe entera en cada publicación,
+# así que las dos se construyen siempre juntas.
 on:
   push:
     branches: [main]
-    paths: ["gym-app/**", ".github/workflows/gym-web.yml"]
+    paths: ["gym-app/**", "cuentas-app/**", ".github/workflows/gym-web.yml"]
   workflow_dispatch:
 
 permissions:
@@ -21,8 +23,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Construir la web
+      - name: Construir la web del gimnasio
         run: gym-app/build-web.sh
+      - name: Construir la web de las cuentas
+        run: |
+          cuentas-app/build-web.sh
+          mkdir -p gym-app/web/cuentas
+          cp cuentas-app/web/index.html gym-app/web/cuentas/index.html
       - name: Subir a gh-pages
         working-directory: gym-app/web
         env:
@@ -33,5 +40,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -q -m "Web del gimnasio desde ${GITHUB_SHA::7}"
+          git commit -q -m "Webs del gimnasio y de las cuentas desde ${GITHUB_SHA::7}"
           git push -f "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" gh-pages

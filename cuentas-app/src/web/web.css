@@ -1,0 +1,14 @@
+/* sólo en la web: el esqueleto que en Claude pone el visor de Artifacts, y la pantalla de entrada */
+html{-webkit-text-size-adjust:100%}
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0}
+img{max-width:100%}
+[hidden]{display:none!important}
+body.locked .wrap,body.locked .bnav,body.locked #toast,body.locked #sheet-root{display:none}
+#login:empty{display:none}
+#login{min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding-block:24px}
+.login-card{width:100%;max-width:380px;display:grid;gap:14px;background:var(--surface);border:1px solid var(--line-2);border-radius:14px;padding:24px 20px}
+.login-card h1{font-family:var(--display);font-weight:800;font-size:28px;letter-spacing:-.01em;line-height:1.05;margin:0}
+.login-card input{width:100%;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:11px;font-size:16px}
+#webbar{display:flex;gap:4px;width:100%;justify-content:flex-end;margin-top:-4px}
+.linkbtn{background:none;border:0;padding:2px 6px;color:var(--ink-2);text-decoration:underline;text-underline-offset:3px;cursor:pointer;font-size:13px}

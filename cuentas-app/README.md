@@ -15,7 +15,7 @@ Abajo hay cinco botones:
 ## Dos versiones, mismo código
 
 **Web con contraseña** (la que se usa): https://juatorcan1.github.io/juan-torres-candau/cuentas/
-- Entra con el usuario de Juan del gimnasio (misma contraseña; se cambia desde la app y cambia en las dos).
+- Usuario y contraseña: los mismos del gimnasio (usuario `juan`). La contraseña se cambia desde la app y cambia en las dos.
 - Datos en Supabase (proyecto `senda-memoria`), aparte de Senda y del gimnasio:
   - `cuentas_usuarios`: quién puede entrar (sólo Juan).
   - `cuentas_docs`: documentos JSON — `movs/<AAAA-MM>` (los movimientos de cada mes), `config/cuentas`,

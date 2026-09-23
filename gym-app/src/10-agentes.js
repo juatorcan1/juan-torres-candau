@@ -86,6 +86,7 @@ ${agent === "coach" ? `Ejercicios que no le gustan: ${dislikes().join(", ") || "
 ${checkinText() ? "Cómo está hoy (check-in): " + checkinText() : ""}
 Plan de entreno actual: ${planSummary(trainPlan())}
 ${agent === "nutri" && dietPlan() ? `Tiene un menú semanal guardado: ${dietPlan().titulo || ""}.` : ""}
+${agent === "nutri" ? `Lo que ha apuntado que comió estos días:\n${mealLogText(me) || "nada apuntado todavía"}` : ""}
 Su rival, ${ATH[other]}:
 ${athleteContext(other)}
 ${isDemo() || wDemo() || dDemo() ? "(Parte de estos datos son de ejemplo de la app; no los trates como reales si no cuadran.)" : ""}

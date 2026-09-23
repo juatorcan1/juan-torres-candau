@@ -19,7 +19,11 @@ function renderDieta(){
   const { t, w } = targetsFor(dWho), o = targetsFor(other).t, pr = profileOf(dWho), saved = !!(profiles[dWho] && profiles[dWho].height);
   const factor = Math.min(1.45, Math.max(0.7, t.kcal / 2400));
   const dp = me === dWho ? dietPlan() : dietPlan(dWho), pdd = dp && dp.dias.find(d => (parseISO(d.fecha).getDay() + 6) % 7 === dDay);
-  const menu = pdd ? planMenu(pdd, dCirc) : dayMenu(dDay, dCirc, factor);
+  const menu = pdd ? planMenu(pdd, dCirc) : dayMenu(dDay, dCirc, factor), logDate = weekDate(dDay);
+  shownMenu = menu;
+  // plans made before the three versions of every meal: say so instead of looking broken
+  const oneVersion = k => !!pdd && Array.isArray(pdd[k]);
+  const oldPlan = pdd && CIRC_MEALS.some(oneVersion);
   const wk = periodRange("semana"), al = alcoholIn(drk(), dWho, ...wk);
   const editable = me === dWho && dbState === "ready";
   const tile = (l, val, unit, ov) => `<div class="tg"><div class="l">${l}</div><div class="v">${fmt(val)}<small> ${unit}</small></div><div class="o"><i class="dot ${other}"></i> ${ATH[other]}: ${fmt(ov)} ${unit}</div></div>`;
@@ -59,9 +63,12 @@ function renderDieta(){
       <div style="display:grid;gap:12px">
         <div class="days" role="group" aria-label="Día de la semana">${DAYS_SHORT.map((d, i) => `<button type="button" data-dday="${i}" aria-pressed="${dDay === i}" class="${i === (today().getDay() + 6) % 7 ? "today" : ""}" aria-label="${DAYS_LONG[i]}">${d}</button>`).join("")}</div>
         <div class="circs" role="group" aria-label="Dónde comes hoy">${Object.entries(CIRCS).map(([k, c]) => `<button type="button" data-circ="${k}" aria-pressed="${dCirc === k}"><b>${c.l}</b><span>${c.s}</span></button>`).join("")}</div>
+        ${oldPlan ? `<div class="banner">Este menú del dietista es de antes: solo trae una versión del desayuno, la media mañana y la merienda, por eso no cambian. <button type="button" class="linkbtn" data-say="nutri" data-text="Rehazme el menú de la semana con las tres versiones (obra, bar y oficina) de desayuno, media mañana, comida y merienda" data-go="nutri">Rehacerlo con las tres versiones</button></div>` : ""}
+        ${mealSummaryHTML(dWho, logDate)}
       </div>
       <div class="meals" style="margin-top:10px">
-        ${MEALS.map(([k, l]) => `<div class="meal ${k === "comida" ? "main" : ""}"><div class="when">${l}<small>${CIRC_MEALS.includes(k) ? esc(CIRCS[dCirc].l) : "En casa, igual en los tres"}</small></div><ul>${menu[k].map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>`).join("")}
+        ${MEALS.map(([k, l]) => `<div class="meal ${k === "comida" ? "main" : ""} ${mealClass(k, logDate, dWho)}"><div class="when">${l}<small>${!CIRC_MEALS.includes(k) ? "En casa, igual en los tres" : oneVersion(k) ? "Igual en los tres" : esc(CIRCS[dCirc].l)}</small></div>
+          <div class="meal-body"><ul>${menu[k].map(x => `<li>${esc(x)}</li>`).join("")}</ul>${mealControls(k, logDate, dWho)}</div></div>`).join("")}
       </div>
       <div style="margin-top:12px"><div class="eyebrow" style="margin-bottom:6px">Trucos para ${esc(CIRCS[dCirc].l.toLowerCase())}</div><ul class="tips">${TIPS[dCirc].map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>
       <p class="note" style="margin:12px 0 0">Cantidades ajustadas a ${fmt(t.kcal)} kcal. ${esc(scaleText("Los días de pierna o de doble sesión añade {40} g de pan o {30} g de arroz en crudo.", factor))} Es una guía orientativa: si tienes alguna patología o alergia, consúltalo con un nutricionista.</p>

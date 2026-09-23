@@ -67,5 +67,6 @@ resumePlayer();
   sub("perfiles", rows => { profiles = {}; for (const r of rows) if (ATH[r.id]) profiles[r.id] = r; });
   sub("planes", rows => { plans = {}; for (const r of rows) plans[r.id] = r; });
   sub("chats", rows => { chats = {}; for (const r of rows) chats[r.id] = r; });
+  sub("comidas", rows => { mealLog = rows.filter(r => ATH[r.athlete] && r.date && r.m); });
   if (WEB) setInterval(() => { if (!document.hidden) db.refresh?.(); }, 60000);
 })();

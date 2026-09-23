@@ -561,3 +561,17 @@ body.playing{overflow:hidden}
 .fz-card .ojo{font-size:14px;color:var(--ink-2)}
 .fz-card .ojo b{color:var(--over)}
 .fz-card > .btn.primary{width:100%}
+
+/* meal log */
+.meal-body{display:grid;gap:8px;min-width:0}
+.meal-log{display:flex;gap:6px;flex-wrap:wrap}
+.meal-log button{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 11px;font-size:13px;font-weight:700;color:var(--ink-2);cursor:pointer}
+.meal-log button.si[aria-pressed="true"]{background:var(--ok);border-color:var(--ok);color:#fff}
+.meal-log button.otro[aria-pressed="true"]{background:var(--warn);border-color:var(--warn);color:#fff}
+.meal-log button.no[aria-pressed="true"]{background:var(--over);border-color:var(--over);color:#fff}
+.meal-other{width:100%;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:15px}
+.meal.st-no ul,.meal.st-otro ul{opacity:.5}
+.meal.st-no ul{text-decoration:line-through}
+.meal-seen{font-size:12.5px;font-weight:600;color:var(--ink-2)}
+.meal-seen.si{color:var(--ok)} .meal-seen.no{color:var(--over)} .meal-seen.otro{color:var(--warn)}
+.meal-sum{display:grid;gap:2px;font-size:13.5px;padding:10px 12px;border-radius:9px;background:var(--surface-2)}

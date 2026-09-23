@@ -54,6 +54,7 @@ function renderHoy(){
   const pq = (() => { const p = period; period = "semana"; const r = piqueText(T); period = p; return r; })();
   const pd = planDay(trainPlan()), nx = nextPlanDay(), doneToday = data().filter(s => s.athlete === me && s.date === todayISO());
   const menu = todayMenu(), busy = chatBusy.coach;
+  if (tab === "hoy") shownMenu = menu;
   const paused = run && run.athlete === me && run.phase !== "preview";
   const lastCoach = chatMsgs("coach").slice().reverse().find(m => m.entreno);
   v.innerHTML = `<div style="display:grid;gap:16px">
@@ -85,7 +86,8 @@ function renderHoy(){
     <div class="panel">
       <div class="panel-head" style="margin-bottom:10px"><h2>Hoy comes</h2><button type="button" class="btn sm ghost" data-leaf="dieta">Menú completo</button></div>
       <div class="circs mini" role="group" aria-label="Dónde comes hoy">${Object.entries(CIRCS).map(([k, c]) => `<button type="button" data-circ="${k}" aria-pressed="${dCirc === k}"><b>${esc(c.l)}</b></button>`).join("")}</div>
-      <div class="meals compact">${[["desayuno", "Desayuno"], ["comida", "Comida"], ["cena", "Cena"]].map(([k, l]) => `<div class="meal ${k === "comida" ? "main" : ""}"><div class="when">${l}</div><ul>${(menu[k] || []).slice(0, 3).map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>`).join("")}</div>
+      ${mealSummaryHTML(me, todayISO())}
+      <div class="meals compact">${MEALS.map(([k, l]) => `<div class="meal ${k === "comida" ? "main" : ""} ${mealClass(k, todayISO(), me)}"><div class="when">${l}</div><div class="meal-body"><ul>${(menu[k] || []).slice(0, 3).map(x => `<li>${esc(x)}</li>`).join("")}</ul>${mealControls(k, todayISO(), me)}</div></div>`).join("")}</div>
       ${menu.src === "base" ? `<button type="button" class="linkbtn" data-say="nutri" data-text="Hazme el menú de la semana" data-go="nutri">Pídele a tu dietista un menú semanal a tu medida</button>` : ""}
     </div>
 

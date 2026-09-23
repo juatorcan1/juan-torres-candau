@@ -567,6 +567,20 @@ body.playing{overflow:hidden}
 .fz-card .ojo{font-size:14px;color:var(--ink-2)}
 .fz-card .ojo b{color:var(--over)}
 .fz-card > .btn.primary{width:100%}
+
+/* meal log */
+.meal-body{display:grid;gap:8px;min-width:0}
+.meal-log{display:flex;gap:6px;flex-wrap:wrap}
+.meal-log button{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 11px;font-size:13px;font-weight:700;color:var(--ink-2);cursor:pointer}
+.meal-log button.si[aria-pressed="true"]{background:var(--ok);border-color:var(--ok);color:#fff}
+.meal-log button.otro[aria-pressed="true"]{background:var(--warn);border-color:var(--warn);color:#fff}
+.meal-log button.no[aria-pressed="true"]{background:var(--over);border-color:var(--over);color:#fff}
+.meal-other{width:100%;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:15px}
+.meal.st-no ul,.meal.st-otro ul{opacity:.5}
+.meal.st-no ul{text-decoration:line-through}
+.meal-seen{font-size:12.5px;font-weight:600;color:var(--ink-2)}
+.meal-seen.si{color:var(--ok)} .meal-seen.no{color:var(--over)} .meal-seen.otro{color:var(--warn)}
+.meal-sum{display:grid;gap:2px;font-size:13.5px;padding:10px 12px;border-radius:9px;background:var(--surface-2)}
 </style>
 <div class="wrap">
   <div class="brand">
@@ -2529,7 +2543,11 @@ function renderDieta(){
   const { t, w } = targetsFor(dWho), o = targetsFor(other).t, pr = profileOf(dWho), saved = !!(profiles[dWho] && profiles[dWho].height);
   const factor = Math.min(1.45, Math.max(0.7, t.kcal / 2400));
   const dp = me === dWho ? dietPlan() : dietPlan(dWho), pdd = dp && dp.dias.find(d => (parseISO(d.fecha).getDay() + 6) % 7 === dDay);
-  const menu = pdd ? planMenu(pdd, dCirc) : dayMenu(dDay, dCirc, factor);
+  const menu = pdd ? planMenu(pdd, dCirc) : dayMenu(dDay, dCirc, factor), logDate = weekDate(dDay);
+  shownMenu = menu;
+  // plans made before the three versions of every meal: say so instead of looking broken
+  const oneVersion = k => !!pdd && Array.isArray(pdd[k]);
+  const oldPlan = pdd && CIRC_MEALS.some(oneVersion);
   const wk = periodRange("semana"), al = alcoholIn(drk(), dWho, ...wk);
   const editable = me === dWho && dbState === "ready";
   const tile = (l, val, unit, ov) => `<div class="tg"><div class="l">${l}</div><div class="v">${fmt(val)}<small> ${unit}</small></div><div class="o"><i class="dot ${other}"></i> ${ATH[other]}: ${fmt(ov)} ${unit}</div></div>`;
@@ -2569,9 +2587,12 @@ function renderDieta(){
       <div style="display:grid;gap:12px">
         <div class="days" role="group" aria-label="Día de la semana">${DAYS_SHORT.map((d, i) => `<button type="button" data-dday="${i}" aria-pressed="${dDay === i}" class="${i === (today().getDay() + 6) % 7 ? "today" : ""}" aria-label="${DAYS_LONG[i]}">${d}</button>`).join("")}</div>
         <div class="circs" role="group" aria-label="Dónde comes hoy">${Object.entries(CIRCS).map(([k, c]) => `<button type="button" data-circ="${k}" aria-pressed="${dCirc === k}"><b>${c.l}</b><span>${c.s}</span></button>`).join("")}</div>
+        ${oldPlan ? `<div class="banner">Este menú del dietista es de antes: solo trae una versión del desayuno, la media mañana y la merienda, por eso no cambian. <button type="button" class="linkbtn" data-say="nutri" data-text="Rehazme el menú de la semana con las tres versiones (obra, bar y oficina) de desayuno, media mañana, comida y merienda" data-go="nutri">Rehacerlo con las tres versiones</button></div>` : ""}
+        ${mealSummaryHTML(dWho, logDate)}
       </div>
       <div class="meals" style="margin-top:10px">
-        ${MEALS.map(([k, l]) => `<div class="meal ${k === "comida" ? "main" : ""}"><div class="when">${l}<small>${CIRC_MEALS.includes(k) ? esc(CIRCS[dCirc].l) : "En casa, igual en los tres"}</small></div><ul>${menu[k].map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>`).join("")}
+        ${MEALS.map(([k, l]) => `<div class="meal ${k === "comida" ? "main" : ""} ${mealClass(k, logDate, dWho)}"><div class="when">${l}<small>${!CIRC_MEALS.includes(k) ? "En casa, igual en los tres" : oneVersion(k) ? "Igual en los tres" : esc(CIRCS[dCirc].l)}</small></div>
+          <div class="meal-body"><ul>${menu[k].map(x => `<li>${esc(x)}</li>`).join("")}</ul>${mealControls(k, logDate, dWho)}</div></div>`).join("")}
       </div>
       <div style="margin-top:12px"><div class="eyebrow" style="margin-bottom:6px">Trucos para ${esc(CIRCS[dCirc].l.toLowerCase())}</div><ul class="tips">${TIPS[dCirc].map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>
       <p class="note" style="margin:12px 0 0">Cantidades ajustadas a ${fmt(t.kcal)} kcal. ${esc(scaleText("Los días de pierna o de doble sesión añade {40} g de pan o {30} g de arroz en crudo.", factor))} Es una guía orientativa: si tienes alguna patología o alergia, consúltalo con un nutricionista.</p>
@@ -2771,6 +2792,7 @@ ${agent === "coach" ? `Ejercicios que no le gustan: ${dislikes().join(", ") || "
 ${checkinText() ? "Cómo está hoy (check-in): " + checkinText() : ""}
 Plan de entreno actual: ${planSummary(trainPlan())}
 ${agent === "nutri" && dietPlan() ? `Tiene un menú semanal guardado: ${dietPlan().titulo || ""}.` : ""}
+${agent === "nutri" ? `Lo que ha apuntado que comió estos días:\n${mealLogText(me) || "nada apuntado todavía"}` : ""}
 Su rival, ${ATH[other]}:
 ${athleteContext(other)}
 ${isDemo() || wDemo() || dDemo() ? "(Parte de estos datos son de ejemplo de la app; no los trates como reales si no cuadran.)" : ""}
@@ -3336,6 +3358,7 @@ function renderHoy(){
   const pq = (() => { const p = period; period = "semana"; const r = piqueText(T); period = p; return r; })();
   const pd = planDay(trainPlan()), nx = nextPlanDay(), doneToday = data().filter(s => s.athlete === me && s.date === todayISO());
   const menu = todayMenu(), busy = chatBusy.coach;
+  if (tab === "hoy") shownMenu = menu;
   const paused = run && run.athlete === me && run.phase !== "preview";
   const lastCoach = chatMsgs("coach").slice().reverse().find(m => m.entreno);
   v.innerHTML = `<div style="display:grid;gap:16px">
@@ -3367,7 +3390,8 @@ function renderHoy(){
     <div class="panel">
       <div class="panel-head" style="margin-bottom:10px"><h2>Hoy comes</h2><button type="button" class="btn sm ghost" data-leaf="dieta">Menú completo</button></div>
       <div class="circs mini" role="group" aria-label="Dónde comes hoy">${Object.entries(CIRCS).map(([k, c]) => `<button type="button" data-circ="${k}" aria-pressed="${dCirc === k}"><b>${esc(c.l)}</b></button>`).join("")}</div>
-      <div class="meals compact">${[["desayuno", "Desayuno"], ["comida", "Comida"], ["cena", "Cena"]].map(([k, l]) => `<div class="meal ${k === "comida" ? "main" : ""}"><div class="when">${l}</div><ul>${(menu[k] || []).slice(0, 3).map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>`).join("")}</div>
+      ${mealSummaryHTML(me, todayISO())}
+      <div class="meals compact">${MEALS.map(([k, l]) => `<div class="meal ${k === "comida" ? "main" : ""} ${mealClass(k, todayISO(), me)}"><div class="when">${l}</div><div class="meal-body"><ul>${(menu[k] || []).slice(0, 3).map(x => `<li>${esc(x)}</li>`).join("")}</ul>${mealControls(k, todayISO(), me)}</div></div>`).join("")}</div>
       ${menu.src === "base" ? `<button type="button" class="linkbtn" data-say="nutri" data-text="Hazme el menú de la semana" data-go="nutri">Pídele a tu dietista un menú semanal a tu medida</button>` : ""}
     </div>
 
@@ -3597,6 +3621,74 @@ document.addEventListener("click", e => {
 }, true);
 document.addEventListener("keydown", e => { if (e.key === "Escape" && closeZoom()) e.stopImmediatePropagation(); }, true);
 
+/* ===== 15-comidas.js ===== */
+/* ---------- meal log: tick what you actually ate ----------
+   comidas/<who>_<date> = { athlete, date, circ, m: { desayuno: { s: "si" | "otro" | "no", t, menu }, … } }.
+   Each meal of the menu gets "Comido", "Otra cosa" (with what it was) or "No lo comí". The other one's
+   log is shown read-only, and the dietitian gets the last week of it. */
+let mealLog = [];
+const MEAL_STATES = [["si", "✓ Comido"], ["otro", "Otra cosa"], ["no", "No lo comí"]];
+const MEAL_WORD = { si: "según el menú", otro: "otra cosa", no: "no lo comió" };
+let shownMenu = {}; // the menu on screen per meal, saved with the tick
+const mealDoc = (who, date) => mealLog.find(r => r.athlete === who && r.date === date) || null;
+const mealsOf = (who, date) => (mealDoc(who, date) || {}).m || {};
+const weekDate = i => toISO(addDays(mondayOf(today()), i));
+
+async function setMeal(date, k, patch){
+  if (dbState !== "ready" || !me || date > todayISO()) return;
+  const m = { ...mealsOf(me, date) }, prev = m[k] || {};
+  if (patch.s && patch.s === prev.s && !("t" in patch)) delete m[k]; // tapping the same one again clears it
+  else m[k] = { ...prev, ...patch, menu: (shownMenu[k] || prev.menu || []).slice(0, 6) };
+  const id = `${me}_${date}`, doc = { athlete: me, date, circ: dCirc, m, updatedAt: Date.now() };
+  mealLog = [...mealLog.filter(r => !(r.athlete === me && r.date === date)), { id, ...doc }];
+  renderView();
+  if (patch.s === "otro" && !patch.t) setTimeout(() => $(`.meal-other[data-meal-t="${k}"]`)?.focus(), 30);
+  try { await db.doc(`comidas/${id}`).set(doc); } catch { toast("No se ha podido guardar la comida"); }
+}
+function mealControls(k, date, who){
+  if (date > todayISO()) return "";
+  const st = mealsOf(who, date)[k];
+  if (who !== me) return st ? `<div class="meal-seen ${st.s}">${ATH[who]}: ${esc(MEAL_WORD[st.s])}${st.t ? ` (${esc(st.t)})` : ""}</div>` : "";
+  return `<div class="meal-log" role="group" aria-label="¿Te lo has comido?">${MEAL_STATES.map(([s, l]) => `<button type="button" class="${s}" data-meal="${k}" data-date="${date}" data-s="${s}" aria-pressed="${st ? st.s === s : false}">${l}</button>`).join("")}</div>
+    ${st && st.s === "otro" ? `<input class="meal-other" data-meal-t="${k}" data-date="${date}" value="${esc(st.t || "")}" placeholder="¿Qué has comido? (opcional)" aria-label="Qué has comido">` : ""}`;
+}
+const mealClass = (k, date, who) => { const st = mealsOf(who, date)[k]; return st ? "st-" + st.s : ""; };
+function mealCount(who, dates){
+  const c = { si: 0, otro: 0, no: 0 };
+  for (const d of dates) for (const v of Object.values(mealsOf(who, d))) if (c[v.s] != null) c[v.s]++;
+  return c;
+}
+// "Hoy: 2 según el menú, 1 otra cosa, 2 sin comer" and how the week compares with the rival
+function mealSummaryHTML(who, date){
+  if (date > todayISO()) return "";
+  const d = mealCount(who, [date]), n = d.si + d.otro + d.no;
+  const week = Array.from({ length: 7 }, (_, i) => weekDate(i)).filter(x => x <= todayISO());
+  const a = mealCount(who, week), b = mealCount(OTHER[who], week);
+  const part = c => [c.si ? `${c.si} según el menú` : "", c.otro ? `${c.otro} otra cosa` : "", c.no ? `${c.no} sin comer` : ""].filter(Boolean).join(", ") || "nada apuntado";
+  return `<div class="meal-sum"><div><b>${date === todayISO() ? "Hoy" : DAYS_LONG[(parseISO(date).getDay() + 6) % 7]}:</b> ${esc(part(d))}${n < MEALS.length && who === me ? ` · <span class="muted">${MEALS.length - n} sin apuntar</span>` : ""}</div>
+    <div class="muted">Esta semana según el menú: <i class="dot ${who}"></i> ${ATH[who]} ${a.si} · <i class="dot ${OTHER[who]}"></i> ${ATH[OTHER[who]]} ${b.si}</div></div>`;
+}
+// the last week for the dietitian
+function mealLogText(who){
+  const lines = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = toISO(addDays(today(), -i)), doc = mealDoc(who, d); if (!doc) continue;
+    const parts = MEALS.map(([k, l]) => { const v = doc.m[k]; return v ? `${l.toLowerCase()} ${MEAL_WORD[v.s]}${v.t ? ` (${v.t})` : ""}` : ""; }).filter(Boolean);
+    if (parts.length) lines.push(`${d} (${(CIRCS[doc.circ] || {}).l || ""}): ${parts.join("; ")}`);
+  }
+  return lines.join("\n");
+}
+
+document.addEventListener("click", e => {
+  const t = e.target.closest("button[data-meal]"); if (!t) return;
+  setMeal(t.dataset.date, t.dataset.meal, { s: t.dataset.s });
+});
+document.addEventListener("change", e => {
+  const t = e.target.closest(".meal-other"); if (!t) return;
+  setMeal(t.dataset.date, t.dataset.mealT, { s: "otro", t: t.value.trim().slice(0, 120) });
+});
+document.addEventListener("keydown", e => { if (e.key === "Enter" && e.target.matches && e.target.matches(".meal-other")) e.target.blur(); });
+
 /* ===== 99-boot.js ===== */
 /* ---------- navigation ---------- */
 let sampleState = "loading"; // loading | ready | none
@@ -3667,6 +3759,7 @@ resumePlayer();
   sub("perfiles", rows => { profiles = {}; for (const r of rows) if (ATH[r.id]) profiles[r.id] = r; });
   sub("planes", rows => { plans = {}; for (const r of rows) plans[r.id] = r; });
   sub("chats", rows => { chats = {}; for (const r of rows) chats[r.id] = r; });
+  sub("comidas", rows => { mealLog = rows.filter(r => ATH[r.athlete] && r.date && r.m); });
   if (WEB) setInterval(() => { if (!document.hidden) db.refresh?.(); }, 60000);
 })();
 })();

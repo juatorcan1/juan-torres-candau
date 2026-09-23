@@ -27,6 +27,8 @@ Abajo hay cinco botones, y uno redondo (＋) para apuntar:
   - `cuentas_claude_uso`: llamadas a la IA por día (tope de 150).
 - La IA (tickets, dictado, extractos y preguntas) pasa por la Edge Function `supabase/functions/cuentas-claude`,
   con la misma clave de Anthropic que el gimnasio.
+- **Como una aplicación en el móvil**: la web lleva su ficha (`src/web/manifest.json`) y sus iconos
+  (`src/web/icons/`), así que Chrome la instala con su icono y sin la barra del navegador.
 - **Copia de seguridad**: en Dinero → Cuentas, «Descargar en Excel» y «Descargar la copia completa».
 - `./build-web.sh` genera `web/index.html`; el workflow `.github/workflows/gym-web.yml` lo publica en
   `/cuentas/` junto a la web del gimnasio en cada push a `main`.

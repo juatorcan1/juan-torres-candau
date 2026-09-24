@@ -42,7 +42,7 @@ function computeDuel(){
   const inP = data().filter(s => s.date >= a && s.date <= b);
   const T = { juan: totals(inP.filter(s => s.athlete === "juan")), ignacio: totals(inP.filter(s => s.athlete === "ignacio")) };
   const wins = { juan: 0, ignacio: 0 };
-  for (const k of KEYS) { const al = alcoholIn(drk(), k, a, b); T[k].ube = al.ube; T[k].alKcal = al.kcal; }
+  for (const k of KEYS) { const al = alcoholIn(drk(), k, a, b); T[k].ube = al.ube; T[k].alKcal = al.kcal; T[k].dieta = dietPoints(k, a, b); }
   for (const m of METRICS) {
     const j = T.juan[m.k], i = T.ignacio[m.k]; if (j === i) continue;
     if (m.low ? j < i : j > i) wins.juan++; else wins.ignacio++;
@@ -98,6 +98,14 @@ function piqueText(T){
     const cl = cj > ci ? "juan" : "ignacio";
     subs.push(me ? (cl === me ? `En cardio vas ${fmt(Math.abs(cj - ci), 1)} km por delante.` : `En cardio ${ATH[cl]} te lleva ${fmt(Math.abs(cj - ci), 1)} km.`) : `En cardio ${ATH[cl]} lleva ${fmt(Math.abs(cj - ci), 1)} km más.`);
   }
+  if (j.dieta !== i.dieta) {
+    const dl = j.dieta > i.dieta ? "juan" : "ignacio";
+    subs.push(me ? (dl === me ? "Y comes mejor." : `${ATH[dl]} come mejor que tú.`) : `${ATH[dl]} come mejor.`);
+  }
+  if (j.ube !== i.ube) {
+    const al = j.ube < i.ube ? "juan" : "ignacio";
+    subs.push(me ? (al === me ? `Con el alcohol vas mejor: ${fmt(T[OTHER[me]].ube, 1)} UBE ${ATH[OTHER[me]]}, ${fmt(T[me].ube, 1)} tú.` : `${ATH[al]} bebe menos que tú (${fmt(T[al].ube, 1)} UBE frente a ${fmt(T[me].ube, 1)}).`) : `${ATH[al]} bebe menos.`);
+  }
   return { main, sub: subs.join(" ") };
 }
 const CHART_METRICS = {
@@ -141,6 +149,7 @@ function renderDuelo(){
           <div class="legend"><span><i class="dot juan"></i>Juan</span><span><i class="dot ignacio"></i>Ignacio</span></div>
         </div>
         <div class="h2h">${rows}</div>
+        <p class="note" style="margin:10px 0 0">Comer bien: 1 punto por comida hecha según el menú o que tu dietista valora bien, medio si es regular, y otro punto si el veredicto del día sale bien. Se apunta en Dietista → Menú o en Hoy.</p>
       </div>
       <div class="panel">
         <div class="panel-head">
@@ -188,6 +197,7 @@ function bodyRows(){
   const dd = x => x == null ? "–" : (x > 0 ? "+" : "") + fmt(x, 1) + " kg";
   return `<tr><td>Peso actual</td><td class="n">${J.w ? fmt(J.w.kg, 1) + " kg" : "–"}</td><td class="n">${I.w ? fmt(I.w.kg, 1) + " kg" : "–"}</td></tr>
     <tr><td>Cambio en 4 semanas</td><td class="n">${dd(J.d)}</td><td class="n">${dd(I.d)}</td></tr>
+    <tr><td>Comer bien esta semana</td><td class="n ${dietPoints("juan", ...wk) > dietPoints("ignacio", ...wk) ? "win" : ""}">${fmt(dietPoints("juan", ...wk), 1)} pts</td><td class="n ${dietPoints("ignacio", ...wk) > dietPoints("juan", ...wk) ? "win" : ""}">${fmt(dietPoints("ignacio", ...wk), 1)} pts</td></tr>
     <tr><td>Alcohol esta semana</td><td class="n ${aj.ube < ai.ube ? "win" : ""}">${fmt(aj.ube, 1)} UBE</td><td class="n ${ai.ube < aj.ube ? "win" : ""}">${fmt(ai.ube, 1)} UBE</td></tr>`;
 }
 function demoBanner(kind = "s"){

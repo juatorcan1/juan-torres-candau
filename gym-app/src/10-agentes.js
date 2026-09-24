@@ -86,6 +86,7 @@ Músculos trabajados en los últimos 3 días: ${(() => { const r = recentMuscles
 ${agent === "coach" ? `Ejercicios que no le gustan: ${dislikes().join(", ") || "ninguno apuntado"}.` : ""}
 ${checkinText() ? "Cómo está hoy (check-in): " + checkinText() : ""}
 Plan de entreno actual: ${planSummary(trainPlan())}
+Puntos del duelo esta semana (deporte +1, faltar a un día del plan −1, comer bien +1 / regular 0 / mal −1, día de ${BINGE} UBE o más −1): ${KEYS.map(k => `${ATH[k]} ${scoreIn(k, ...periodRange("semana")).total}`).join(", ")}.
 ${agent === "nutri" && dietPlan() ? `Tiene un menú semanal guardado: ${dietPlan().titulo || ""}.` : ""}
 ${agent === "nutri" ? `Lo que ha apuntado que comió estos días:\n${mealLogText(me) || "nada apuntado todavía"}` : ""}
 Su rival, ${ATH[other]}:
@@ -170,7 +171,8 @@ async function sendChat(agent, text, opts = {}){
       const L = v => (Array.isArray(v) ? v : []).map(x => String(x).trim().slice(0, 50)).filter(Boolean).slice(0, 6);
       const add = L(o && o.no_gusta), remove = L(o && o.si_gusta);
       if ((add.length || remove.length) && await updateDislikes({ add, remove })) { if (add.length) msg.noGusta = add.map(canonicalName); if (remove.length) msg.siGusta = remove.map(canonicalName); }
-      if (p) { msg.plan = p; await db?.doc(`planes/${me}_entreno`).set({ athlete: me, clase: "entreno", ...p, creado: Date.now() }); }
+      // missed days only count from the day the plan is made
+      if (p) { msg.plan = p; await db?.doc(`planes/${me}_entreno`).set({ athlete: me, clase: "entreno", ...p, penalizaDesde: todayISO(), creado: Date.now() }); }
     } else {
       const p = normalizeDietPlan(o && o.plan);
       if (p) { msg.plan = p; await db?.doc(`planes/${me}_dieta`).set({ athlete: me, clase: "dieta", ...p, creado: Date.now() }); }

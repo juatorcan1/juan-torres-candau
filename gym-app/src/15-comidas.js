@@ -132,17 +132,6 @@ function dayVerdictHTML(who, date, n){
     ${mealBusy[key] ? `<div class="thinking"><span class="spin"></span>Tu dietista está mirando el día…</div>` : !dia || stale ? btn : ""}
     ${mealErr[key] ? `<div class="err">${esc(mealErr[key])}</div>` : ""}</div>`;
 }
-// Duel score for eating well: 1 point per meal eaten as planned or judged "bien" by the dietitian,
-// half for "regular" (or not judged yet), none for "mal" or skipped; the day's verdict adds 1 / 0.5.
-function dietPoints(who, a, b){
-  let p = 0;
-  const val = an => an ? (an.v === "bien" ? 1 : an.v === "regular" ? 0.5 : 0) : 0.5;
-  for (const r of mealLog) if (r.athlete === who && r.date >= a && r.date <= b) {
-    for (const v of Object.values(r.m || {})) p += v.s === "si" ? 1 : v.s === "otro" ? val(v.an) : 0;
-    if (r.dia) p += r.dia.v === "bien" ? 1 : r.dia.v === "regular" ? 0.5 : 0;
-  }
-  return p;
-}
 // the last week for the dietitian
 function mealLogText(who){
   const lines = [];

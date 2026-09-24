@@ -37,7 +37,12 @@ function onData(){
 document.addEventListener("focusout", () => setTimeout(() => { if (staleView && !typing()) renderView(); }, 0));
 document.addEventListener("click", e => {
   const t = e.target.closest("button"); if (!t) return;
-  if (t.dataset.top) { const top = t.dataset.top; setTab(top === "hoy" || top === "apuntar" ? top : (lastLeaf[top] || top)); }
+  if (t.dataset.top) {
+    // the remembered sub-tab only counts if it still lives in that section (tabs have moved between sections)
+    const top = t.dataset.top, first = { entrenador: "coach", dietista: "nutri", duelo: "duelo" }[top];
+    const leaf = lastLeaf[top] && LEAF_TOP[lastLeaf[top]] === top ? lastLeaf[top] : first;
+    setTab(top === "hoy" || top === "apuntar" ? top : (leaf || top));
+  }
   else if (t.dataset.leaf) setTab(t.dataset.leaf);
 });
 let keepT;

@@ -623,9 +623,11 @@ body.playing{overflow:hidden}
       <div class="subnav" role="tablist" aria-label="Dietista">
         <button role="tab" data-leaf="nutri">Chat</button>
         <button role="tab" data-leaf="dieta">Menú</button>
+        <button role="tab" data-leaf="cuerpo">Peso y alcohol</button>
       </div>
       <div id="view-nutri" class="leaf"></div>
       <div id="view-dieta" class="leaf" hidden></div>
+      <div id="view-cuerpo" class="leaf" hidden></div>
     </section>
 
     <section id="top-duelo" class="top" hidden>
@@ -633,12 +635,10 @@ body.playing{overflow:hidden}
         <button role="tab" data-leaf="duelo">Resumen</button>
         <button role="tab" data-leaf="historial">Historial</button>
         <button role="tab" data-leaf="records">Récords</button>
-        <button role="tab" data-leaf="cuerpo">Peso y alcohol</button>
       </div>
       <div id="view-duelo" class="leaf"></div>
       <div id="view-historial" class="leaf" hidden></div>
       <div id="view-records" class="leaf" hidden></div>
-      <div id="view-cuerpo" class="leaf" hidden></div>
     </section>
   </main>
 </div>
@@ -1347,7 +1347,7 @@ function dayMenu(dayIdx, circ, factor){
 /* ---------- state ---------- */
 // Each screen ("leaf") lives under one of the five buttons of the bottom bar ("top").
 const LEAF_TOP = { hoy: "hoy", coach: "entrenador", plan: "entrenador", ejercicios: "entrenador", apuntar: "apuntar",
-  nutri: "dietista", dieta: "dietista", duelo: "duelo", historial: "duelo", records: "duelo", cuerpo: "duelo" };
+  nutri: "dietista", dieta: "dietista", duelo: "duelo", historial: "duelo", records: "duelo", cuerpo: "dietista" };
 const TABS = Object.keys(LEAF_TOP);
 let db = null, dbState = "loading"; // loading | ready | none
 let sample = null;                    // Claude, when this view can use it

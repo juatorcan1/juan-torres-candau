@@ -1,7 +1,7 @@
 /* ---------- state ---------- */
 // Each screen ("leaf") lives under one of the five buttons of the bottom bar ("top").
 const LEAF_TOP = { hoy: "hoy", coach: "entrenador", plan: "entrenador", ejercicios: "entrenador", apuntar: "apuntar",
-  nutri: "dietista", dieta: "dietista", duelo: "duelo", historial: "duelo", records: "duelo", cuerpo: "duelo" };
+  nutri: "dietista", dieta: "dietista", duelo: "duelo", historial: "duelo", records: "duelo", cuerpo: "dietista" };
 const TABS = Object.keys(LEAF_TOP);
 let db = null, dbState = "loading"; // loading | ready | none
 let sample = null;                    // Claude, when this view can use it

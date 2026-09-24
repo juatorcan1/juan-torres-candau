@@ -575,3 +575,10 @@ body.playing{overflow:hidden}
 .meal-seen{font-size:12.5px;font-weight:600;color:var(--ink-2)}
 .meal-seen.si{color:var(--ok)} .meal-seen.no{color:var(--over)} .meal-seen.otro{color:var(--warn)}
 .meal-sum{display:grid;gap:2px;font-size:13.5px;padding:10px 12px;border-radius:9px;background:var(--surface-2)}
+.meal-other-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;align-items:center}
+.meal-an{display:grid;gap:4px;font-size:13.5px;padding:8px 10px;border-radius:8px;background:var(--surface);border:1px solid var(--line-2)}
+.meal-an .pill{justify-self:start}
+.meal-an.v-bien{border-color:var(--ok)} .meal-an.v-regular{border-color:var(--warn)} .meal-an.v-mal{border-color:var(--over)}
+.day-verdict{display:grid;gap:6px;margin-top:6px}
+.day-verdict:empty{display:none}
+.day-verdict .btn{justify-self:start}

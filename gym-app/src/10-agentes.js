@@ -37,10 +37,11 @@ function athleteContext(who){
   return [
     `${ATH[who]}: hombre, ${pr.age} años, ${pr.height} cm, ${w ? fmt(w.kg, 1) + " kg" : "peso sin apuntar"}${w && old ? ` (${fmt(w.kg - old.kg, 1)} kg en 4 semanas)` : ""}; objetivo ${GOALS[pr.goal].l.toLowerCase()}; trabajo ${WORK[pr.work].l.toLowerCase()}.`,
     `Media de entreno: ${fmt(weeklyMinutes(who))} min/semana. Alcohol esta semana: ${fmt(al.ube, 1)} UBE (objetivo ${pr.alcoholGoal}).`,
+    pr.prefEntreno ? `Lo que le gusta y quiere: ${String(pr.prefEntreno).slice(0, 400)}` : "",
     `Objetivo de dieta: ${t.kcal} kcal, ${t.prot} g proteína, ${t.carbs} g hidratos, ${t.fat} g grasa.`,
     `Mejores series: ${Object.entries(best).map(([k, b]) => `${k} ${b.kg ? fmt(b.kg, 1) + " kg × " : ""}${b.reps}`).join("; ") || "sin datos"}.`,
     `Últimas sesiones:\n${lines.join("\n") || "ninguna"}`
-  ].join("\n");
+  ].filter(Boolean).join("\n");
 }
 function planSummary(plan){
   if (!plan) return "sin plan";
@@ -52,7 +53,7 @@ const WORKOUT_SCHEMA = `ENTRENO = {"titulo": str, "tipo": "gym"|"calistenia"|"na
    {"ejercicio": str, "musculos": [clave], "modo": "reps"|"tiempo"|"distancia", "series": n, "reps": n?, "kg": n?, "segundos": n?, "metros": n?, "descanso_s": n, "indicacion": str?, "reto": str?}]}],
  "nota": str}
 Lo importante es el músculo, no el ejercicio: organiza el entreno por los músculos que toca trabajar y elige para cada uno el ejercicio que mejor encaje con el lugar y el material. "musculos": los que trabaja, el principal primero, con estas claves: ${Object.keys(MUSCLES).join(", ")}.
-Reglas del ENTRENO: que quepa en la duración pedida contando descansos; "reps" para fuerza (kg 0 si es peso corporal), "tiempo" para planchas, intervalos o cardio por tiempo, "distancia" para natación (metros por serie). En "reto" pon cómo superar su última vez o su récord (por ejemplo "Tu mejor: 80 kg × 8. Hoy 82,5 × 8") o cómo ganar a ${"${RIVAL}"}. Progresión prudente: +2,5 kg o +1 rep si la última vez completó todo; nunca más de un 5 %. Para "ejercicio" usa exactamente estos nombres cuando encajen (tienen dibujo): ${Object.keys(GUIDE).join(", ")}. Para natación usa nombres como "Crol", "Braza", "Espalda", "Patada con tabla", "Pull buoy".`;
+Reglas del ENTRENO: que quepa en la duración pedida contando descansos; "reps" para fuerza (kg 0 si es peso corporal), "tiempo" para planchas, intervalos o cardio por tiempo, "distancia" para natación (metros por serie). En "reto" pon cómo superar su última vez o su récord (por ejemplo "Tu mejor: 80 kg × 8. Hoy 82,5 × 8") o cómo ganar a ${"${RIVAL}"}. Progresión prudente: +2,5 kg o +1 rep si la última vez completó todo; nunca más de un 5 %. Para "ejercicio" usa exactamente estos nombres cuando encajen (tienen dibujo): ${Object.keys(GUIDE).join(", ")}. Para natación usa nombres como "Crol", "Braza", "Espalda", "Patada con tabla", "Pull buoy", en metros por serie, y monta una sesión completa: calentamiento variado, técnica, bloque con aletas, bloque con palas (y pull buoy), series de crol concentrado a ritmo fuerte y vuelta a la calma; en "indicacion" di el material y el ritmo.`;
 const TRAIN_PLAN_SCHEMA = `PLAN_ENTRENO = {"tipo": "semana"|"mes", "titulo": str, "semanas": [{"objetivo": str, "dias": [{"fecha": "YYYY-MM-DD", "dia": "lunes"…, "actividad": "gym"|"calistenia"|"natacion"|"cinta"|"bici"|"descanso"|"otro", "duracion_min": n, "foco": str, "detalle": str}]}], "nota": str}
 Reglas del PLAN_ENTRENO: empieza hoy; semana = 7 días, mes = 4 semanas; cada semana con su objetivo y progresión; incluye descansos; "detalle" en una frase.`;
 const DIET_PLAN_SCHEMA = `SITIO = {"bocadillo": [str], "bar": [str], "oficina": [str]}

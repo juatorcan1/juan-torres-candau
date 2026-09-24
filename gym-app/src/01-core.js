@@ -82,6 +82,7 @@ const METRICS = [
   { k: "kmCinta", label: "Cinta", unit: "km", dec: 1 },
   { k: "mNado", label: "Natación", unit: "m" },
   { k: "kcal", label: "Calorías quemadas", unit: "kcal" },
+  { k: "dieta", label: "Comer bien", unit: "puntos", dec: 1 },
   { k: "ube", label: "Alcohol", unit: "UBE", dec: 1, low: true }
 ];
 const canonicalName = n => { const k = normName(n); return Object.keys(CATALOG).find(c => normName(c) === k) || String(n || "").trim(); };

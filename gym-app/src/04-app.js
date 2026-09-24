@@ -42,7 +42,7 @@ function computeDuel(){
   const inP = data().filter(s => s.date >= a && s.date <= b);
   const T = { juan: totals(inP.filter(s => s.athlete === "juan")), ignacio: totals(inP.filter(s => s.athlete === "ignacio")) };
   const wins = { juan: 0, ignacio: 0 };
-  for (const k of KEYS) { const al = alcoholIn(drk(), k, a, b); T[k].ube = al.ube; T[k].alKcal = al.kcal; T[k].dieta = dietPoints(k, a, b); }
+  for (const k of KEYS) { const al = alcoholIn(drk(), k, a, b); T[k].ube = al.ube; T[k].alKcal = al.kcal; T[k].pts = scoreIn(k, a, b); }
   for (const m of METRICS) {
     const j = T.juan[m.k], i = T.ignacio[m.k]; if (j === i) continue;
     if (m.low ? j < i : j > i) wins.juan++; else wins.ignacio++;
@@ -55,7 +55,7 @@ function renderHeader(){
   $("#whoami").innerHTML = me
     ? `<span class="dot ${me}"></span><span>${WEB ? "Hola," : "Registras como"} <b>${ATH[me]}</b></span>${WEB ? `<button class="linkbtn" id="pw-open" type="button">Contraseña</button><button class="linkbtn" id="logout" type="button">Salir</button>` : `<button class="linkbtn" id="switch-me" type="button">Cambiar</button>`}`
     : `<span>Elige quién eres para registrar</span>`;
-  const { T, wins } = computeDuel();
+  const { T } = computeDuel();
   const side = k => `
     <div class="side ${k} ${k === "ignacio" ? "right" : ""}">
       <span class="nm">${k === "ignacio" && me === k ? '<span class="you">TÚ</span>' : ""}${ATH[k]}${k === "juan" && me === k ? '<span class="you">TÚ</span>' : ""}</span>
@@ -64,8 +64,8 @@ function renderHeader(){
   $("#score").innerHTML = `
     ${side("juan")}
     <div class="mid">
-      <div class="big" aria-label="Métricas ganadas: Juan ${wins.juan}, Ignacio ${wins.ignacio}">${wins.juan}<span class="sep">–</span>${wins.ignacio}</div>
-      <div class="cap">métricas ganadas</div>
+      <div class="big" aria-label="Puntos: Juan ${T.juan.pts.total}, Ignacio ${T.ignacio.pts.total}">${signed(T.juan.pts.total)}<span class="sep"> : </span>${signed(T.ignacio.pts.total)}</div>
+      <div class="cap">puntos</div>
       <label class="sr" for="period" hidden>Periodo</label>
       <select id="period" aria-label="Periodo de la comparativa">
         ${Object.entries(PERIODS).map(([k, v]) => `<option value="${k}" ${k === period ? "selected" : ""}>${v}</option>`).join("")}
@@ -79,14 +79,15 @@ function piqueText(T){
   const pl = PERIOD_IN[period];
   const j = T.juan, i = T.ignacio;
   if (j.sesiones + i.sesiones === 0) return { main: `Nadie ha entrenado ${pl} todavía.`, sub: "El primero que registre una sesión se pone por delante." };
-  const lead = j.minutos === i.minutos ? null : (j.minutos > i.minutos ? "juan" : "ignacio");
-  const diff = Math.abs(j.minutos - i.minutos);
+  const pj = j.pts.total, pi = i.pts.total, lead = pj === pi ? null : (pj > pi ? "juan" : "ignacio");
+  const diff = Math.abs(pj - pi), pt = n => `${fmt(n)} punto${n === 1 ? "" : "s"}`;
   let main;
-  if (!lead) main = `Empate a minutos ${pl}. El próximo entreno decide.`;
-  else if (!me) main = `${ATH[lead]} le saca ${fmt(diff)} min a ${ATH[OTHER[lead]]} ${pl}.`;
-  else if (lead === me) main = `Le sacas ${fmt(diff)} min a ${ATH[OTHER[me]]} ${pl}. Que no te pille.`;
-  else main = `${ATH[lead]} te saca ${fmt(diff)} min ${pl}. Toca moverse.`;
+  if (!lead) main = `Empate a puntos ${pl}. El próximo entreno decide.`;
+  else if (!me) main = `${ATH[lead]} le saca ${pt(diff)} a ${ATH[OTHER[lead]]} ${pl}.`;
+  else if (lead === me) main = `Le sacas ${pt(diff)} a ${ATH[OTHER[me]]} ${pl}. Que no te pille.`;
+  else main = `${ATH[lead]} te saca ${pt(diff)} ${pl}. Toca moverse.`;
   const subs = [];
+  if (j.minutos !== i.minutos) { const ml = j.minutos > i.minutos ? "juan" : "ignacio"; subs.push(me ? (ml === me ? `Llevas ${fmt(Math.abs(j.minutos - i.minutos))} min más de entreno.` : `${ATH[ml]} lleva ${fmt(Math.abs(j.minutos - i.minutos))} min más que tú.`) : `${ATH[ml]} lleva ${fmt(Math.abs(j.minutos - i.minutos))} min más.`); }
   const vj = j.volumen, vi = i.volumen;
   if (vj !== vi) {
     const vl = vj > vi ? "juan" : "ignacio", vd = Math.abs(vj - vi);
@@ -98,8 +99,8 @@ function piqueText(T){
     const cl = cj > ci ? "juan" : "ignacio";
     subs.push(me ? (cl === me ? `En cardio vas ${fmt(Math.abs(cj - ci), 1)} km por delante.` : `En cardio ${ATH[cl]} te lleva ${fmt(Math.abs(cj - ci), 1)} km.`) : `En cardio ${ATH[cl]} lleva ${fmt(Math.abs(cj - ci), 1)} km más.`);
   }
-  if (j.dieta !== i.dieta) {
-    const dl = j.dieta > i.dieta ? "juan" : "ignacio";
+  if (j.pts.goodFood - j.pts.badFood !== i.pts.goodFood - i.pts.badFood) {
+    const dl = j.pts.goodFood - j.pts.badFood > i.pts.goodFood - i.pts.badFood ? "juan" : "ignacio";
     subs.push(me ? (dl === me ? "Y comes mejor." : `${ATH[dl]} come mejor que tú.`) : `${ATH[dl]} come mejor.`);
   }
   if (j.ube !== i.ube) {
@@ -143,13 +144,14 @@ function renderDuelo(){
         <p>${esc(p.main)}</p>
         ${p.sub ? `<div class="sub">${esc(p.sub)}</div>` : ""}
       </div>
+      ${scorePanelHTML()}
       <div class="panel">
         <div class="panel-head">
           <h2>Cara a cara</h2>
           <div class="legend"><span><i class="dot juan"></i>Juan</span><span><i class="dot ignacio"></i>Ignacio</span></div>
         </div>
         <div class="h2h">${rows}</div>
-        <p class="note" style="margin:10px 0 0">Comer bien: 1 punto por comida hecha según el menú o que tu dietista valora bien, medio si es regular, y otro punto si el veredicto del día sale bien. Se apunta en Dietista → Menú o en Hoy.</p>
+
       </div>
       <div class="panel">
         <div class="panel-head">
@@ -197,7 +199,6 @@ function bodyRows(){
   const dd = x => x == null ? "–" : (x > 0 ? "+" : "") + fmt(x, 1) + " kg";
   return `<tr><td>Peso actual</td><td class="n">${J.w ? fmt(J.w.kg, 1) + " kg" : "–"}</td><td class="n">${I.w ? fmt(I.w.kg, 1) + " kg" : "–"}</td></tr>
     <tr><td>Cambio en 4 semanas</td><td class="n">${dd(J.d)}</td><td class="n">${dd(I.d)}</td></tr>
-    <tr><td>Comer bien esta semana</td><td class="n ${dietPoints("juan", ...wk) > dietPoints("ignacio", ...wk) ? "win" : ""}">${fmt(dietPoints("juan", ...wk), 1)} pts</td><td class="n ${dietPoints("ignacio", ...wk) > dietPoints("juan", ...wk) ? "win" : ""}">${fmt(dietPoints("ignacio", ...wk), 1)} pts</td></tr>
     <tr><td>Alcohol esta semana</td><td class="n ${aj.ube < ai.ube ? "win" : ""}">${fmt(aj.ube, 1)} UBE</td><td class="n ${ai.ube < aj.ube ? "win" : ""}">${fmt(ai.ube, 1)} UBE</td></tr>`;
 }
 function demoBanner(kind = "s"){

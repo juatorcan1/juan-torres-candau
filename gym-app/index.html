@@ -742,7 +742,6 @@ const METRICS = [
   { k: "kmCinta", label: "Cinta", unit: "km", dec: 1 },
   { k: "mNado", label: "Natación", unit: "m" },
   { k: "kcal", label: "Calorías quemadas", unit: "kcal" },
-  { k: "dieta", label: "Comer bien", unit: "puntos", dec: 1 },
   { k: "ube", label: "Alcohol", unit: "UBE", dec: 1, low: true }
 ];
 const canonicalName = n => { const k = normName(n); return Object.keys(CATALOG).find(c => normName(c) === k) || String(n || "").trim(); };
@@ -1389,7 +1388,7 @@ function computeDuel(){
   const inP = data().filter(s => s.date >= a && s.date <= b);
   const T = { juan: totals(inP.filter(s => s.athlete === "juan")), ignacio: totals(inP.filter(s => s.athlete === "ignacio")) };
   const wins = { juan: 0, ignacio: 0 };
-  for (const k of KEYS) { const al = alcoholIn(drk(), k, a, b); T[k].ube = al.ube; T[k].alKcal = al.kcal; T[k].dieta = dietPoints(k, a, b); }
+  for (const k of KEYS) { const al = alcoholIn(drk(), k, a, b); T[k].ube = al.ube; T[k].alKcal = al.kcal; T[k].pts = scoreIn(k, a, b); }
   for (const m of METRICS) {
     const j = T.juan[m.k], i = T.ignacio[m.k]; if (j === i) continue;
     if (m.low ? j < i : j > i) wins.juan++; else wins.ignacio++;
@@ -1402,7 +1401,7 @@ function renderHeader(){
   $("#whoami").innerHTML = me
     ? `<span class="dot ${me}"></span><span>${WEB ? "Hola," : "Registras como"} <b>${ATH[me]}</b></span>${WEB ? `<button class="linkbtn" id="pw-open" type="button">Contraseña</button><button class="linkbtn" id="logout" type="button">Salir</button>` : `<button class="linkbtn" id="switch-me" type="button">Cambiar</button>`}`
     : `<span>Elige quién eres para registrar</span>`;
-  const { T, wins } = computeDuel();
+  const { T } = computeDuel();
   const side = k => `
     <div class="side ${k} ${k === "ignacio" ? "right" : ""}">
       <span class="nm">${k === "ignacio" && me === k ? '<span class="you">TÚ</span>' : ""}${ATH[k]}${k === "juan" && me === k ? '<span class="you">TÚ</span>' : ""}</span>
@@ -1411,8 +1410,8 @@ function renderHeader(){
   $("#score").innerHTML = `
     ${side("juan")}
     <div class="mid">
-      <div class="big" aria-label="Métricas ganadas: Juan ${wins.juan}, Ignacio ${wins.ignacio}">${wins.juan}<span class="sep">–</span>${wins.ignacio}</div>
-      <div class="cap">métricas ganadas</div>
+      <div class="big" aria-label="Puntos: Juan ${T.juan.pts.total}, Ignacio ${T.ignacio.pts.total}">${signed(T.juan.pts.total)}<span class="sep"> : </span>${signed(T.ignacio.pts.total)}</div>
+      <div class="cap">puntos</div>
       <label class="sr" for="period" hidden>Periodo</label>
       <select id="period" aria-label="Periodo de la comparativa">
         ${Object.entries(PERIODS).map(([k, v]) => `<option value="${k}" ${k === period ? "selected" : ""}>${v}</option>`).join("")}
@@ -1426,14 +1425,15 @@ function piqueText(T){
   const pl = PERIOD_IN[period];
   const j = T.juan, i = T.ignacio;
   if (j.sesiones + i.sesiones === 0) return { main: `Nadie ha entrenado ${pl} todavía.`, sub: "El primero que registre una sesión se pone por delante." };
-  const lead = j.minutos === i.minutos ? null : (j.minutos > i.minutos ? "juan" : "ignacio");
-  const diff = Math.abs(j.minutos - i.minutos);
+  const pj = j.pts.total, pi = i.pts.total, lead = pj === pi ? null : (pj > pi ? "juan" : "ignacio");
+  const diff = Math.abs(pj - pi), pt = n => `${fmt(n)} punto${n === 1 ? "" : "s"}`;
   let main;
-  if (!lead) main = `Empate a minutos ${pl}. El próximo entreno decide.`;
-  else if (!me) main = `${ATH[lead]} le saca ${fmt(diff)} min a ${ATH[OTHER[lead]]} ${pl}.`;
-  else if (lead === me) main = `Le sacas ${fmt(diff)} min a ${ATH[OTHER[me]]} ${pl}. Que no te pille.`;
-  else main = `${ATH[lead]} te saca ${fmt(diff)} min ${pl}. Toca moverse.`;
+  if (!lead) main = `Empate a puntos ${pl}. El próximo entreno decide.`;
+  else if (!me) main = `${ATH[lead]} le saca ${pt(diff)} a ${ATH[OTHER[lead]]} ${pl}.`;
+  else if (lead === me) main = `Le sacas ${pt(diff)} a ${ATH[OTHER[me]]} ${pl}. Que no te pille.`;
+  else main = `${ATH[lead]} te saca ${pt(diff)} ${pl}. Toca moverse.`;
   const subs = [];
+  if (j.minutos !== i.minutos) { const ml = j.minutos > i.minutos ? "juan" : "ignacio"; subs.push(me ? (ml === me ? `Llevas ${fmt(Math.abs(j.minutos - i.minutos))} min más de entreno.` : `${ATH[ml]} lleva ${fmt(Math.abs(j.minutos - i.minutos))} min más que tú.`) : `${ATH[ml]} lleva ${fmt(Math.abs(j.minutos - i.minutos))} min más.`); }
   const vj = j.volumen, vi = i.volumen;
   if (vj !== vi) {
     const vl = vj > vi ? "juan" : "ignacio", vd = Math.abs(vj - vi);
@@ -1445,8 +1445,8 @@ function piqueText(T){
     const cl = cj > ci ? "juan" : "ignacio";
     subs.push(me ? (cl === me ? `En cardio vas ${fmt(Math.abs(cj - ci), 1)} km por delante.` : `En cardio ${ATH[cl]} te lleva ${fmt(Math.abs(cj - ci), 1)} km.`) : `En cardio ${ATH[cl]} lleva ${fmt(Math.abs(cj - ci), 1)} km más.`);
   }
-  if (j.dieta !== i.dieta) {
-    const dl = j.dieta > i.dieta ? "juan" : "ignacio";
+  if (j.pts.goodFood - j.pts.badFood !== i.pts.goodFood - i.pts.badFood) {
+    const dl = j.pts.goodFood - j.pts.badFood > i.pts.goodFood - i.pts.badFood ? "juan" : "ignacio";
     subs.push(me ? (dl === me ? "Y comes mejor." : `${ATH[dl]} come mejor que tú.`) : `${ATH[dl]} come mejor.`);
   }
   if (j.ube !== i.ube) {
@@ -1490,13 +1490,14 @@ function renderDuelo(){
         <p>${esc(p.main)}</p>
         ${p.sub ? `<div class="sub">${esc(p.sub)}</div>` : ""}
       </div>
+      ${scorePanelHTML()}
       <div class="panel">
         <div class="panel-head">
           <h2>Cara a cara</h2>
           <div class="legend"><span><i class="dot juan"></i>Juan</span><span><i class="dot ignacio"></i>Ignacio</span></div>
         </div>
         <div class="h2h">${rows}</div>
-        <p class="note" style="margin:10px 0 0">Comer bien: 1 punto por comida hecha según el menú o que tu dietista valora bien, medio si es regular, y otro punto si el veredicto del día sale bien. Se apunta en Dietista → Menú o en Hoy.</p>
+
       </div>
       <div class="panel">
         <div class="panel-head">
@@ -1544,7 +1545,6 @@ function bodyRows(){
   const dd = x => x == null ? "–" : (x > 0 ? "+" : "") + fmt(x, 1) + " kg";
   return `<tr><td>Peso actual</td><td class="n">${J.w ? fmt(J.w.kg, 1) + " kg" : "–"}</td><td class="n">${I.w ? fmt(I.w.kg, 1) + " kg" : "–"}</td></tr>
     <tr><td>Cambio en 4 semanas</td><td class="n">${dd(J.d)}</td><td class="n">${dd(I.d)}</td></tr>
-    <tr><td>Comer bien esta semana</td><td class="n ${dietPoints("juan", ...wk) > dietPoints("ignacio", ...wk) ? "win" : ""}">${fmt(dietPoints("juan", ...wk), 1)} pts</td><td class="n ${dietPoints("ignacio", ...wk) > dietPoints("juan", ...wk) ? "win" : ""}">${fmt(dietPoints("ignacio", ...wk), 1)} pts</td></tr>
     <tr><td>Alcohol esta semana</td><td class="n ${aj.ube < ai.ube ? "win" : ""}">${fmt(aj.ube, 1)} UBE</td><td class="n ${ai.ube < aj.ube ? "win" : ""}">${fmt(ai.ube, 1)} UBE</td></tr>`;
 }
 function demoBanner(kind = "s"){
@@ -2810,6 +2810,7 @@ Músculos trabajados en los últimos 3 días: ${(() => { const r = recentMuscles
 ${agent === "coach" ? `Ejercicios que no le gustan: ${dislikes().join(", ") || "ninguno apuntado"}.` : ""}
 ${checkinText() ? "Cómo está hoy (check-in): " + checkinText() : ""}
 Plan de entreno actual: ${planSummary(trainPlan())}
+Puntos del duelo esta semana (deporte +1, faltar a un día del plan −1, comer bien +1 / regular 0 / mal −1, día de ${BINGE} UBE o más −1): ${KEYS.map(k => `${ATH[k]} ${scoreIn(k, ...periodRange("semana")).total}`).join(", ")}.
 ${agent === "nutri" && dietPlan() ? `Tiene un menú semanal guardado: ${dietPlan().titulo || ""}.` : ""}
 ${agent === "nutri" ? `Lo que ha apuntado que comió estos días:\n${mealLogText(me) || "nada apuntado todavía"}` : ""}
 Su rival, ${ATH[other]}:
@@ -2894,7 +2895,8 @@ async function sendChat(agent, text, opts = {}){
       const L = v => (Array.isArray(v) ? v : []).map(x => String(x).trim().slice(0, 50)).filter(Boolean).slice(0, 6);
       const add = L(o && o.no_gusta), remove = L(o && o.si_gusta);
       if ((add.length || remove.length) && await updateDislikes({ add, remove })) { if (add.length) msg.noGusta = add.map(canonicalName); if (remove.length) msg.siGusta = remove.map(canonicalName); }
-      if (p) { msg.plan = p; await db?.doc(`planes/${me}_entreno`).set({ athlete: me, clase: "entreno", ...p, creado: Date.now() }); }
+      // missed days only count from the day the plan is made
+      if (p) { msg.plan = p; await db?.doc(`planes/${me}_entreno`).set({ athlete: me, clase: "entreno", ...p, penalizaDesde: todayISO(), creado: Date.now() }); }
     } else {
       const p = normalizeDietPlan(o && o.plan);
       if (p) { msg.plan = p; await db?.doc(`planes/${me}_dieta`).set({ athlete: me, clase: "dieta", ...p, creado: Date.now() }); }
@@ -3775,17 +3777,6 @@ function dayVerdictHTML(who, date, n){
     ${mealBusy[key] ? `<div class="thinking"><span class="spin"></span>Tu dietista está mirando el día…</div>` : !dia || stale ? btn : ""}
     ${mealErr[key] ? `<div class="err">${esc(mealErr[key])}</div>` : ""}</div>`;
 }
-// Duel score for eating well: 1 point per meal eaten as planned or judged "bien" by the dietitian,
-// half for "regular" (or not judged yet), none for "mal" or skipped; the day's verdict adds 1 / 0.5.
-function dietPoints(who, a, b){
-  let p = 0;
-  const val = an => an ? (an.v === "bien" ? 1 : an.v === "regular" ? 0.5 : 0) : 0.5;
-  for (const r of mealLog) if (r.athlete === who && r.date >= a && r.date <= b) {
-    for (const v of Object.values(r.m || {})) p += v.s === "si" ? 1 : v.s === "otro" ? val(v.an) : 0;
-    if (r.dia) p += r.dia.v === "bien" ? 1 : r.dia.v === "regular" ? 0.5 : 0;
-  }
-  return p;
-}
 // the last week for the dietitian
 function mealLogText(who){
   const lines = [];
@@ -3810,6 +3801,69 @@ document.addEventListener("change", e => {
   setMeal(t.dataset.date, t.dataset.mealT, { s: "otro", t: t.value.trim().slice(0, 160) });
 });
 document.addEventListener("keydown", e => { if (e.key === "Enter" && e.target.matches && e.target.matches(".meal-other")) e.target.blur(); });
+
+/* ===== 16-puntos.js ===== */
+/* ---------- the duel score, day by day ----------
+   Sport: +1 for a day with a session, −1 for a training day of the plan that passed without one.
+   Food: +1 if the day went well, 0 if regular, −1 if badly (the dietitian's verdict of the day, or the
+   average of the meals ticked). Alcohol: −1 for a day of binge drinking (BINGE UBE or more). */
+const GRADE_PTS = { bien: 1, regular: 0, mal: -1 };
+function dayDiet(who, date){
+  const doc = mealDoc(who, date); if (!doc) return null;
+  if (doc.dia && GRADE_PTS[doc.dia.v] != null) return doc.dia.v;
+  const vals = Object.values(doc.m || {}).map(v => v.s === "si" ? 1 : v.s === "otro" ? (v.an ? GRADE_PTS[v.an.v] ?? 0 : 0) : null).filter(v => v != null);
+  if (!vals.length) return null;
+  const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
+  return avg >= 0.5 ? "bien" : avg <= -0.5 ? "mal" : "regular";
+}
+function dayScore(who, date){
+  const trained = data().some(s => s.athlete === who && s.date === date);
+  const plan = trainPlan(who), pd = planDay(plan, date);
+  // a missed day only counts from when the plan was agreed (penalizaDesde), not for days it was drawn up after
+  const planned = !!pd && pd.actividad !== "descanso" && !/opcional/i.test(pd.foco || "") && date >= ((plan && plan.penalizaDesde) || "");
+  const sport = trained ? 1 : planned && date < todayISO() ? -1 : 0;
+  const dv = dayDiet(who, date), diet = dv ? GRADE_PTS[dv] : 0;
+  const dd = drk().find(d => d.athlete === who && d.date === date), ube = dd ? dayUbe(dd.counts) : 0;
+  const alcohol = ube >= BINGE ? -1 : 0;
+  return { sport, diet, alcohol, total: sport + diet + alcohol, trained, planned, dv, ube };
+}
+// the first day anything counts: the first session, meal, drink or plan day of either of them
+function scoreStart(){
+  const dates = [...data().map(s => s.date), ...mealLog.map(r => r.date), ...drk().map(d => d.date)];
+  for (const k of KEYS) { const p = trainPlan(k); if (p && p.semanas && p.semanas[0] && p.semanas[0].dias[0]) dates.push(p.semanas[0].dias[0].fecha); }
+  return dates.filter(Boolean).sort()[0] || todayISO();
+}
+function scoreIn(who, a, b){
+  const out = { total: 0, sportDays: 0, missed: 0, goodFood: 0, badFood: 0, binge: 0 };
+  const end = b < todayISO() ? b : todayISO(), start = a > scoreStart() ? a : scoreStart();
+  for (let d = parseISO(start); toISO(d) <= end; d = addDays(d, 1)) {
+    const s = dayScore(who, toISO(d));
+    out.total += s.total;
+    if (s.sport > 0) out.sportDays++; if (s.sport < 0) out.missed++;
+    if (s.diet > 0) out.goodFood++; if (s.diet < 0) out.badFood++;
+    if (s.alcohol < 0) out.binge++;
+  }
+  return out;
+}
+const signed = n => (n > 0 ? "+" : n < 0 ? "−" : "") + fmt(Math.abs(n));
+function scorePanelHTML(){
+  const [a, b] = periodRange(period), J = scoreIn("juan", a, b), I = scoreIn("ignacio", a, b);
+  const row = (l, kj, ki, pts) => `<tr><td>${l}</td><td class="n">${kj ? `${kj} <span class="muted">(${signed(kj * pts)})</span>` : "–"}</td><td class="n">${ki ? `${ki} <span class="muted">(${signed(ki * pts)})</span>` : "–"}</td></tr>`;
+  return `<div class="panel">
+    <div class="panel-head"><h2>Puntos ${PERIOD_IN[period]}</h2></div>
+    <div class="tscroll"><table>
+      <thead><tr><th></th><th class="n">Juan</th><th class="n">Ignacio</th></tr></thead>
+      <tbody>
+        ${row("Días de deporte", J.sportDays, I.sportDays, 1)}
+        ${row("Días de plan sin entrenar", J.missed, I.missed, -1)}
+        ${row("Días comiendo bien", J.goodFood, I.goodFood, 1)}
+        ${row("Días comiendo mal", J.badFood, I.badFood, -1)}
+        ${row(`Días con ${BINGE} UBE o más`, J.binge, I.binge, -1)}
+        <tr><td><b>Total</b></td><td class="n ${J.total > I.total ? "win" : ""}"><b>${signed(J.total)}</b></td><td class="n ${I.total > J.total ? "win" : ""}"><b>${signed(I.total)}</b></td></tr>
+      </tbody></table></div>
+    <p class="note" style="margin:10px 0 0">Cada día: ir al deporte <b>+1</b>, faltar a un día de entreno del plan <b>−1</b> (los días de descanso no cuentan). Comer bien <b>+1</b>, regular <b>0</b>, mal <b>−1</b>: manda el veredicto del día del dietista; si no lo has pedido, sale de las comidas que marques. Un día de ${BINGE} UBE o más de alcohol, <b>−1</b>. Hoy solo resta cuando se acabe el día.</p>
+  </div>`;
+}
 
 /* ===== 99-boot.js ===== */
 /* ---------- navigation ---------- */
@@ -3851,7 +3905,12 @@ function onData(){
 document.addEventListener("focusout", () => setTimeout(() => { if (staleView && !typing()) renderView(); }, 0));
 document.addEventListener("click", e => {
   const t = e.target.closest("button"); if (!t) return;
-  if (t.dataset.top) { const top = t.dataset.top; setTab(top === "hoy" || top === "apuntar" ? top : (lastLeaf[top] || top)); }
+  if (t.dataset.top) {
+    // the remembered sub-tab only counts if it still lives in that section (tabs have moved between sections)
+    const top = t.dataset.top, first = { entrenador: "coach", dietista: "nutri", duelo: "duelo" }[top];
+    const leaf = lastLeaf[top] && LEAF_TOP[lastLeaf[top]] === top ? lastLeaf[top] : first;
+    setTab(top === "hoy" || top === "apuntar" ? top : (leaf || top));
+  }
   else if (t.dataset.leaf) setTab(t.dataset.leaf);
 });
 let keepT;

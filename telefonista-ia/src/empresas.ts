@@ -18,6 +18,19 @@ export type Destino = {
   horario?: string; // cuándo se puede pasar la llamada, en palabras: "L-V de 9:00 a 14:00"
 };
 
+// Qué hacer con cada llamada, según quién llame:
+//   "ia"        -> la atiende la telefonista;
+//   "pasar"     -> suena tu móvil; si no la coges, la atiende la telefonista;
+//   "preguntar" -> suena tu móvil y una voz te dice quién es: pulsas 1 para cogerla o 2 para la telefonista.
+export type Accion = "ia" | "pasar" | "preguntar";
+
+export type Filtro = {
+  miTelefono: string; // donde te suena a ti. Nunca el número que desvía a Twilio (daría vueltas)
+  desconocidos: Accion; // números que nunca han llamado
+  conocidos: Accion; // números que ya han llamado alguna vez
+  segundosParaDecidir: number; // lo que suena tu móvil antes de pasársela a la telefonista
+};
+
 export type Ficha = {
   id: string; // nombre de la carpeta
   nombre: string;
@@ -33,6 +46,7 @@ export type Ficha = {
   transferencias: Record<string, Destino>; // "ventas", "atencion", "obra"...
   transcripcion: { proveedor: string; modelo: string; multilingue: boolean };
   avisos?: { webhook?: string }; // a dónde mandar recados, pedidos e incidencias en cuanto se apuntan
+  filtro?: Filtro; // sin filtro, todo lo atiende la telefonista
   conocimiento: string;
 };
 
@@ -62,6 +76,15 @@ function leerFicha(dir: string, id: string): Ficha {
   );
   if (!idiomas.some((i) => i.codigo === idiomaPrincipal)) idiomas.unshift({ codigo: idiomaPrincipal, nombre: nombreIdioma(idiomaPrincipal) });
   const conocimientoMd = join(dir, "conocimiento.md");
+  const filtro: Filtro | undefined = bruto.filtro?.miTelefono
+    ? { desconocidos: "ia", conocidos: "ia", segundosParaDecidir: 20, ...bruto.filtro }
+    : undefined;
+  if (filtro && bruto.telefonos.some((t: string) => soloCifras(t) === soloCifras(filtro.miTelefono))) {
+    throw new Error(`${id}/ficha.json: filtro.miTelefono no puede ser uno de los teléfonos de Twilio`);
+  }
+  for (const a of [filtro?.desconocidos, filtro?.conocidos]) {
+    if (a && !["ia", "pasar", "preguntar"].includes(a)) throw new Error(`${id}/ficha.json: acción desconocida "${a}"`);
+  }
   return {
     id,
     nombre: bruto.nombre,
@@ -77,6 +100,7 @@ function leerFicha(dir: string, id: string): Ficha {
     transferencias: bruto.transferencias ?? {},
     transcripcion: { proveedor: "Deepgram", modelo: "nova-3-general", multilingue: true, ...bruto.transcripcion },
     avisos: bruto.avisos,
+    filtro,
     conocimiento: existsSync(conocimientoMd) ? readFileSync(conocimientoMd, "utf8") : "",
   };
 }

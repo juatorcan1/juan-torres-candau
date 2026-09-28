@@ -3,7 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import type Anthropic from "@anthropic-ai/sdk";
 import { cargarEmpresas, empresaDelNumero } from "../src/empresas.ts";
-import { Conversacion, type Claude } from "../src/agente.ts";
+import { Conversacion, type Claude, type Opciones } from "../src/agente.ts";
 import type { Apunte, Registro } from "../src/registro.ts";
 import type { Fin } from "../src/herramientas.ts";
 import { conectar, firmaLlamada } from "../src/twilio.ts";
@@ -12,7 +12,18 @@ const [ficha] = cargarEmpresas("empresas").filter((f) => f.id === "construccion-
 
 type Paso = { trozos?: string[]; contenido?: unknown[]; stop?: string; sinFin?: boolean; falla?: boolean };
 
-function montar(guion: Paso[], alGuardar?: () => void) {
+// Reglas de la API: la primera es del cliente y tras un mensaje de sistema sólo puede venir una respuesta.
+function validar(mensajes: Anthropic.Beta.BetaMessageParam[]) {
+  assert.equal(mensajes[0].role, "user");
+  mensajes.forEach((m, i) => {
+    if (m.role === "system") {
+      assert.equal(mensajes[i - 1].role, "user", "el mensaje de sistema va tras uno del cliente");
+      if (i < mensajes.length - 1) assert.equal(mensajes[i + 1].role, "assistant", "tras el de sistema, una respuesta");
+    }
+  });
+}
+
+function montar(guion: Paso[], alGuardar?: () => void, extra: Partial<Opciones> = {}) {
   const peticiones: Anthropic.Beta.BetaMessageParam[][] = [];
   const apuntes: Apunte[] = [];
   const dicho: string[] = [];
@@ -21,6 +32,7 @@ function montar(guion: Paso[], alGuardar?: () => void) {
   const claude: Claude = {
     stream(p, { signal }) {
       peticiones.push(structuredClone(p.messages));
+      validar(p.messages);
       const paso = guion.shift() ?? { trozos: ["(sin guion)"] };
       let alTexto: ((d: string) => void) | undefined;
       return {
@@ -39,10 +51,14 @@ function montar(guion: Paso[], alGuardar?: () => void) {
       return { content: [{ type: "text", text: JSON.stringify({ resumen: "Pidió visita." }) }] } as unknown as Anthropic.Beta.BetaMessage;
     },
   };
-  const registro: Registro = { guardar: async (a) => { apuntes.push(a); alGuardar?.(); }, anteriores: async () => [] };
+  const registro: Registro = {
+    guardar: async (a) => { apuntes.push(a); alGuardar?.(); }, anteriores: async () => [], recientes: async () => [],
+    regla: async () => null, reglas: async () => [], guardarRegla: async () => {}, borrarRegla: async () => {},
+  };
   const conv = new Conversacion({
     claude, ficha, llamada: "CA123", desde: "+34600111222", registro,
     canal: { decir: (t) => dicho.push(t), cambiarIdioma: (c) => idiomas.push(c), terminar: (f) => { fin = f; } },
+    ...extra,
   });
   return { conv, peticiones, apuntes, dicho, idiomas, fin: () => fin };
 }
@@ -178,4 +194,75 @@ test("si le interrumpen mientras apunta, no sigue hablando encima", async () => 
   assert.equal(m.dicho.join(""), "Se lo apunto. Claro, dígame el otro número.");
   assert.deepEqual(m.conv.historial.map((h) => h.role), ["user", "assistant", "user", "assistant", "user", "assistant"]);
   assert.equal(m.conv.historial[3].content, "Se lo apunto…");
+});
+
+
+const roles = (c: Conversacion) => c.historial.map((h) => h.role);
+
+test("las indicaciones del responsable van como mensaje de sistema antes de la siguiente respuesta", async () => {
+  const m = montar([{ trozos: ["Entiendo su postura."] }]);
+  m.conv.indicar("No se le paga: la obra tiene grietas sin reparar. Tono cordial.");
+  m.conv.escuchar("Quiero cobrar la factura ya");
+  await m.conv.esperar();
+  assert.deepEqual(roles(m.conv), ["user", "system", "assistant"]);
+  assert.match(String(m.conv.historial[1].content), /grietas sin reparar/);
+  assert.match(String(m.conv.historial[1].content), /el cliente no las oye/);
+});
+
+test("con 'que actúe ya' corta lo que dice y responde sin esperar al cliente", async () => {
+  const m = montar([
+    { trozos: ["Claro, le cuento las condiciones de pago: "], sinFin: true },
+    { trozos: ["Perdone, le corrijo: ese pago no procede hasta que se reparen las grietas."] },
+  ]);
+  m.conv.escuchar("¿Cuándo me pagáis?");
+  await new Promise((r) => setTimeout(r, 10));
+  m.conv.indicar("No le prometas ningún pago", true);
+  await m.conv.esperar();
+  assert.deepEqual(roles(m.conv), ["user", "assistant", "user", "system", "assistant"]);
+  assert.match(String(m.conv.historial[2].content), /no ha dicho nada nuevo/);
+  assert.match(m.dicho.join(""), /no procede/);
+});
+
+test("si le interrumpen justo después de una indicación, el historial sigue siendo válido", async () => {
+  const m = montar([{ trozos: [], sinFin: true }, { trozos: ["Dígame."] }]);
+  m.conv.indicar("Sé breve");
+  m.conv.escuchar("Hola");
+  await new Promise((r) => setTimeout(r, 10));
+  m.conv.interrumpir("");
+  m.conv.escuchar("¿Me oye?");
+  await m.conv.esperar();
+  assert.deepEqual(roles(m.conv), ["user", "system", "assistant", "user", "assistant"]);
+});
+
+test("pásamela: se despide en una frase y pasa la llamada a tu móvil", async () => {
+  const m = montar([{ trozos: ["Le paso ahora mismo con el responsable."] }], undefined, { responsable: "+34699000000" });
+  m.conv.pasarAlResponsable();
+  await m.conv.esperar();
+  const fin = m.fin();
+  assert.equal(fin?.tipo, "pasar");
+  assert.equal(fin?.tipo === "pasar" && fin.numero, "+34699000000");
+});
+
+test("colgar desde el panel aunque el cliente siga hablando", async () => {
+  const m = montar([{ trozos: ["Bueno, "], sinFin: true }, { trozos: ["Tengo que dejarle, que tenga buen día."] }]);
+  m.conv.escuchar("Y otra cosa más");
+  await new Promise((r) => setTimeout(r, 10));
+  m.conv.colgarYa();
+  await m.conv.esperar();
+  assert.equal(m.fin()?.tipo, "colgar");
+});
+
+test("las reglas del número llegan a la telefonista", async () => {
+  let sistema = "";
+  const m = montar([{ trozos: ["Hola, Pedro."] }], undefined, {
+    regla: { telefono: "34600111222", nombre: "Pedro, Hormigones Pérez", accion: "ia", instrucciones: "No se le paga la factura 23." },
+    nota: "El responsable ha preferido que atiendas tú esta llamada.",
+  });
+  const original = m.conv["o"].claude.stream;
+  m.conv["o"].claude.stream = (p, o) => { sistema = (p.system as { text: string }[]).map((b) => b.text).join("\n"); return original(p, o); };
+  m.conv.escuchar("Hola, soy Pedro");
+  await m.conv.esperar();
+  assert.match(sistema, /Pedro, Hormigones Pérez/);
+  assert.match(sistema, /No se le paga la factura 23/);
+  assert.match(sistema, /ha preferido que atiendas tú/);
 });

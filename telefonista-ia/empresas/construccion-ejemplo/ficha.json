@@ -13,5 +13,11 @@
     "oficina": { "numero": "+34 960 000 201", "descripcion": "oficina técnica y comercial: presupuestos en marcha, contratos, facturas", "horario": "lunes a viernes de 8:00 a 15:00" },
     "urgencias": { "numero": "+34 960 000 202", "descripcion": "encargado de guardia: sólo urgencias de obras en curso (fugas de agua, riesgo de caída, daños a vecinos)" }
   },
-  "avisos": { "webhook": "" }
+  "avisos": { "webhook": "" },
+  "filtro": {
+    "miTelefono": "+34 699 000 000",
+    "desconocidos": "ia",
+    "conocidos": "preguntar",
+    "segundosParaDecidir": 20
+  }
 }

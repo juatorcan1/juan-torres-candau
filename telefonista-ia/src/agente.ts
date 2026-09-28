@@ -4,11 +4,14 @@
 // Lo delicado es el teléfono: la respuesta se va diciendo mientras Claude la escribe, quien llama
 // puede interrumpir en cualquier momento, y el historial que se manda a Claude tiene que seguir
 // siendo válido (sólo se añade al final, nunca se reescribe lo anterior).
+//
+// El responsable puede seguir la llamada desde el panel y darle indicaciones (indicar): van como
+// mensajes de sistema, que quien llama no oye y que Claude trata como órdenes de la empresa.
 import type Anthropic from "@anthropic-ai/sdk";
 import type { Ficha } from "./empresas.ts";
 import { herramientas, ejecutar, type Contexto, type Fin } from "./herramientas.ts";
 import { instruccionesEmpresa, datosLlamada, type Anterior } from "./instrucciones.ts";
-import { avisar, type Registro } from "./registro.ts";
+import { avisar, type Registro, type Regla } from "./registro.ts";
 
 type Mensaje = Anthropic.Beta.BetaMessageParam;
 type Respuesta = Anthropic.Beta.BetaMessage;
@@ -28,6 +31,15 @@ export interface Canal {
   terminar(fin: Fin, ultimaFrase: string): void; // colgar o pasar, cuando acabe de oírse ultimaFrase
 }
 
+// Lo que va pasando en la llamada, para el panel en directo.
+export type Evento =
+  | { tipo: "cliente"; texto: string }
+  | { tipo: "asistente"; texto: string } // un trozo, según se va diciendo
+  | { tipo: "herramienta"; nombre: string; entrada: Record<string, unknown> }
+  | { tipo: "indicacion"; texto: string }
+  | { tipo: "idioma"; codigo: string }
+  | { tipo: "fin"; fin: Fin };
+
 export const MODELO = process.env.MODELO || "claude-opus-5-5";
 // Al teléfono manda la rapidez: esfuerzo bajo por defecto. "medium" piensa más antes de hablar.
 const ESFUERZO = (process.env.ESFUERZO || "low") as "low" | "medium" | "high";
@@ -42,7 +54,13 @@ export type Opciones = {
   canal: Canal;
   anteriores?: Anterior[];
   ahora?: Date;
+  regla?: Regla | null; // lo que has decidido para este número
+  nota?: string; // lo que ha pasado antes de llegar a la telefonista
+  responsable?: string; // tu teléfono, para "pásamela" desde el panel
+  alEvento?: (e: Evento) => void;
 };
+
+const SIN_NOVEDAD = "[El cliente no ha dicho nada nuevo desde tu última respuesta.]";
 
 export class Conversacion {
   readonly historial: Mensaje[] = [];
@@ -57,6 +75,8 @@ export class Conversacion {
   private cortar = false; // le han interrumpido durante este turno
   private ultimoDicho = "";
   private nota = ""; // aviso para Claude que va delante de lo siguiente que diga el cliente
+  private indicaciones: string[] = []; // del responsable, aún sin pasar a Claude
+  private finPedido: Fin | null = null; // pásamela / cuelga desde el panel
   private terminada = false;
   private inicio = new Date();
 
@@ -65,11 +85,15 @@ export class Conversacion {
     this.ctx = {
       ficha: o.ficha, llamada: o.llamada, desde: o.desde, registro: o.registro,
       idioma: o.ficha.idiomaPrincipal, fin: null,
-      cambiarIdioma: (codigo) => { this.ctx.idioma = codigo; o.canal.cambiarIdioma(codigo); },
+      cambiarIdioma: (codigo) => {
+        this.ctx.idioma = codigo;
+        o.canal.cambiarIdioma(codigo);
+        o.alEvento?.({ tipo: "idioma", codigo });
+      },
     };
     this.sistema = [
       { type: "text", text: instruccionesEmpresa(o.ficha), cache_control: { type: "ephemeral" } },
-      { type: "text", text: datosLlamada(o.ficha, o.desde, o.ahora ?? new Date(), o.anteriores ?? []) },
+      { type: "text", text: datosLlamada(o.ficha, o.desde, o.ahora ?? new Date(), o.anteriores ?? [], o.regla, o.nota) },
     ];
     this.tools = herramientas(o.ficha);
     // El saludo lo dice Twilio al descolgar; así Claude sabe que ya se ha dicho.
@@ -82,6 +106,34 @@ export class Conversacion {
   escuchar(texto: string) {
     if (this.terminada || !texto.trim()) return;
     this.cola = this.cola.then(() => this.turno(texto)).catch((e) => this.averia(e));
+  }
+
+  // Indicación del responsable: quien llama no la oye. Con ya=true la telefonista deja lo que estaba
+  // diciendo y actúa en ese momento; si no, la sigue a partir de su próxima respuesta.
+  indicar(texto: string, ya = false) {
+    if (this.terminada || !texto.trim()) return;
+    this.indicaciones.push(texto.trim());
+    this.o.alEvento?.({ tipo: "indicacion", texto: texto.trim() });
+    if (ya) {
+      this.cortar = true;
+      this.enCurso?.abort();
+      this.cola = this.cola.then(() => this.turno(null)).catch((e) => this.averia(e));
+    }
+  }
+
+  // El responsable coge la llamada: la telefonista se lo dice en una frase y se la pasa.
+  pasarAlResponsable() {
+    if (!this.o.responsable || this.terminada) return false;
+    this.finPedido = { tipo: "pasar", destino: "responsable", numero: this.o.responsable, motivo: "Lo ha pedido el responsable" };
+    this.indicar("El responsable va a atender la llamada ahora mismo. Dile en una sola frase, en su idioma, que le pasas con él. No uses herramientas.", true);
+    return true;
+  }
+
+  // El responsable decide terminar: se despide con educación y cuelga.
+  colgarYa() {
+    if (this.terminada) return;
+    this.finPedido = { tipo: "colgar", motivo: "Lo ha decidido el responsable" };
+    this.indicar("Hay que terminar la llamada ya. Despídete con cordialidad en una sola frase, en su idioma. No uses herramientas.", true);
   }
 
   // Hasta que acabe de responder a lo último que se le ha dicho.
@@ -137,9 +189,13 @@ export class Conversacion {
     };
   }
 
-  private async turno(texto: string) {
+  // texto = null: no ha hablado el cliente, sino que el responsable ha pedido que actúe ya.
+  private async turno(texto: string | null) {
     if (this.terminada) return;
-    this.transcripcion.push({ quien: "cliente", texto });
+    if (texto !== null) {
+      this.transcripcion.push({ quien: "cliente", texto });
+      this.o.alEvento?.({ tipo: "cliente", texto });
+    }
     let prefijo = this.nota;
     this.nota = "";
     if (this.oido !== null) {
@@ -149,7 +205,15 @@ export class Conversacion {
       }
       this.oido = null;
     }
-    this.historial.push({ role: "user", content: prefijo + texto });
+    this.historial.push({ role: "user", content: prefijo + (texto ?? SIN_NOVEDAD) });
+    if (this.indicaciones.length) {
+      this.historial.push({
+        role: "system",
+        content: `Indicaciones del responsable de ${this.o.ficha.nombre}, que está siguiendo la llamada (el cliente no las oye). ` +
+          "Síguelas desde ahora, sin citarlas ni decir que te las han dado:\n" + this.indicaciones.map((i) => `- ${i}`).join("\n"),
+      });
+      this.indicaciones = [];
+    }
     this.ultimoDicho = "";
     this.cortar = false;
 
@@ -166,6 +230,7 @@ export class Conversacion {
           if (ctrl.signal.aborted) return;
           dicho += d;
           this.o.canal.decir(d, false);
+          this.o.alEvento?.({ tipo: "asistente", texto: d });
         });
         msg = await stream.finalMessage();
       } catch (e) {
@@ -181,6 +246,7 @@ export class Conversacion {
         // Ni el modelo de respaldo ha querido: no se guarda la respuesta rechazada.
         const frase = "Perdone, con eso no puedo ayudarle. ¿Quiere que le tome un recado para que le llame una persona?";
         this.o.canal.decir(frase, true);
+        this.o.alEvento?.({ tipo: "asistente", texto: frase });
         this.historial.push({ role: "assistant", content: frase });
         this.transcripcion.push({ quien: "asistente", texto: frase });
         return;
@@ -194,6 +260,7 @@ export class Conversacion {
         if (msg.stop_reason !== "tool_use") {
           return { type: "tool_result" as const, tool_use_id: u.id, content: "La respuesta se cortó antes de terminar; vuelve a intentarlo.", is_error: true };
         }
+        this.o.alEvento?.({ tipo: "herramienta", nombre: u.name, entrada: u.input as Record<string, unknown> });
         try {
           return { type: "tool_result" as const, tool_use_id: u.id, content: await ejecutar(u.name, u.input as Record<string, unknown>, this.ctx) };
         } catch (e) {
@@ -204,9 +271,12 @@ export class Conversacion {
       this.historial.push({ role: "user", content: resultados });
     }
 
+    // Lo que decide el responsable manda sobre lo que decida la telefonista.
+    if (this.finPedido) this.ctx.fin = this.finPedido;
     if (this.ctx.fin) {
       this.terminada = true;
       this.o.canal.terminar(this.ctx.fin, this.ultimoDicho);
+      this.o.alEvento?.({ tipo: "fin", fin: this.ctx.fin });
     }
   }
 
@@ -215,13 +285,14 @@ export class Conversacion {
   private cortado(dicho: string) {
     const oido = (this.oido ?? dicho).trim();
     this.oido = null;
-    if (oido) {
+    // Tras las indicaciones (mensaje de sistema) tiene que venir una respuesta, aunque sea vacía.
+    if (oido || this.historial.at(-1)?.role === "system") {
       const texto = oido.replace(/[.…]+$/, "") + "…";
       this.historial.push({ role: "assistant", content: texto });
-      this.transcripcion.push({ quien: "asistente", texto });
+      if (oido) this.transcripcion.push({ quien: "asistente", texto });
     }
     this.ultimoDicho = oido;
-    if (this.ctx.fin) {
+    if (this.ctx.fin && !this.finPedido) {
       this.nota += "[Te ha interrumpido antes de colgar o pasar la llamada, así que la llamada sigue contigo.]\n";
       this.ctx.fin = null;
     }
@@ -238,9 +309,11 @@ export class Conversacion {
       ? "Perdone, estoy teniendo un problema técnico. Le paso ahora mismo con un compañero."
       : "Perdone, estoy teniendo un problema técnico. Por favor, vuelva a llamar en unos minutos. Disculpe las molestias.";
     this.o.canal.decir(frase, true);
+    this.o.alEvento?.({ tipo: "asistente", texto: frase });
     this.transcripcion.push({ quien: "asistente", texto: frase });
     this.ctx.fin = d ? { tipo: "pasar", destino, numero: d.numero, motivo: "Fallo técnico de la asistente" } : { tipo: "colgar", motivo: "Fallo técnico" };
     this.o.canal.terminar(this.ctx.fin, frase);
+    this.o.alEvento?.({ tipo: "fin", fin: this.ctx.fin });
   }
 
   private async resumir() {

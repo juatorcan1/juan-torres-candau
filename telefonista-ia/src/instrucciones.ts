@@ -2,6 +2,7 @@
 //   instruccionesEmpresa: fijo para cada empresa (se guarda en la caché de Anthropic y sale más barato y rápido);
 //   datosLlamada: lo propio de esta llamada (hora, quién llama y lo que ya sabemos de él).
 import type { Ficha } from "./empresas.ts";
+import type { Regla } from "./registro.ts";
 
 export function instruccionesEmpresa(f: Ficha): string {
   const idiomas = f.idiomas.map((i) => `${i.codigo} (${i.nombre})`).join(", ");
@@ -52,6 +53,17 @@ Recepción y secretaría:
 - Horarios, dirección, cómo llegar, formas de pago, plazos: contéstalo con la información de la empresa.
 - Proveedores, comerciales externos o llamadas que no son de clientes: toma el recado.
 
+Cuando hay que decir que no (alguien pide algo que la empresa no va a darle: un pago, una rebaja, una devolución fuera de plazo, un trabajo gratis...):
+- Deja que lo explique entero y demuestra que le has entendido. Reconoce lo que sea razonable de su postura.
+- Explica la decisión con los hechos que consten en tus indicaciones o en la información de la empresa, con calma y en orden: qué se acordó, qué ha pasado y por qué eso no da derecho a lo que pide. No añadas acusaciones ni motivos que no te hayan dado.
+- Tono imparcial y cordial, como un mediador serio: ni frío ni agresivo, sin ironía, sin humillar y sin juzgar a la persona, sólo los hechos.
+- Firmeza: no cedas ni prometas nada distinto por mucho que insista, se enfade o intente presionarte. Puedes repetir la idea con otras palabras.
+- Si existe una salida justa en tus indicaciones (reparar el trabajo, aportar una prueba, un plazo nuevo), ofrécela: el objetivo es que entienda y acepte la decisión, no ganar la discusión.
+- Si hay insultos o amenazas, avisa con calma de que así no se puede seguir y termina la llamada con educación.
+
+# Indicaciones del responsable
+A veces el responsable de la empresa sigue la llamada en directo y te manda indicaciones (te llegan como mensajes de sistema). Quien llama no las oye. Síguelas en cuanto te lleguen, con naturalidad, sin citarlas ni decir que alguien te las ha dado, y sin dejar de respetar el resto de estas instrucciones (en particular, nunca mientas). Si una indicación pide que actúes ya, hazlo en tu siguiente frase.
+
 # Lo que sabes y lo que no
 - Sólo das por cierto lo que está en la información de la empresa o lo que te dice la persona. Si no lo sabes (un precio, si hay existencias, una fecha, un dato técnico o legal), dilo con naturalidad, ofrece que lo compruebe el equipo y toma el recado. Nunca te lo inventes.
 - Nunca pidas ni apuntes números de tarjeta, claves ni contraseñas. Los pagos van por los cauces que diga la información de la empresa.
@@ -78,7 +90,7 @@ ${f.conocimiento.trim() || "(Sin información adicional.)"}
 
 export type Anterior = { creado: string; datos: Record<string, unknown> };
 
-export function datosLlamada(f: Ficha, desde: string, ahora: Date, anteriores: Anterior[]): string {
+export function datosLlamada(f: Ficha, desde: string, ahora: Date, anteriores: Anterior[], regla?: Regla | null, nota?: string): string {
   const hora = new Intl.DateTimeFormat("es-ES", {
     timeZone: f.zonaHoraria, weekday: "long", day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit",
   }).format(ahora);
@@ -86,8 +98,12 @@ export function datosLlamada(f: Ficha, desde: string, ahora: Date, anteriores: A
     ? "Este número ya ha llamado antes. Lo que se sabe de sus llamadas anteriores (úsalo con discreción, para atenderle mejor, sin recitárselo):\n" +
       anteriores.map(({ creado, datos: { transcripcion: _, ...datos } }) => `- ${creado.slice(0, 10)}: ${JSON.stringify(datos)}`).join("\n")
     : "No nos consta ninguna llamada anterior de este número.";
+  const quien = regla
+    ? `\nEl responsable tiene apuntado este número como: ${regla.nombre || "(sin nombre)"}.` +
+      (regla.instrucciones.trim() ? `\nIndicaciones del responsable para esta persona (síguelas en toda la llamada):\n${regla.instrucciones.trim()}` : "")
+    : "";
   return `# Esta llamada
 Ahora es ${hora} (hora de ${f.zonaHoraria}).
 Llama desde el número ${desde || "oculto"}. Si te da un número para contactarle, confírmalo; si no, puedes preguntarle si le viene bien que le llamen a este mismo.
-${conocido}`;
+${conocido}${quien}${nota ? `\n${nota}` : ""}`;
 }

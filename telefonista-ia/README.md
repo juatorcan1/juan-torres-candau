@@ -17,6 +17,12 @@ negocio: basta con escribirle una ficha con lo que tiene que saber.
   (y, si se quiere, llega por Slack, correo, WhatsApp... mediante un webhook). Al colgar, deja un resumen
   de la llamada con lo que queda pendiente y si hay oportunidad de venta.
 - **Recuerda**: si vuelve a llamar alguien, sabe de qué habló la última vez.
+- **Tú decides con quién habla**: los desconocidos los atiende ella; con clientes o números concretos
+  puede sonarte antes el móvil ("te llama Pedro: pulsa 1 para hablar tú, 2 para la asistente").
+- **La sigues en directo**: desde el panel en el móvil ves y oyes la llamada mientras habla, y le das
+  indicaciones con tu voz sin que el otro las oiga ("no le prometas el pago", "pásamela", "cuelga").
+- **Sabe decir que no**: con quien pide algo que no le corresponde, explica los hechos con tono imparcial y
+  cordial, se mantiene firme y ofrece la salida justa si la hay. Nunca miente ni falta al respeto.
 - **Nunca se inventa nada**: sólo da por cierto lo que está en la ficha; si no lo sabe, lo dice y toma
   el recado. No pide tarjetas ni contraseñas. Si le preguntan, dice que es una asistente virtual.
 
@@ -54,6 +60,13 @@ npm run probar -- empresas/construccion-ejemplo +34611222333   # "llamando" desd
 Se escribe como si se hablara, en el idioma que se quiera. `/colgar` termina y enseña el resumen que
 recibiría el equipo. Lo apuntado queda en `datos/pruebas.jsonl`.
 
+Para ensayar lo del panel: una línea que empieza por `!` es una indicación tuya (la sigue en su próxima
+respuesta) y `!!` hace que actúe ya. Y para ensayar a alguien con regla:
+
+```bash
+npm run probar -- empresas/construccion-ejemplo +34622000002 --regla "Pedro, Hormigones Pérez|Reclama la factura 23, pero la obra quedó con grietas sin reparar. No se le paga hasta que lo repare. Tono imparcial y cordial."
+```
+
 `npm run comprobar` pasa las pruebas automáticas (sin gastar llamadas a la IA).
 
 ## Dar de alta una empresa
@@ -73,11 +86,65 @@ Copiar una de las carpetas de ejemplo en `empresas/` y cambiarla:
 | `transferencias` | A quién puede pasar llamadas: `{ "ventas": { "numero": "+34...", "descripcion": "...", "horario": "..." } }`. Si falla la IA, la llamada va al primero. |
 | `transcripcion` | Opcional. Por defecto Deepgram `nova-3-general` en modo multilingüe (`"multilingue": true`), que entiende todos los idiomas a la vez. Con `false`, entiende el idioma en que esté hablando la IA. |
 | `avisos.webhook` | Opcional. URL a la que se manda en JSON cada cosa que se apunta. |
+| `filtro` | Opcional. Qué hacer según quién llame (ver abajo). Sin filtro, todo lo atiende ella. |
 
 **`conocimiento.md`**: todo lo que tiene que saber, escrito como se le explicaría a alguien nuevo:
 productos y precios, tallas, plazos, envíos, devoluciones, garantías, formas de pago, zona de trabajo,
 preguntas frecuentes, qué hacer en cada caso y qué no puede prometer. Cuanto más completo, mejor atiende
 y mejor vende. Después, probarla con `npm run probar` haciendo de cliente difícil.
+
+## Filtro de llamadas y panel en directo
+
+### Quién va a quién
+
+En la ficha:
+
+```json
+"filtro": {
+  "miTelefono": "+34 6XX XXX XXX",
+  "desconocidos": "ia",
+  "conocidos": "preguntar",
+  "segundosParaDecidir": 20
+}
+```
+
+Cada llamada tiene una de estas tres salidas:
+
+| Acción | Qué pasa |
+| --- | --- |
+| `ia` | La atiende la asistente. |
+| `preguntar` | Suena tu móvil. Al descolgar oyes "Te llama Pedro Hormigones: pulsa 1 para hablar tú, 2 para que le atienda la asistente". Si pulsas 2, no pulsas nada o no lo coges, la atiende ella (y se disculpa por la espera). |
+| `pasar` | Suena tu móvil; si no lo coges, la atiende ella. |
+
+- `desconocidos`: números que nunca han llamado. `conocidos`: números que ya han llamado alguna vez.
+- Para números concretos (Pedro, un cliente, un proveedor...) se pone una **regla** en el panel,
+  pestaña *Contactos*: quién es, qué acción y **cómo tiene que tratarle** la asistente. Por ejemplo:
+  *"Reclama el pago de la factura 23, pero la obra quedó con grietas que no ha reparado. No se le paga
+  hasta que lo repare. Tono imparcial y cordial."* La asistente lo sigue en toda la llamada.
+- **`miTelefono` no puede ser un número que desvía a Twilio**: si tu Digi desvía todas sus llamadas a
+  Twilio y Twilio te llama a ese mismo Digi, la llamada daría vueltas. Pon otro de tus números, o desvía
+  el Digi sólo cuando no contestes (`**61*número#`), comunicas (`**67*número#`) o no tienes cobertura
+  (`**62*número#`) en vez de siempre (`**21*número#`).
+
+### El panel
+
+Con la variable `PANEL_CLAVE` (10 caracteres o más), el panel está en `https://<URL_PUBLICA>/panel`.
+Se abre en el móvil, se entra con esa clave y se queda recordada.
+
+- **En directo**: las llamadas que está atendiendo la asistente. Al tocar una ves lo que dice cada uno,
+  palabra a palabra, y lo que va apuntando.
+  - **🎧 Escuchar**: oyes la llamada en el móvil (ponte cascos).
+  - **🎙 Mantén pulsado y dale una indicación**: hablas, sueltas, y le llega a la asistente. Quien
+    llama no la oye. La sigue en su siguiente respuesta; con **Que actúe ya**, corta lo que estaba
+    diciendo y actúa en ese momento. También se puede escribir.
+  - **📞 Pásamela**: la asistente se despide en una frase y te suena el móvil (`miTelefono`).
+  - **Colgar**: se despide con educación y cuelga.
+  - **Guardar como regla**: lo que le has indicado queda como regla para ese número la próxima vez.
+- **Contactos**: las reglas de cada número (también se pueden dictar con la voz).
+- **Recientes**: las últimas llamadas con su resumen, y un botón para poner regla a ese número.
+
+Dictar usa el reconocimiento de voz del navegador (Chrome en Android, Safari en iPhone). Mientras
+mantienes pulsado, el sonido de la llamada se silencia para que no se cuele en el micrófono.
 
 ## Ponerla a coger el teléfono
 
@@ -89,12 +156,15 @@ y mejor vende. Después, probarla con `npm run probar` haciendo de cliente difí
    Para conservar el número de siempre de la empresa, desviar las llamadas a este (todas, o sólo
    cuando no se contesta / fuera de horario).
 3. **Supabase** (recomendado): ejecutar `supabase/tablas.sql` y poner `SUPABASE_URL` y
-   `SUPABASE_SERVICE_ROLE_KEY`. Todo queda en la tabla `telefonista_registros`, con una columna
-   `atendido` para marcar lo ya resuelto. Sin Supabase se guarda en `datos/registros.jsonl`, que se
-   pierde si el alojamiento borra el disco.
+   `SUPABASE_SERVICE_ROLE_KEY`. Las llamadas y lo apuntado quedan en `telefonista_registros` (con una
+   columna `atendido` para marcar lo ya resuelto) y las reglas de cada número en `telefonista_contactos`.
+   Sin Supabase se guarda en `datos/`, que se pierde si el alojamiento borra el disco.
+4. **Panel**: poner `PANEL_CLAVE`.
 
-Seguridad: el servidor sólo atiende peticiones firmadas por Twilio (`X-Twilio-Signature`) y el
-WebSocket exige una firma de un solo uso por llamada. Sólo pasa llamadas a los números de la ficha.
+Seguridad: el servidor sólo atiende peticiones firmadas por Twilio (`X-Twilio-Signature`) y los
+WebSocket de Twilio exigen una firma de un solo uso por llamada. El panel pide la clave. Sólo pasa
+llamadas a los números de la ficha. Las llamadas que están sonando en tu móvil se recuerdan en memoria:
+el servidor tiene que ser una sola instancia.
 
 ## Ajustes
 
@@ -109,14 +179,17 @@ WebSocket exige una firma de un solo uso por llamada. Sólo pasa llamadas a los 
 
 - Desde agosto de 2026 el Reglamento de IA obliga a avisar de que se habla con una IA: el `saludo`
   debe decirlo (los de ejemplo lo hacen) y la IA nunca lo niega.
-- No se graba el audio, pero sí se guarda el texto de la conversación y los datos de contacto: la
+- Si vas a escuchar o dirigir llamadas desde el panel, dilo también en el saludo o en la política de
+  privacidad ("esta llamada puede ser atendida y supervisada por nuestro equipo").
+- No se graba el audio (el panel sólo lo retransmite en directo), pero sí se guarda el texto de la conversación y los datos de contacto: la
   política de privacidad de la empresa debe mencionarlo, y conviene un aviso breve en el saludo o una
   opción para oír la política. Se pueden borrar registros en `telefonista_registros` cuando se pida.
 
 ## Archivos
 
-- `src/servidor.ts`: servidor HTTP y WebSocket para Twilio.
-- `src/agente.ts`: la conversación (turnos, interrupciones, herramientas, fallo de la IA, resumen).
+- `src/servidor.ts`: servidor HTTP y WebSocket para Twilio (y el filtro de quién va a quién).
+- `src/centralita.ts`, `src/panel.html`: el panel en directo.
+- `src/agente.ts`: la conversación (turnos, interrupciones, indicaciones, herramientas, fallo de la IA, resumen).
 - `src/instrucciones.ts`: cómo atiende, vende y resuelve.
 - `src/herramientas.ts`: cambiar de idioma, apuntar cliente, recado, incidencia, cita, pasar y colgar.
 - `src/empresas.ts`, `src/registro.ts`, `src/twilio.ts`: fichas, dónde se apunta y lo propio de Twilio.

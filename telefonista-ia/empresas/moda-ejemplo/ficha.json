@@ -1,0 +1,17 @@
+{
+  "nombre": "Atelier Brisa",
+  "sector": "marca de ropa con tienda online y dos tiendas físicas",
+  "asistente": "Lucía",
+  "telefonos": ["+34 910 000 001"],
+  "idiomaPrincipal": "es-ES",
+  "idiomas": ["es-ES", "en-GB", "fr-FR", "de-DE", "it-IT", "pt-PT", "nl-NL", "ca-ES", "zh-CN", "ar-SA"],
+  "zonaHoraria": "Europe/Madrid",
+  "horario": "Teléfono: todos los días a cualquier hora con Lucía. Personas: de lunes a sábado de 10:00 a 20:00.",
+  "saludo": "Hola, gracias por llamar a Atelier Brisa. Soy Lucía, la asistente virtual. You can also speak to me in English or other languages. ¿En qué puedo ayudarle?",
+  "tono": "cálido, cercano y con estilo; tutea si el cliente tutea",
+  "transferencias": {
+    "tienda": { "numero": "+34 910 000 101", "descripcion": "tienda de Madrid: dudas de tallas en persona, reservas en tienda, estilismo", "horario": "lunes a sábado de 10:00 a 20:00" },
+    "atencion": { "numero": "+34 910 000 102", "descripcion": "atención al cliente: pedidos online, devoluciones complicadas, clientes muy molestos", "horario": "lunes a viernes de 9:00 a 18:00" }
+  },
+  "avisos": { "webhook": "" }
+}

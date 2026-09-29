@@ -63,8 +63,8 @@ function renderHoy(){
 
     <div class="panel today">
       <div class="panel-head" style="margin-bottom:10px"><h2>Entrena hoy</h2>${doneToday.length ? `<span class="pill ok">${doneToday.length} hecho${doneToday.length > 1 ? "s" : ""} hoy</span>` : ""}</div>
-      ${paused ? `<div class="resume"><div><b>${esc(run.w.titulo)}</b><div class="muted" style="font-size:13px">Entreno a medias · ${Object.values(run.log).reduce((a, l) => a + l.length, 0)}/${run.steps.length} series</div></div>
-          <div class="row-btns"><button type="button" class="btn primary" data-hoy="resume">Continuar</button><button type="button" class="btn ghost" data-hoy="drop">Descartar</button></div></div>` : ""}
+      ${paused ? `<div class="resume"><div><b>${esc(run.w.titulo)}</b><div class="muted" style="font-size:13px">Entreno a medias${run.startedAt && toISO(new Date(run.startedAt)) !== todayISO() ? " del " + relDay(toISO(new Date(run.startedAt))) : ""} · ${Object.values(run.log).reduce((a, l) => a + l.length, 0)}/${run.steps.length} series</div></div>
+          <div class="row-btns"><button type="button" class="btn primary" data-hoy="resume">Continuar</button><button type="button" class="btn" data-hoy="savepart">Guardar lo hecho</button><button type="button" class="btn ghost" data-hoy="drop">Descartar</button></div></div>` : ""}
       ${pd ? `<div class="plan-today"><div class="eyebrow">Según tu plan</div><b>${pd.actividad === "descanso" ? "Hoy toca descanso" : esc(pd.foco || SPORTS[pd.actividad] || pd.actividad)}</b>${pd.duracion_min ? ` <span class="muted">· ${pd.duracion_min} min</span>` : ""}
           <div class="muted" style="font-size:13.5px">${esc(pd.detalle)}</div>
           ${pd.entreno && pd.actividad !== "descanso" ? `<div class="muted" style="font-size:13.5px">Trabajas: <b>${esc(workoutMuscles(pd.entreno))}</b></div>` : ""}
@@ -117,6 +117,7 @@ document.addEventListener("click", async e => {
   else if (t.dataset.ckm) { const list = ck[t.dataset.ckm], k = t.dataset.k; const i = list.indexOf(k); if (i >= 0) list.splice(i, 1); else list.push(k); saveCk(); renderHoy(); }
   else if (t.dataset.hoy === "resume") showPlayer();
   else if (t.dataset.hoy === "drop") { run = null; store.del("gym.run"); renderHoy(); }
+  else if (t.dataset.hoy === "savepart") { showPlayer(); finishRun(); }
   else if (t.dataset.hoy === "last") { const m = chatMsgs("coach").slice().reverse().find(x => x.entreno); if (m) openPlayer(m.entreno); }
   else if (t.dataset.go) setTab(t.dataset.go);
 });

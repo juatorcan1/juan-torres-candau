@@ -38,6 +38,7 @@ function athleteContext(who){
     `${ATH[who]}: hombre, ${pr.age} años, ${pr.height} cm, ${w ? fmt(w.kg, 1) + " kg" : "peso sin apuntar"}${w && old ? ` (${fmt(w.kg - old.kg, 1)} kg en 4 semanas)` : ""}; objetivo ${GOALS[pr.goal].l.toLowerCase()}; trabajo ${WORK[pr.work].l.toLowerCase()}.`,
     `Media de entreno: ${fmt(weeklyMinutes(who))} min/semana. Alcohol esta semana: ${fmt(al.ube, 1)} UBE (objetivo ${pr.alcoholGoal}).`,
     pr.prefEntreno ? `Lo que le gusta y quiere: ${String(pr.prefEntreno).slice(0, 400)}` : "",
+    notesText(who) ? `Sus notas de ejercicios (respétalas): ${notesText(who).slice(0, 800)}` : "",
     `Objetivo de dieta: ${t.kcal} kcal, ${t.prot} g proteína, ${t.carbs} g hidratos, ${t.fat} g grasa.`,
     `Mejores series: ${Object.entries(best).map(([k, b]) => `${k} ${b.kg ? fmt(b.kg, 1) + " kg × " : ""}${b.reps}`).join("; ") || "sin datos"}.`,
     `Últimas sesiones:\n${lines.join("\n") || "ninguna"}`

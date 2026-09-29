@@ -1,0 +1,393 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Centralita en directo</title>
+<meta name="theme-color" content="#F3F1EC" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#15171A" media="(prefers-color-scheme: dark)">
+<style>
+:root {
+  --fondo: #F3F1EC; --tarjeta: #FFFFFF; --texto: #1B1D21; --suave: #676C74; --borde: #E1DED6;
+  --acento: #1F5AD6; --acento-texto: #FFFFFF; --cliente: #ECEAE4; --ia: #E3ECFD; --indicacion: #FFF1C9;
+  --rojo: #C23A2B; --verde: #1E8A4C; --sombra: 0 1px 2px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.05);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fondo: #15171A; --tarjeta: #1F2226; --texto: #ECEDEF; --suave: #9AA0A8; --borde: #30343A;
+    --acento: #6D9BFF; --acento-texto: #0D1320; --cliente: #2A2E34; --ia: #1D2C4A; --indicacion: #4A3D14;
+    --rojo: #FF7A6B; --verde: #5CD08F; --sombra: none;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--fondo); color: var(--texto); }
+body { font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; min-height: 100dvh; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; border: 0; border-radius: 12px; padding: 10px 14px; background: var(--cliente); }
+button.principal { background: var(--acento); color: var(--acento-texto); font-weight: 600; }
+button.peligro { background: transparent; color: var(--rojo); border: 1px solid var(--rojo); }
+input, select, textarea { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--borde); background: var(--tarjeta); }
+textarea { min-height: 110px; resize: vertical; }
+label { display: block; font-size: 14px; color: var(--suave); margin: 12px 0 4px; }
+.oculto { display: none !important; }
+header { position: sticky; top: 0; z-index: 2; background: var(--fondo); padding: 12px 16px 0; }
+header h1 { font-size: 20px; margin: 0 0 10px; display: flex; align-items: center; gap: 8px; }
+.punto { width: 10px; height: 10px; border-radius: 50%; background: var(--suave); }
+.punto.vivo { background: var(--verde); }
+nav { display: flex; gap: 6px; border-bottom: 1px solid var(--borde); }
+nav button { white-space: nowrap; background: none; border-radius: 0; padding: 10px 12px; color: var(--suave); border-bottom: 2px solid transparent; }
+nav button.activo { color: var(--texto); border-bottom-color: var(--acento); font-weight: 600; }
+main { padding: 16px; max-width: 720px; margin: 0 auto; }
+.tarjeta { background: var(--tarjeta); border-radius: 16px; padding: 14px 16px; box-shadow: var(--sombra); margin-bottom: 12px; border: 1px solid var(--borde); }
+.fila { display: flex; gap: 8px; align-items: center; }
+.fila > * { flex: 1; }
+.vacio { color: var(--suave); text-align: center; padding: 40px 16px; }
+.llamada { cursor: pointer; }
+.llamada b { font-size: 17px; }
+.meta { color: var(--suave); font-size: 14px; }
+.chat { display: flex; flex-direction: column; gap: 8px; padding-bottom: 260px; }
+.globo { max-width: 85%; padding: 8px 12px; border-radius: 14px; white-space: pre-wrap; word-wrap: break-word; }
+.globo.cliente { background: var(--cliente); align-self: flex-start; border-bottom-left-radius: 4px; }
+.globo.asistente { background: var(--ia); align-self: flex-end; border-bottom-right-radius: 4px; }
+.globo.indicacion { background: var(--indicacion); align-self: center; font-size: 14px; }
+.globo.aviso { align-self: center; color: var(--suave); font-size: 13px; padding: 2px 8px; }
+.quien { font-size: 12px; color: var(--suave); display: block; }
+.mando { position: fixed; left: 0; right: 0; bottom: 0; background: var(--fondo); border-top: 1px solid var(--borde); padding: 10px 16px calc(12px + env(safe-area-inset-bottom)); }
+.mando > div { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 8px; }
+#hablar { width: 100%; padding: 18px; font-size: 18px; font-weight: 600; background: var(--acento); color: var(--acento-texto); border-radius: 16px; touch-action: none; user-select: none; -webkit-user-select: none; }
+#hablar.grabando { background: var(--rojo); }
+.interruptor { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--suave); }
+.interruptor input { width: auto; }
+.volver { background: none; padding: 0; color: var(--acento); margin-bottom: 8px; }
+#aviso { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); z-index: 9; background: var(--texto); color: var(--fondo); padding: 10px 14px; border-radius: 12px; max-width: calc(100% - 32px); }
+.etiqueta { display: inline-block; font-size: 12px; padding: 2px 8px; border-radius: 99px; background: var(--cliente); color: var(--suave); }
+#entrar { max-width: 360px; margin: 18vh auto 0; }
+</style>
+</head>
+<body>
+<div id="aviso" class="oculto"></div>
+
+<section id="entrar" class="tarjeta">
+  <h1 style="margin-top:0">Centralita en directo</h1>
+  <p class="meta">Escribe la clave del panel (PANEL_CLAVE).</p>
+  <form id="formEntrar"><input id="clave" type="password" autocomplete="current-password" placeholder="Clave"><br><br>
+  <button class="principal" style="width:100%">Entrar</button></form>
+</section>
+
+<div id="app" class="oculto">
+  <header>
+    <h1><span id="estado" class="punto"></span> Centralita</h1>
+    <nav>
+      <button data-pestana="directo" class="activo">En directo <span id="nLlamadas"></span></button>
+      <button data-pestana="contactos">Contactos</button>
+      <button data-pestana="recientes">Recientes</button>
+    </nav>
+  </header>
+
+  <main>
+    <section id="directo">
+      <div id="lista"></div>
+      <div id="detalle" class="oculto">
+        <button class="volver" id="volver">‹ Todas las llamadas</button>
+        <div class="tarjeta"><b id="dTitulo"></b><div class="meta" id="dMeta"></div></div>
+        <div class="chat" id="chat"></div>
+        <div class="mando">
+          <div>
+            <div class="fila">
+              <button id="escuchar">🎧 Escuchar</button>
+              <button id="pasarme">📞 Pásamela</button>
+              <button id="colgar" class="peligro">Colgar</button>
+            </div>
+            <button id="hablar">🎙 Mantén pulsado y dale una indicación</button>
+            <form class="fila" id="formIndicar"><input id="texto" placeholder="…o escríbela" autocomplete="off"><button class="principal" style="flex:0">Enviar</button></form>
+            <div class="fila">
+              <label class="interruptor" title="Corta lo que esté diciendo y actúa en ese momento"><input type="checkbox" id="ya"> Que actúe ya</label>
+              <button id="guardarRegla" style="flex:0; white-space:nowrap">Guardar como regla</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="contactos" class="oculto">
+      <div class="fila" style="margin-bottom:12px">
+        <select class="selEmpresa"></select>
+        <button class="principal" id="nuevaRegla" style="flex:0; white-space:nowrap">＋ Número</button>
+      </div>
+      <p class="meta">Qué hacer cuando llama cada número. Los que no estén aquí: según el filtro de la ficha (desconocidos / ya han llamado antes).</p>
+      <form id="formRegla" class="tarjeta oculto">
+        <label>Teléfono</label><input id="rTelefono" inputmode="tel" placeholder="+34 600 00 00 00" required>
+        <label>Quién es</label><input id="rNombre" placeholder="Pedro, de Hormigones Pérez">
+        <label>Cuando llame</label>
+        <select id="rAccion">
+          <option value="ia">La atiende la asistente</option>
+          <option value="preguntar">Me suena a mí y decido (1 hablo yo, 2 la asistente)</option>
+          <option value="pasar">Me suena a mí; si no la cojo, la asistente</option>
+        </select>
+        <label>Cómo tiene que tratarle la asistente</label>
+        <textarea id="rInstrucciones" placeholder="Ej.: Reclama el pago de la factura 23, pero la obra quedó con grietas y no las ha reparado. No se le paga hasta que lo repare. Tono imparcial y cordial."></textarea>
+        <button type="button" id="dictarRegla" style="margin-top:8px">🎙 Mantén pulsado para dictar</button>
+        <div class="fila" style="margin-top:12px">
+          <button type="button" class="peligro" id="borrarRegla">Borrar</button>
+          <button type="button" id="cancelarRegla">Cancelar</button>
+          <button class="principal">Guardar</button>
+        </div>
+      </form>
+      <div id="reglas"></div>
+    </section>
+
+    <section id="recientes" class="oculto">
+      <select class="selEmpresa" style="margin-bottom:12px"></select>
+      <div id="listaRecientes"></div>
+    </section>
+  </main>
+</div>
+
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+const guardado = (k, v) => { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch { return null; } };
+const ACCIONES = { ia: "Asistente", preguntar: "Me pregunta", pasar: "Me la pasa" };
+
+let ws = null, clave = guardado("clave") || "", empresas = [], llamadas = new Map(), abierta = null, escuchando = false;
+
+function aviso(texto) {
+  const a = $("aviso"); a.textContent = texto; a.classList.remove("oculto");
+  clearTimeout(aviso.t); aviso.t = setTimeout(() => a.classList.add("oculto"), 3500);
+}
+const mandar = (m) => ws && ws.readyState === 1 && ws.send(JSON.stringify(m));
+
+// ---------- Conexión ----------
+function conectar() {
+  ws = new WebSocket(location.origin.replace(/^http/, "ws") + "/panel/ws");
+  ws.onopen = () => mandar({ tipo: "entrar", clave });
+  ws.onclose = () => { $("estado").classList.remove("vivo"); if (clave) setTimeout(conectar, 2000); };
+  ws.onmessage = (e) => {
+    const m = JSON.parse(e.data);
+    if (m.tipo === "error") {
+      if (m.texto === "Clave incorrecta") { clave = ""; guardado("clave", ""); mostrarEntrar(); }
+      return aviso(m.texto);
+    }
+    if (m.tipo === "hola") {
+      guardado("clave", clave); empresas = m.empresas;
+      $("entrar").classList.add("oculto"); $("app").classList.remove("oculto"); $("estado").classList.add("vivo");
+      for (const s of document.querySelectorAll(".selEmpresa")) {
+        s.innerHTML = empresas.map((f) => `<option value="${esc(f.id)}">${esc(f.nombre)}</option>`).join("");
+        s.classList.toggle("oculto", empresas.length < 2);
+        s.value = guardado("empresa") || empresas[0]?.id;
+      }
+      if (abierta && escuchando) mandar({ tipo: "escuchar", llamada: abierta });
+    }
+    if (m.tipo === "activas") {
+      const antes = llamadas.size;
+      llamadas = new Map(m.llamadas.map((l) => [l.llamada, l]));
+      if (llamadas.size > antes && navigator.vibrate) navigator.vibrate(200);
+      if (abierta && !llamadas.has(abierta)) { aviso("La llamada ha terminado"); cerrarDetalle(); }
+      pintarLista(); if (abierta) pintarChat();
+    }
+    if (m.tipo === "evento") {
+      const l = llamadas.get(m.llamada); if (!l) return;
+      const e = m.evento, ultima = l.lineas.at(-1);
+      if (e.tipo === "asistente") {
+        if (ultima?.quien === "asistente" && !ultima.texto.endsWith("\n")) ultima.texto += e.texto;
+        else l.lineas.push({ quien: "asistente", texto: e.texto });
+      } else if (e.tipo === "cliente") {
+        if (ultima?.quien === "asistente") ultima.texto += "\n";
+        l.lineas.push({ quien: "cliente", texto: e.texto });
+      } else if (e.tipo === "indicacion") l.lineas.push({ quien: "indicacion", texto: e.texto });
+      else l.lineas.push({ quien: "aviso", texto: describir(e) });
+      if (abierta === m.llamada) pintarChat();
+    }
+    if (m.tipo === "audio" && escuchando) sonar(m.pista, m.d);
+    if (m.tipo === "reglas") pintarReglas(m.reglas);
+    if (m.tipo === "recientes") pintarRecientes(m.llamadas);
+  };
+}
+function describir(e) {
+  if (e.tipo === "idioma") return "Cambia a " + e.codigo;
+  if (e.tipo === "fin") return e.fin.tipo === "pasar" ? "Pasa la llamada a " + e.fin.destino : "Cuelga";
+  if (e.tipo === "herramienta") return ({ apuntar_cliente: "Apunta un cliente interesado", tomar_recado: "Toma un recado", abrir_incidencia: "Abre una incidencia", pedir_cita: "Apunta una cita", pasar_llamada: "Va a pasar la llamada", colgar: "Va a colgar", cambiar_idioma: "Cambia de idioma" })[e.nombre] || e.nombre;
+  return "";
+}
+function mostrarEntrar() { $("app").classList.add("oculto"); $("entrar").classList.remove("oculto"); $("clave").focus(); }
+$("formEntrar").onsubmit = (e) => {
+  e.preventDefault(); clave = $("clave").value;
+  if (ws) { ws.onclose = null; ws.close(); }
+  conectar();
+};
+
+// ---------- Pestañas ----------
+for (const b of document.querySelectorAll("nav button")) b.onclick = () => pestana(b.dataset.pestana);
+function pestana(p) {
+  for (const b of document.querySelectorAll("nav button")) b.classList.toggle("activo", b.dataset.pestana === p);
+  for (const s of ["directo", "contactos", "recientes"]) $(s).classList.toggle("oculto", s !== p);
+  if (p === "contactos") mandar({ tipo: "reglas", empresa: empresa() });
+  if (p === "recientes") mandar({ tipo: "recientes", empresa: empresa() });
+}
+const empresa = () => document.querySelector(".selEmpresa").value || empresas[0]?.id;
+for (const s of document.querySelectorAll(".selEmpresa")) s.onchange = () => {
+  guardado("empresa", s.value); for (const o of document.querySelectorAll(".selEmpresa")) o.value = s.value;
+  pestana(document.querySelector("nav .activo").dataset.pestana);
+};
+
+// ---------- En directo ----------
+const minutos = (iso) => { const s = Math.floor((Date.now() - new Date(iso)) / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
+function pintarLista() {
+  $("nLlamadas").textContent = llamadas.size ? `(${llamadas.size})` : "";
+  $("lista").innerHTML = llamadas.size ? [...llamadas.values()].map((l) => `
+    <div class="tarjeta llamada" data-llamada="${esc(l.llamada)}">
+      <b>${esc(l.nombre || l.desde || "Número oculto")}</b>
+      <div class="meta">${esc(l.nombre ? l.desde : "")} · ${esc(l.empresaNombre)} · <span class="reloj" data-inicio="${esc(l.inicio)}">${minutos(l.inicio)}</span></div>
+      <div class="meta">${esc((l.lineas.filter((x) => x.quien === "cliente").at(-1)?.texto || "").slice(0, 120))}</div>
+    </div>`).join("") : `<div class="vacio">Ahora mismo no hay llamadas.<br>Cuando entre una, aparecerá aquí.</div>`;
+  for (const t of document.querySelectorAll(".llamada")) t.onclick = () => abrir(t.dataset.llamada);
+}
+setInterval(() => { for (const r of document.querySelectorAll(".reloj")) r.textContent = minutos(r.dataset.inicio); }, 1000);
+
+function abrir(id) {
+  abierta = id; $("lista").classList.add("oculto"); $("detalle").classList.remove("oculto");
+  const l = llamadas.get(id);
+  $("dTitulo").textContent = l.nombre || l.desde || "Número oculto";
+  $("dMeta").textContent = `${l.nombre ? l.desde + " · " : ""}${l.empresaNombre}`;
+  $("pasarme").classList.toggle("oculto", !l.responsable);
+  pintarChat(); window.scrollTo(0, document.body.scrollHeight);
+}
+function cerrarDetalle() {
+  if (escuchando) alternarEscucha();
+  abierta = null; $("detalle").classList.add("oculto"); $("lista").classList.remove("oculto");
+}
+$("volver").onclick = cerrarDetalle;
+function pintarChat() {
+  const l = llamadas.get(abierta); if (!l) return;
+  const abajo = window.innerHeight + window.scrollY >= document.body.scrollHeight - 80;
+  const nombres = { cliente: "Llama", asistente: "Asistente", indicacion: "Tu indicación" };
+  $("chat").innerHTML = l.lineas.filter((x) => x.texto.trim()).map((x) =>
+    `<div class="globo ${x.quien}">${nombres[x.quien] ? `<span class="quien">${nombres[x.quien]}</span>` : ""}${esc(x.texto.trim())}</div>`).join("");
+  if (abajo) window.scrollTo(0, document.body.scrollHeight);
+}
+function indicar(texto) {
+  texto = texto.trim(); if (!texto || !abierta) return;
+  mandar({ tipo: "indicar", llamada: abierta, texto, ya: $("ya").checked });
+  $("texto").value = "";
+}
+$("formIndicar").onsubmit = (e) => { e.preventDefault(); indicar($("texto").value); };
+$("pasarme").onclick = () => confirm("¿Te paso la llamada? Sonará tu móvil.") && mandar({ tipo: "pasarme", llamada: abierta });
+$("colgar").onclick = () => confirm("¿Que se despida y cuelgue?") && mandar({ tipo: "colgar", llamada: abierta });
+$("guardarRegla").onclick = () => {
+  const l = llamadas.get(abierta); if (!l) return;
+  const dadas = l.lineas.filter((x) => x.quien === "indicacion").map((x) => x.texto).join("\n");
+  pestana("contactos"); editarRegla({ telefono: l.desde, nombre: l.nombre, accion: "ia", instrucciones: dadas });
+};
+
+// ---------- Escuchar la llamada (mu-law 8 kHz) ----------
+let audio = null, volumen = null;
+const cursores = { in: 0, out: 0 };
+const MULAW = new Float32Array(256).map((_, i) => {
+  const u = ~i & 0xff, signo = u & 0x80, exp = (u >> 4) & 7, man = u & 0x0f;
+  const m = (((man << 3) + 0x84) << exp) - 0x84;
+  return (signo ? -m : m) / 32768;
+});
+function alternarEscucha() {
+  escuchando = !escuchando;
+  $("escuchar").textContent = escuchando ? "🔇 Dejar de escuchar" : "🎧 Escuchar";
+  if (escuchando) {
+    audio ??= new AudioContext(); audio.resume();
+    volumen ??= audio.createGain(); volumen.connect(audio.destination);
+    cursores.in = cursores.out = 0;
+  }
+  mandar({ tipo: "escuchar", llamada: escuchando ? abierta : null });
+}
+$("escuchar").onclick = alternarEscucha;
+function sonar(pista, b64) {
+  const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+  const buf = audio.createBuffer(1, bytes.length, 8000), datos = buf.getChannelData(0);
+  for (let i = 0; i < bytes.length; i++) datos[i] = MULAW[bytes[i]];
+  const src = audio.createBufferSource(); src.buffer = buf; src.connect(volumen);
+  const ahora = audio.currentTime;
+  if (cursores[pista] < ahora + 0.05 || cursores[pista] > ahora + 1.5) cursores[pista] = ahora + 0.15;
+  src.start(cursores[pista]); cursores[pista] += buf.duration;
+}
+
+// ---------- Dictar con la voz (reconocimiento del navegador) ----------
+const Reconocedor = window.SpeechRecognition || window.webkitSpeechRecognition;
+function pulsarParaDictar(boton, alTerminar, alParcial) {
+  if (!Reconocedor) { boton.classList.add("oculto"); return; }
+  let rec = null, texto = "";
+  const empezar = (e) => {
+    e.preventDefault(); if (rec) return;
+    texto = ""; rec = new Reconocedor(); rec.lang = "es-ES"; rec.interimResults = true; rec.continuous = true;
+    rec.onresult = (ev) => {
+      let fin = "", parcial = "";
+      for (const r of ev.results) (r.isFinal ? (fin += r[0].transcript) : (parcial += r[0].transcript));
+      texto = fin; alParcial?.(fin + parcial);
+    };
+    rec.onend = () => { rec = null; boton.classList.remove("grabando"); if (volumen) volumen.gain.value = 1; alTerminar(texto); };
+    rec.onerror = (ev) => ev.error !== "no-speech" && ev.error !== "aborted" && aviso("No se pudo dictar: " + ev.error);
+    if (volumen) volumen.gain.value = 0; // que no se cuele el sonido de la llamada en el micrófono
+    boton.classList.add("grabando"); rec.start();
+  };
+  const parar = () => rec && rec.stop();
+  boton.addEventListener("pointerdown", empezar);
+  for (const ev of ["pointerup", "pointercancel", "pointerleave"]) boton.addEventListener(ev, parar);
+  boton.addEventListener("contextmenu", (e) => e.preventDefault());
+}
+pulsarParaDictar($("hablar"), (t) => { $("texto").value = t; indicar(t); }, (t) => { $("texto").value = t; });
+pulsarParaDictar($("dictarRegla"), (t) => {
+  if (t.trim()) $("rInstrucciones").value = ($("rInstrucciones").value.trim() + " " + t.trim()).trim();
+});
+if (!Reconocedor) $("texto").placeholder = "Escribe la indicación (este navegador no permite dictar)";
+
+// ---------- Contactos ----------
+function pintarReglas(reglas) {
+  $("reglas").innerHTML = reglas.length ? reglas.map((r, i) => `
+    <div class="tarjeta llamada" data-i="${i}">
+      <div class="fila"><b>${esc(r.nombre || r.telefono)}</b><span class="etiqueta" style="flex:0; white-space:nowrap">${ACCIONES[r.accion]}</span></div>
+      <div class="meta">${esc(r.telefono)}</div>
+      ${r.instrucciones ? `<div class="meta">${esc(r.instrucciones.slice(0, 160))}</div>` : ""}
+    </div>`).join("") : `<div class="vacio">Aún no hay números con reglas.</div>`;
+  for (const t of $("reglas").querySelectorAll(".llamada")) t.onclick = () => editarRegla(reglas[t.dataset.i]);
+}
+function editarRegla(r) {
+  $("formRegla").classList.remove("oculto");
+  $("rTelefono").value = r.telefono || ""; $("rNombre").value = r.nombre || "";
+  $("rAccion").value = r.accion || "ia"; $("rInstrucciones").value = r.instrucciones || "";
+  $("borrarRegla").classList.toggle("oculto", !r.telefono);
+  window.scrollTo(0, 0);
+}
+$("nuevaRegla").onclick = () => editarRegla({});
+$("cancelarRegla").onclick = () => $("formRegla").classList.add("oculto");
+$("formRegla").onsubmit = (e) => {
+  e.preventDefault();
+  mandar({ tipo: "guardarRegla", empresa: empresa(), regla: {
+    telefono: $("rTelefono").value, nombre: $("rNombre").value, accion: $("rAccion").value, instrucciones: $("rInstrucciones").value,
+  } });
+  $("formRegla").classList.add("oculto"); aviso("Guardado");
+};
+$("borrarRegla").onclick = () => {
+  if (!confirm("¿Borrar la regla de este número?")) return;
+  mandar({ tipo: "borrarRegla", empresa: empresa(), telefono: $("rTelefono").value });
+  $("formRegla").classList.add("oculto");
+};
+
+// ---------- Recientes ----------
+function pintarRecientes(lista) {
+  $("listaRecientes").innerHTML = lista.length ? lista.map((l, i) => `
+    <div class="tarjeta">
+      <div class="fila"><b>${esc(l.datos.nombre_cliente || l.telefono || "Número oculto")}</b>
+        <span class="meta" style="flex:0; white-space:nowrap">${new Date(l.creado).toLocaleString("es-ES", { dateStyle: "short", timeStyle: "short" })}</span></div>
+      <div class="meta">${esc(l.telefono)} · ${esc(l.datos.tipo || "")} ${l.datos.sentimiento ? "· " + esc(l.datos.sentimiento) : ""}</div>
+      <p style="margin:6px 0">${esc(l.datos.resumen || "")}</p>
+      ${l.datos.pendiente ? `<div class="meta"><b>Pendiente:</b> ${esc(l.datos.pendiente)}</div>` : ""}
+      ${l.telefono ? `<button data-i="${i}" class="reglaDe" style="margin-top:8px">Regla para este número</button>` : ""}
+    </div>`).join("") : `<div class="vacio">Todavía no hay llamadas.</div>`;
+  for (const b of $("listaRecientes").querySelectorAll(".reglaDe")) b.onclick = () => {
+    const l = lista[b.dataset.i]; pestana("contactos"); editarRegla({ telefono: l.telefono, nombre: l.datos.nombre_cliente || "" });
+  };
+}
+
+if (clave) conectar(); else mostrarEntrar();
+</script>
+</body>
+</html>

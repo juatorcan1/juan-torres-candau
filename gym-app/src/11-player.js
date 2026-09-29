@@ -104,7 +104,7 @@ function renderPlayer(){
       ${run.swapped && run.swapped.length ? `<p class="note">Cambiado porque no te gusta: ${run.swapped.map(([a, b]) => `${esc(a)} → <b>${esc(b)}</b>`).join(", ")}.</p>` : ""}
       ${w.bloques.map((b, bi) => `<div class="pl-block"><div class="eyebrow">${esc(b.nombre)}</div>${b.items.map((x, ii) => `<div class="pl-item">
         ${figMini(x.ejercicio)}
-        <div>${musclesOf(x).main.length ? `<div class="mus-chip">${esc(musNames(musclesOf(x).main))}</div>` : ""}<b>${esc(x.ejercicio)}</b><div class="muted" style="font-size:13px">${x.series} × ${target(x)} · descanso ${x.descanso_s} s</div>${x.reto ? `<div class="reto">${esc(x.reto)}</div>` : ""}${noteHTML(x.ejercicio, { small: true, add: false })}</div>
+        <div>${musclesOf(x).main.length ? `<div class="mus-chip">${esc(musNames(musclesOf(x).main))}</div>` : ""}<b>${esc(x.ejercicio)}</b><div class="muted" style="font-size:13px">${x.series} × ${target(x)} · descanso ${x.descanso_s} s</div>${x.reto ? `<div class="reto">${esc(x.reto)}</div>` : ""}${gripTag(x.ejercicio)}${noteHTML(x.ejercicio, { small: true, add: false })}</div>
         <button type="button" class="btn sm ghost" data-swap-item="${bi}.${ii}" aria-label="Cambiar ${esc(x.ejercicio)}">Cambiar</button></div>`).join("")}</div>`).join("")}
       ${w.nota ? `<p class="note">${esc(w.nota)}</p>` : ""}
     </div>
@@ -120,15 +120,18 @@ function renderPlayer(){
     const paused = run.pausedLeft != null, secsLeft = paused ? run.pausedLeft / 1000 : run.until ? (run.until - Date.now()) / 1000 : 0, span = resting ? (it.descanso_s || 1) : (it.segundos || 1);
     const newEx = resting && next && keyOf(next) !== keyOf(st); // the rest before a different exercise: time to set up the machine
     const mu = musclesOf(it);
+    // while resting, the top of the screen already shows what comes next (the new exercise, or the next set)
+    const dSt = resting && next ? next : st, dIt = itemOf(dSt), dMu = musclesOf(dIt), dCur = resting && next ? run.nextCur : cur;
     body = `<div class="pl-body center">
-      <div class="eyebrow">${esc(w.bloques[st.bi].nombre)} · trabajas</div>
-      <h2 class="mus-title">${esc(musNames(mu.main) || it.ejercicio)}</h2>
-      <div class="pl-how">${GUIDE[it.ejercicio] ? `<button type="button" class="pl-fig small figbtn" data-figzoom="${esc(it.ejercicio)}" aria-label="Ver en grande cómo se hace ${esc(it.ejercicio)}">${figMarkup(it.ejercicio)}</button>` : ""}<div><div class="muted" style="font-size:12px">cómo</div><b>${esc(it.ejercicio)}</b><div class="pl-set">Serie <b>${st.s}</b> de ${it.series} · <b>${target(it)}</b></div></div></div>
-      ${noteHTML(it.ejercicio)}
+      <div class="eyebrow">${esc(w.bloques[dSt.bi].nombre)} · ${resting && next ? "a continuación" : "trabajas"}</div>
+      <h2 class="mus-title">${esc(musNames(dMu.main) || dIt.ejercicio)}</h2>
+      <div class="pl-how">${GUIDE[dIt.ejercicio] ? `<button type="button" class="pl-fig small figbtn" data-figzoom="${esc(dIt.ejercicio)}" aria-label="Ver en grande cómo se hace ${esc(dIt.ejercicio)}">${figMarkup(dIt.ejercicio)}</button>` : ""}<div><div class="muted" style="font-size:12px">cómo</div><b>${esc(dIt.ejercicio)}</b><div class="pl-set">Serie <b>${dSt.s}</b> de ${dIt.series} · <b>${target({ ...dIt, ...(dCur && dIt.modo === "reps" ? { reps: dCur.reps, kg: dCur.kg } : {}) })}</b></div></div></div>
+      ${gripHTML(dIt.ejercicio)}
+      ${noteHTML(dIt.ejercicio)}
       ${resting || working ? `<div class="ring ${resting ? "rest" : "work"}">
           <svg viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="52" class="rt"/><circle cx="60" cy="60" r="52" class="rv" id="pl-ring" style="stroke-dasharray:326.7;stroke-dashoffset:${326.7 * (1 - Math.max(0, secsLeft) / span)}"/></svg>
           <div class="ring-txt"><span id="pl-count">${mmssS(secsLeft)}</span><small>${paused ? "en pausa" : resting ? "descanso" : "¡dale!"}</small></div></div>
-          ${resting ? `<div class="pl-next">${newEx ? "Prepara la máquina para" : "Siguiente"}: <b>${next ? esc(musNames(musclesOf(itemOf(next)).main) || itemOf(next).ejercicio) + " · " + esc(stepLabel(next)) : "terminar"}</b></div>${newEx ? noteHTML(itemOf(next).ejercicio, { add: false }) : ""}${restEdit(st, next)}` : ""}`
+          ${resting ? `<div class="pl-next">${!next ? "Última serie hecha: <b>a terminar</b>" : newEx ? `Acabaste <b>${esc(it.ejercicio)}</b>. Prepara la máquina y pulsa «Estoy listo».` : `Siguiente: <b>serie ${next.s} de ${itemOf(next).series}</b>`}</div>${restEdit(st, next)}` : ""}`
         : `<div class="pl-map">${bodyMap(levelsFor([mu]))}</div>
           ${it.indicacion ? `<div class="pl-cue">${esc(it.indicacion)}</div>` : ""}
           ${it.reto ? `<div class="reto big">${esc(it.reto)}</div>` : ""}

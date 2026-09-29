@@ -602,3 +602,20 @@ details.pl-edit[open] summary{margin-bottom:6px}
 .note-sheet-wrap[hidden]{display:none}
 .note-sheet{position:relative;display:grid;gap:12px;width:100%;max-width:560px;margin:0 auto;background:var(--surface);border-radius:16px 16px 0 0;padding:16px 16px calc(18px + env(safe-area-inset-bottom,0px));box-shadow:0 -8px 30px rgba(0,0,0,.25)}
 .note-sheet textarea{width:100%;min-height:80px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px;font-size:16px;resize:none}
+
+/* grips and bars */
+.grips{display:grid;gap:6px;justify-items:center;width:100%;max-width:440px}
+.grip-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(74px,1fr));gap:6px;width:100%}
+.grip{display:grid;justify-items:center;gap:2px;padding:6px 4px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink-2);font:inherit;font-size:12px;font-weight:700;cursor:pointer}
+.grip[aria-pressed="true"]{border:2px solid var(--me);color:var(--ink);background:var(--surface-2)}
+.grip-ico{width:64px;height:30px;display:block}
+.grip-ico .gc{stroke:var(--prop);stroke-width:1.6}
+.grip-ico .gk{fill:var(--prop)}
+.grip-ico .gb{fill:none;stroke:var(--ink);stroke-width:4;stroke-linecap:round;stroke-linejoin:round}
+.grip-ico .gh{fill:none;stroke:var(--muscle);stroke-width:6;stroke-linecap:round}
+.grip-ico .gr{fill:none;stroke:var(--warn);stroke-width:4;stroke-linecap:round}
+.grip-ico .gp{fill:var(--prop)}
+.grip-tip{font-size:12.5px;text-align:center}
+.grip-tag{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:700;color:var(--ink-2);margin-top:2px}
+.grip-tag .grip-ico{width:40px;height:19px}
+.gcard .grips,.fz-card .grips{justify-items:start;margin-top:8px}

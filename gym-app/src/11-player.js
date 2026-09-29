@@ -22,9 +22,28 @@ function saveRun(){ store.set("gym.run", run); }
 function openPlayer(w){
   if (!me) { toast("Elige primero quién eres"); return; }
   const { w: ww, swapped } = autoSwap(w);
+  const tuned = tuneFromHistory(ww);
   swap = null;
-  run = { w: ww, steps: flatten(ww), i: 0, phase: "preview", startedAt: null, until: null, log: {}, cur: null, athlete: me, rpe: null, extra: "", swapped };
+  run = { w: ww, steps: flatten(ww), i: 0, phase: "preview", startedAt: null, until: null, log: {}, cur: null, athlete: me, rpe: null, extra: "", swapped, tuned };
   saveRun(); showPlayer();
+}
+/* weights start from what you actually lifted last time on that exercise: the same weight if some set
+   fell short of the target reps, a step up if every set reached it */
+const BIG_LIFTS = new Set(["Prensa", "Hip thrust", "Sentadilla", "Peso muerto", "Peso muerto rumano", "Sentadilla búlgara"]);
+function tuneFromHistory(w){
+  let n = 0;
+  for (const b of w.bloques) for (const it of b.items) {
+    if (it.modo !== "reps") continue;
+    const { last } = bestFor(me, it.ejercicio); if (!last || !last.sets.length) continue;
+    const top = Math.max(...last.sets.map(x => num(x.kg)));
+    if (!top) continue; // bodyweight: nothing to carry over
+    const reached = last.sets.filter(x => num(x.kg) === top).every(x => num(x.reps) >= num(it.reps));
+    const step = BIG_LIFTS.has(canonicalName(it.ejercicio)) ? 5 : 2.5, kg = reached ? top + step : top;
+    it.reto = `La última vez (${relDay(last.date)}): ${setsLine(last.sets)}. Hoy ${fmt(kg, 2)} kg${reached ? ` (+${fmt(step, 1)}: lo completaste todo)` : ": repite y completa las repeticiones"}.`;
+    n++;
+    it.kg = kg;
+  }
+  return n;
 }
 function resumePlayer(){ if (run && run.athlete === me && run.phase !== "preview") showPlayer(); }
 function showPlayer(){
@@ -81,6 +100,7 @@ function renderPlayer(){
       ${w.objetivo ? `<p class="pl-goal">${esc(w.objetivo)}</p>` : ""}
       ${(() => { const all = mainItems(w).map(musclesOf), lv = levelsFor(all); const main = MUSCLE_ORDER.filter(k => lv[k] === 2);
         return main.length ? `<div class="pl-today"><div class="eyebrow">Hoy trabajas</div><div class="mus-title" style="font-size:24px">${esc(musNames(main))}</div>${bodyMap(lv, { cls: "small" })}<div class="mus-legend"><span><i style="background:var(--muscle)"></i>principal</span><span><i style="background:var(--mus-help)"></i>ayuda</span></div></div>` : ""; })()}
+      ${run.tuned ? `<p class="note">Pesos según lo que levantaste la última vez en ${run.tuned} ejercicio${run.tuned > 1 ? "s" : ""}.</p>` : ""}
       ${run.swapped && run.swapped.length ? `<p class="note">Cambiado porque no te gusta: ${run.swapped.map(([a, b]) => `${esc(a)} → <b>${esc(b)}</b>`).join(", ")}.</p>` : ""}
       ${w.bloques.map((b, bi) => `<div class="pl-block"><div class="eyebrow">${esc(b.nombre)}</div>${b.items.map((x, ii) => `<div class="pl-item">
         ${figMini(x.ejercicio)}
@@ -119,7 +139,7 @@ function renderPlayer(){
         : working ? `<button type="button" class="btn ${paused ? "primary" : ""}" data-pl="pause">${paused ? "▶ Seguir" : "❚❚ Pausar"}</button><button type="button" class="btn primary big" data-pl="workdone">Hecho</button>`
         : it.modo === "tiempo" ? `<button type="button" class="btn primary big" data-pl="work">Empezar ${it.segundos} s</button>`
         : `<button type="button" class="btn primary big" data-pl="done">Serie hecha</button>`}
-      <div class="pl-aux">${resting ? `<button type="button" class="linkbtn" data-pl="plus">+30 s</button>` : ""}<button type="button" class="linkbtn" data-pl="skipex">Saltar ejercicio</button>${working ? "" : resting ? (next ? `<button type="button" class="linkbtn" data-swap-item="${next.bi}.${next.ii}">Cambiar el siguiente</button>` : "") : `<button type="button" class="linkbtn" data-swap-item="${st.bi}.${st.ii}">Cambiar ejercicio</button>`}<button type="button" class="linkbtn" data-pl="finish">Terminar ya</button></div>
+      <div class="pl-aux">${resting ? `<button type="button" class="linkbtn" data-pl="plus">+30 s</button>` : ""}<button type="button" class="linkbtn" data-pl="skipex">Saltar ejercicio</button>${working ? "" : resting ? (next ? `<button type="button" class="linkbtn" data-swap-item="${next.bi}.${next.ii}">Cambiar el siguiente</button>` : "") : `<button type="button" class="linkbtn" data-swap-item="${st.bi}.${st.ii}">Cambiar ejercicio</button>`}<button type="button" class="linkbtn" data-pl="finish">Terminar y guardar</button></div>
     </div>`;
   }
   el.innerHTML = `<div class="pl-wrap">${head}${body}</div>${swapSheetHTML()}`;
@@ -164,6 +184,7 @@ function tickPlayer(){
 /* flow */
 function logSet(){
   const st = run.steps[run.i], it = itemOf(st), c = run.cur || {};
+  run.lastAt = Date.now();
   (run.log[keyOf(st)] ||= []).push({ reps: num(c.reps), kg: num(c.kg), secs: it.modo === "tiempo" ? it.segundos : null, meters: it.modo === "distancia" ? num(c.meters) : null });
   run._w3 = false;
   const next = run.steps[run.i + 1];
@@ -185,11 +206,13 @@ function advance(){
   run.nextCur = null;
   run.phase = "set";
 }
-function finishRun(){ run.phase = "done"; run.until = null; run.endedAt = Date.now(); say("Entreno terminado. ¡Buen trabajo!"); saveRun(); renderPlayer(); }
+function finishRun(){ run.phase = "done"; run.until = null;
+  // left half done and saved later: the workout ended with the last set, not now
+  run.endedAt = run.lastAt && Date.now() - run.lastAt > 20 * 60000 ? run.lastAt : Date.now(); say("Entreno terminado. ¡Buen trabajo!"); saveRun(); renderPlayer(); }
 
 /* summary and saving */
 function runSession(){
-  const w = run.w, ex = [], mins = Math.max(1, Math.round(((run.endedAt || Date.now()) - (run.startedAt || Date.now())) / 60000));
+  const w = run.w, ex = [], mins = Math.min(240, Math.max(1, Math.round(((run.endedAt || Date.now()) - (run.startedAt || Date.now())) / 60000)));
   let meters = 0;
   w.bloques.forEach((b, bi) => b.items.forEach((it, ii) => {
     const l = run.log[bi + "." + ii]; if (!l || !l.length) return;
@@ -198,7 +221,7 @@ function runSession(){
     ex.push(clean({ name: it.ejercicio, group: CATALOG[it.ejercicio] || "", equip: num(l[0].kg) ? "" : "Peso corporal", sets: l.map(x => clean({ reps: x.reps, kg: x.kg, rest: it.descanso_s || null })) }));
   }));
   const sport = w.tipo === "natacion" ? "natacion" : w.tipo === "cinta" || w.tipo === "bici" ? w.tipo : w.tipo === "otro" ? "otro" : "gym";
-  const doc = clean({ athlete: me, date: todayISO(), time: `${pad(new Date(run.startedAt || Date.now()).getHours())}:${pad(new Date(run.startedAt || Date.now()).getMinutes())}`,
+  const doc = clean({ athlete: me, date: run.startedAt ? toISO(new Date(run.startedAt)) : todayISO(), time: `${pad(new Date(run.startedAt || Date.now()).getHours())}:${pad(new Date(run.startedAt || Date.now()).getMinutes())}`,
     sport, minutes: mins, rpe: run.rpe, notes: `${w.titulo} (entreno guiado)`, source: "entrenador" });
   if (sport === "gym" && ex.length) doc.exercises = ex;
   if (sport === "gym" && !ex.length) { doc.sport = "otro"; doc.activity = w.titulo; }
@@ -218,7 +241,7 @@ function summaryHTML(){
   const doc = runSession(), g = doc.exercises ? gymStats(doc) : null, prs = prList(doc);
   const needKm = doc.sport === "cinta" || doc.sport === "bici";
   return `<div class="pl-body">
-    <div class="pl-done"><div class="eyebrow">Entreno terminado</div><h2>${prs.length ? "¡Récord!" : "¡Hecho!"}</h2>
+    <div class="pl-done"><div class="eyebrow">${(() => { const d = Object.values(run.log).reduce((a, l) => a + l.length, 0); return d < run.steps.length ? `Guardas lo que has hecho: ${d} de ${run.steps.length} series` : "Entreno terminado"; })()}</div><h2>${prs.length ? "¡Récord!" : "¡Hecho!"}</h2>
       <div class="kv"><div><dt>Tiempo</dt><dd>${doc.minutes} min</dd></div>${g ? `<div><dt>Series</dt><dd>${g.sets}</dd></div><div><dt>Volumen</dt><dd>${fmt(g.vol)} kg</dd></div>` : ""}${doc.meters ? `<div><dt>Nadado</dt><dd>${fmt(doc.meters)} m</dd></div>` : ""}</div>
       ${prs.length ? `<div class="prs">${prs.map(p => `<div>🏆 ${esc(p)}</div>`).join("")}</div>` : ""}
       ${(() => { const done = run.w.bloques.flatMap((b, bi) => b.items.filter((it, ii) => (run.log[bi + "." + ii] || []).length)).map(musclesOf); return done.length ? `<div class="eyebrow">Has trabajado</div>${bodyMap(levelsFor(done), { cls: "small" })}` : ""; })()}
@@ -249,7 +272,7 @@ document.addEventListener("click", e => {
     const o = $(`#pl-${tgt}-${k}`); if (o) o.value = fmt(obj[k], 2); if (tgt === "last") refreshLastSum(); saveRun(); return;
   }
   if (t.dataset.rpe) { run.rpe = +t.dataset.rpe; saveRun(); renderPlayer(); return; }
-  if (a === "close") { if (run.phase === "preview") closePlayer(true); else { closePlayer(false); toast("Entreno en pausa: lo retomas desde Hoy"); } }
+  if (a === "close") { if (run.phase === "preview") closePlayer(true); else { closePlayer(false); toast("Entreno en pausa: en Hoy lo continúas o guardas lo hecho"); } }
   else if (a === "voice") { store.set("gym.voice", !voiceOn()); renderPlayer(); }
   else if (a === "start") { run.startedAt = Date.now(); advanceFromStart(); beep(); say(`Empezamos. ${spokenStep(run.steps[0])}. ${target(itemOf(run.steps[0]))}`); saveRun(); renderPlayer(); }
   else if (a === "done" || a === "workdone") logSet();

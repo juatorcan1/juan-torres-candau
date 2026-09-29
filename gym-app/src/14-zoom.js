@@ -18,6 +18,7 @@ function openZoom(name){
       <div>${m.main.length ? `<div class="mus-chip">${esc(musNames(m.main))}</div>` : ""}<h3 id="fz-t">${esc(name)}</h3>${m.help.length ? `<div class="muted" style="font-size:13px">Ayudan: ${esc(musNames(m.help))}</div>` : ""}</div>
       <ol>${g.steps.map(s => `<li>${esc(s)}</li>`).join("")}</ol>
       <div class="ojo"><b>Ojo:</b> ${esc(g.ojo)}</div>
+      ${gripHTML(name)}
       <button type="button" class="btn primary" data-fz="close">Entendido</button>
     </div>`;
   zoomEl.hidden = false; mountFigs();

@@ -133,7 +133,7 @@ function renderEjercicios(){
   const recent = me ? recentMuscles(me, 7) : {};
   const card = n => { const g = GUIDE[n], m = musclesOf(n); return `<article class="gcard">
       <div class="fig-wrap">${figMarkup(n)}</div>
-      <div><div class="mus-chip">${esc(musNames(m.main))}</div><h3>${esc(n)}</h3>${m.help.length ? `<div class="mus">Ayudan: ${esc(musNames(m.help))}</div>` : ""}<ol>${g.steps.map(s => `<li>${esc(s)}</li>`).join("")}</ol><div class="ojo"><b>Ojo:</b> ${esc(g.ojo)}</div>${noteHTML(n)}</div>
+      <div><div class="mus-chip">${esc(musNames(m.main))}</div><h3>${esc(n)}</h3>${m.help.length ? `<div class="mus">Ayudan: ${esc(musNames(m.help))}</div>` : ""}<ol>${g.steps.map(s => `<li>${esc(s)}</li>`).join("")}</ol><div class="ojo"><b>Ojo:</b> ${esc(g.ojo)}</div>${gripHTML(n)}${noteHTML(n)}</div>
     </article>`; };
   v.innerHTML = `<div style="display:grid;gap:16px">
     <div class="panel">

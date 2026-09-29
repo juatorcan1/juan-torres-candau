@@ -39,6 +39,7 @@ function athleteContext(who){
     `Media de entreno: ${fmt(weeklyMinutes(who))} min/semana. Alcohol esta semana: ${fmt(al.ube, 1)} UBE (objetivo ${pr.alcoholGoal}).`,
     pr.prefEntreno ? `Lo que le gusta y quiere: ${String(pr.prefEntreno).slice(0, 400)}` : "",
     notesText(who) ? `Sus notas de ejercicios (respétalas): ${notesText(who).slice(0, 800)}` : "",
+    gripsText(who) ? `Agarres que usa: ${gripsText(who)}` : "",
     `Objetivo de dieta: ${t.kcal} kcal, ${t.prot} g proteína, ${t.carbs} g hidratos, ${t.fat} g grasa.`,
     `Mejores series: ${Object.entries(best).map(([k, b]) => `${k} ${b.kg ? fmt(b.kg, 1) + " kg × " : ""}${b.reps}`).join("; ") || "sin datos"}.`,
     `Últimas sesiones:\n${lines.join("\n") || "ninguna"}`

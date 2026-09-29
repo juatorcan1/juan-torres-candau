@@ -83,6 +83,26 @@ const target = it => it.modo === "reps" ? `${it.reps} reps${it.kg ? ` × ${fmt(i
 const mmssS = s => { const t = Math.max(0, Math.ceil(s)); return `${Math.floor(t / 60)}:${pad(t % 60)}`; };
 
 /* rendering */
+/* the whole workout as a row of small rings, one per exercise, that fill up set by set: 2/3 means
+   two of its three sets done, so you can see at a glance how much is left */
+const TRACK_ICO = {
+  reps: `<path d="M5 9v6M8 7v10M16 7v10M19 9v6M8 12h8"/>`,
+  tiempo: `<circle cx="12" cy="13" r="6.5"/><path d="M12 13V9.5M10 4h4"/>`,
+  distancia: `<path d="M4 10q2-2.5 4 0t4 0 4 0 4 0M4 15.5q2-2.5 4 0t4 0 4 0 4 0"/>`
+};
+function trackHTML(nowKey){
+  const w = run.w, C = 106.8; let n = 0, nowN = 0;
+  const cells = w.bloques.map((b, bi) => b.items.map((it, ii) => {
+    const k = bi + "." + ii, done = Math.min((run.log[k] || []).length, it.series), now = k === nowKey; n++; if (now) nowN = n;
+    // an exercise already behind you with sets missing was skipped (or cut short)
+    const past = !now && run.steps.findIndex(s => keyOf(s) === k) < run.i && done < it.series;
+    const cls = now ? "now" : done >= it.series ? "full" : past ? "skip" : "";
+    return `<li class="tk ${cls}" ${now ? 'aria-current="step"' : ""} aria-label="${esc(it.ejercicio)}: ${done} de ${it.series} series${past ? ", saltado" : ""}">
+      <svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="17" class="tk-t"/><circle cx="20" cy="20" r="17" class="tk-v" style="stroke-dasharray:${C};stroke-dashoffset:${C * (1 - done / (it.series || 1))}"/><g transform="translate(8 8)" class="tk-i">${TRACK_ICO[it.modo] || TRACK_ICO.reps}</g></svg>
+      <span>${done}/${it.series}</span></li>`;
+  }).join("")).join(`<li class="tk-sep" aria-hidden="true"></li>`);
+  return `<div class="pl-track"><div class="eyebrow">Ejercicio ${nowN} de ${n}</div><ol class="tk-row" id="pl-track">${cells}</ol></div>`;
+}
 function stepLabel(st){ const it = itemOf(st); return `${it.ejercicio} · serie ${st.s} de ${it.series}`; }
 function spokenStep(st){ const it = itemOf(st), m = musNames(musclesOf(it).main); return `${m ? m + ". " : ""}${it.ejercicio}, serie ${st.s} de ${it.series}`; }
 function renderPlayer(){
@@ -123,6 +143,7 @@ function renderPlayer(){
     // while resting, the top of the screen already shows what comes next (the new exercise, or the next set)
     const dSt = resting && next ? next : st, dIt = itemOf(dSt), dMu = musclesOf(dIt), dCur = resting && next ? run.nextCur : cur;
     body = `<div class="pl-body center">
+      ${trackHTML(keyOf(dSt))}
       <div class="eyebrow">${esc(w.bloques[dSt.bi].nombre)} · ${resting && next ? "a continuación" : "trabajas"}</div>
       <h2 class="mus-title">${esc(musNames(dMu.main) || dIt.ejercicio)}</h2>
       <div class="pl-how">${GUIDE[dIt.ejercicio] ? `<button type="button" class="pl-fig small figbtn" data-figzoom="${esc(dIt.ejercicio)}" aria-label="Ver en grande cómo se hace ${esc(dIt.ejercicio)}">${figMarkup(dIt.ejercicio)}</button>` : ""}<div><div class="muted" style="font-size:12px">cómo</div><b>${esc(dIt.ejercicio)}</b><div class="pl-set">Serie <b>${dSt.s}</b> de ${dIt.series} · <b>${target({ ...dIt, ...(dCur && dIt.modo === "reps" ? { reps: dCur.reps, kg: dCur.kg } : {}) })}</b></div></div></div>
@@ -148,6 +169,9 @@ function renderPlayer(){
   }
   el.innerHTML = `<div class="pl-wrap">${head}${body}</div>${swapSheetHTML()}`;
   mountFigs();
+  // keep the current exercise in view in the row of rings
+  requestAnimationFrame(() => { const tr = $("#pl-track"), tn = tr && tr.querySelector(".now");
+    if (tn) tr.scrollLeft = tn.offsetLeft - (tr.clientWidth - tn.offsetWidth) / 2; });
   clearInterval(runTick); runTick = null;
   if (run.phase === "rest" || run.phase === "work" || (run.startedAt && run.phase !== "done")) runTick = setInterval(tickPlayer, 250);
 }

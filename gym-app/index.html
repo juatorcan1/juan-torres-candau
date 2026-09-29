@@ -467,6 +467,25 @@ body.playing{overflow:hidden}
 .pl-bar i{display:block;height:100%;background:var(--me);transition:width .3s}
 .pl-body{display:grid;gap:12px;align-content:start;padding-block:14px}
 .pl-body.center{justify-items:center;text-align:center}
+.pl-track{width:100%;display:grid;gap:6px}
+.tk-row{list-style:none;margin:0;padding:2px 2px 4px;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;position:relative;justify-content:safe center}
+.tk-row::-webkit-scrollbar{display:none}
+.tk{flex:0 0 auto;display:grid;justify-items:center;gap:2px;width:38px}
+.tk svg{width:34px;height:34px;display:block}
+.tk-t{fill:var(--surface);stroke:var(--line);stroke-width:3}
+.tk-v{fill:none;stroke:var(--me);stroke-width:3.5;stroke-linecap:round;transform:rotate(-90deg);transform-origin:20px 20px;transition:stroke-dashoffset .3s}
+.tk-i{fill:none;stroke:var(--muted);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.tk span{font:600 11.5px/1 var(--mono);color:var(--muted);font-variant-numeric:tabular-nums}
+.tk.full .tk-t{fill:var(--me);stroke:var(--me)}
+.tk.full .tk-i{stroke:var(--surface)}
+.tk.full span{color:var(--ink-2)}
+.tk.now svg{width:38px;height:38px;margin-top:-2px}
+.tk.now .tk-t{stroke:var(--ink-2)}
+.tk.now .tk-i{stroke:var(--ink)}
+.tk.now span{color:var(--ink);font-weight:700}
+.tk.skip .tk-t{stroke-dasharray:3 3}
+.tk.skip{opacity:.6}
+.tk-sep{flex:0 0 1px;align-self:center;height:22px;background:var(--line);margin-inline:2px}
 .pl-goal{margin:0;font-size:15px;color:var(--ink-2)}
 .pl-block{display:grid;gap:8px}
 .pl-item{display:grid;grid-template-columns:64px minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px;border-radius:9px;background:var(--surface);border:1px solid var(--line-2)}
@@ -3203,6 +3222,26 @@ const target = it => it.modo === "reps" ? `${it.reps} reps${it.kg ? ` × ${fmt(i
 const mmssS = s => { const t = Math.max(0, Math.ceil(s)); return `${Math.floor(t / 60)}:${pad(t % 60)}`; };
 
 /* rendering */
+/* the whole workout as a row of small rings, one per exercise, that fill up set by set: 2/3 means
+   two of its three sets done, so you can see at a glance how much is left */
+const TRACK_ICO = {
+  reps: `<path d="M5 9v6M8 7v10M16 7v10M19 9v6M8 12h8"/>`,
+  tiempo: `<circle cx="12" cy="13" r="6.5"/><path d="M12 13V9.5M10 4h4"/>`,
+  distancia: `<path d="M4 10q2-2.5 4 0t4 0 4 0 4 0M4 15.5q2-2.5 4 0t4 0 4 0 4 0"/>`
+};
+function trackHTML(nowKey){
+  const w = run.w, C = 106.8; let n = 0, nowN = 0;
+  const cells = w.bloques.map((b, bi) => b.items.map((it, ii) => {
+    const k = bi + "." + ii, done = Math.min((run.log[k] || []).length, it.series), now = k === nowKey; n++; if (now) nowN = n;
+    // an exercise already behind you with sets missing was skipped (or cut short)
+    const past = !now && run.steps.findIndex(s => keyOf(s) === k) < run.i && done < it.series;
+    const cls = now ? "now" : done >= it.series ? "full" : past ? "skip" : "";
+    return `<li class="tk ${cls}" ${now ? 'aria-current="step"' : ""} aria-label="${esc(it.ejercicio)}: ${done} de ${it.series} series${past ? ", saltado" : ""}">
+      <svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="17" class="tk-t"/><circle cx="20" cy="20" r="17" class="tk-v" style="stroke-dasharray:${C};stroke-dashoffset:${C * (1 - done / (it.series || 1))}"/><g transform="translate(8 8)" class="tk-i">${TRACK_ICO[it.modo] || TRACK_ICO.reps}</g></svg>
+      <span>${done}/${it.series}</span></li>`;
+  }).join("")).join(`<li class="tk-sep" aria-hidden="true"></li>`);
+  return `<div class="pl-track"><div class="eyebrow">Ejercicio ${nowN} de ${n}</div><ol class="tk-row" id="pl-track">${cells}</ol></div>`;
+}
 function stepLabel(st){ const it = itemOf(st); return `${it.ejercicio} · serie ${st.s} de ${it.series}`; }
 function spokenStep(st){ const it = itemOf(st), m = musNames(musclesOf(it).main); return `${m ? m + ". " : ""}${it.ejercicio}, serie ${st.s} de ${it.series}`; }
 function renderPlayer(){
@@ -3243,6 +3282,7 @@ function renderPlayer(){
     // while resting, the top of the screen already shows what comes next (the new exercise, or the next set)
     const dSt = resting && next ? next : st, dIt = itemOf(dSt), dMu = musclesOf(dIt), dCur = resting && next ? run.nextCur : cur;
     body = `<div class="pl-body center">
+      ${trackHTML(keyOf(dSt))}
       <div class="eyebrow">${esc(w.bloques[dSt.bi].nombre)} · ${resting && next ? "a continuación" : "trabajas"}</div>
       <h2 class="mus-title">${esc(musNames(dMu.main) || dIt.ejercicio)}</h2>
       <div class="pl-how">${GUIDE[dIt.ejercicio] ? `<button type="button" class="pl-fig small figbtn" data-figzoom="${esc(dIt.ejercicio)}" aria-label="Ver en grande cómo se hace ${esc(dIt.ejercicio)}">${figMarkup(dIt.ejercicio)}</button>` : ""}<div><div class="muted" style="font-size:12px">cómo</div><b>${esc(dIt.ejercicio)}</b><div class="pl-set">Serie <b>${dSt.s}</b> de ${dIt.series} · <b>${target({ ...dIt, ...(dCur && dIt.modo === "reps" ? { reps: dCur.reps, kg: dCur.kg } : {}) })}</b></div></div></div>
@@ -3268,6 +3308,9 @@ function renderPlayer(){
   }
   el.innerHTML = `<div class="pl-wrap">${head}${body}</div>${swapSheetHTML()}`;
   mountFigs();
+  // keep the current exercise in view in the row of rings
+  requestAnimationFrame(() => { const tr = $("#pl-track"), tn = tr && tr.querySelector(".now");
+    if (tn) tr.scrollLeft = tn.offsetLeft - (tr.clientWidth - tn.offsetWidth) / 2; });
   clearInterval(runTick); runTick = null;
   if (run.phase === "rest" || run.phase === "work" || (run.startedAt && run.phase !== "done")) runTick = setInterval(tickPlayer, 250);
 }

@@ -461,6 +461,25 @@ body.playing{overflow:hidden}
 .pl-bar i{display:block;height:100%;background:var(--me);transition:width .3s}
 .pl-body{display:grid;gap:12px;align-content:start;padding-block:14px}
 .pl-body.center{justify-items:center;text-align:center}
+.pl-track{width:100%;display:grid;gap:6px}
+.tk-row{list-style:none;margin:0;padding:2px 2px 4px;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;position:relative;justify-content:safe center}
+.tk-row::-webkit-scrollbar{display:none}
+.tk{flex:0 0 auto;display:grid;justify-items:center;gap:2px;width:38px}
+.tk svg{width:34px;height:34px;display:block}
+.tk-t{fill:var(--surface);stroke:var(--line);stroke-width:3}
+.tk-v{fill:none;stroke:var(--me);stroke-width:3.5;stroke-linecap:round;transform:rotate(-90deg);transform-origin:20px 20px;transition:stroke-dashoffset .3s}
+.tk-i{fill:none;stroke:var(--muted);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.tk span{font:600 11.5px/1 var(--mono);color:var(--muted);font-variant-numeric:tabular-nums}
+.tk.full .tk-t{fill:var(--me);stroke:var(--me)}
+.tk.full .tk-i{stroke:var(--surface)}
+.tk.full span{color:var(--ink-2)}
+.tk.now svg{width:38px;height:38px;margin-top:-2px}
+.tk.now .tk-t{stroke:var(--ink-2)}
+.tk.now .tk-i{stroke:var(--ink)}
+.tk.now span{color:var(--ink);font-weight:700}
+.tk.skip .tk-t{stroke-dasharray:3 3}
+.tk.skip{opacity:.6}
+.tk-sep{flex:0 0 1px;align-self:center;height:22px;background:var(--line);margin-inline:2px}
 .pl-goal{margin:0;font-size:15px;color:var(--ink-2)}
 .pl-block{display:grid;gap:8px}
 .pl-item{display:grid;grid-template-columns:64px minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px;border-radius:9px;background:var(--surface);border:1px solid var(--line-2)}

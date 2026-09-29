@@ -478,7 +478,13 @@ body.playing{overflow:hidden}
 .stepper > span{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
 .stepper > div{display:flex;align-items:center;gap:6px}
 .stepper button{width:48px;height:48px;border-radius:12px;border:1px solid var(--line);background:var(--surface);font-size:24px;font-weight:700;cursor:pointer}
-.stepper output{min-width:64px;font-family:var(--display);font-weight:800;font-size:34px;text-align:center}
+.stepper output,.stepper .stepin{width:84px;min-width:64px;font-family:var(--display);font-weight:800;font-size:34px;text-align:center;border:0;border-bottom:2px dashed var(--line);background:transparent;color:var(--ink);padding:0;border-radius:0}
+.stepper .stepin:focus{outline:none;border-bottom-color:var(--me)}
+.steppers.sm .stepper button{width:40px;height:40px;font-size:20px}
+.steppers.sm .stepin{font-size:26px;width:72px}
+.pl-edit{display:grid;gap:6px;justify-items:center;padding:10px 12px;border-radius:12px;background:var(--surface);border:1px solid var(--line-2);width:100%;max-width:420px}
+.pl-edit summary{cursor:pointer;font-size:14px;color:var(--ink-2)}
+details.pl-edit[open] summary{margin-bottom:6px}
 .ring{position:relative;width:min(64vw,240px);aspect-ratio:1}
 .ring svg{width:100%;height:100%;transform:rotate(-90deg)}
 .ring .rt{fill:none;stroke:var(--line-2);stroke-width:9}
@@ -582,3 +588,8 @@ body.playing{overflow:hidden}
 .day-verdict{display:grid;gap:6px;margin-top:6px}
 .day-verdict:empty{display:none}
 .day-verdict .btn{justify-self:start}
+.ring.rest{width:min(46vw,180px)}
+.ring.rest .ring-txt span{font-size:44px}
+.steppers.sm{gap:10px;flex-wrap:nowrap}
+.steppers.sm .stepper > div{gap:4px}
+.steppers.sm .stepin{width:60px}

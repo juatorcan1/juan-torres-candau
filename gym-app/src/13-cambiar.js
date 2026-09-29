@@ -72,6 +72,8 @@ function applySwap(bi, ii, item){
   if (done) { const at = run.steps.findIndex(s => s.bi === bi && s.ii === ii && s.s === done); run.i = run.phase === "rest" ? at : at + 1; }
   const st = run.steps[run.i];
   if (run.phase === "set" && st && st.bi === bi && st.ii === (done ? ii + 1 : ii)) { const it = itemOf(st); run.cur = { reps: it.reps, kg: it.kg, secs: it.segundos, meters: it.metros }; }
+  // resting before the swapped exercise: the next set's numbers are the new exercise's
+  if (run.phase === "rest") { const n = run.steps[run.i + 1]; if (n && (n.bi === bi && n.ii === (done ? ii + 1 : ii))) { const ni = itemOf(n); run.nextCur = { reps: ni.reps, kg: ni.kg, meters: ni.metros }; } }
 }
 
 /* the sheet */

@@ -107,14 +107,12 @@ function renderPlayer(){
       ${resting || working ? `<div class="ring ${resting ? "rest" : "work"}">
           <svg viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="52" class="rt"/><circle cx="60" cy="60" r="52" class="rv" id="pl-ring" style="stroke-dasharray:326.7;stroke-dashoffset:${326.7 * (1 - Math.max(0, secsLeft) / span)}"/></svg>
           <div class="ring-txt"><span id="pl-count">${mmssS(secsLeft)}</span><small>${paused ? "en pausa" : resting ? "descanso" : "¡dale!"}</small></div></div>
-          ${resting ? `<div class="pl-next">${newEx ? "Prepara la máquina para" : "Siguiente"}: <b>${next ? esc(musNames(musclesOf(itemOf(next)).main) || itemOf(next).ejercicio) + " · " + esc(stepLabel(next)) : "terminar"}</b></div>` : ""}`
+          ${resting ? `<div class="pl-next">${newEx ? "Prepara la máquina para" : "Siguiente"}: <b>${next ? esc(musNames(musclesOf(itemOf(next)).main) || itemOf(next).ejercicio) + " · " + esc(stepLabel(next)) : "terminar"}</b></div>${restEdit(st, next)}` : ""}`
         : `<div class="pl-map">${bodyMap(levelsFor([mu]))}</div>
           ${it.indicacion ? `<div class="pl-cue">${esc(it.indicacion)}</div>` : ""}
           ${it.reto ? `<div class="reto big">${esc(it.reto)}</div>` : ""}
           ${mine || his ? `<div class="pl-best">${mine ? `<span><i class="dot ${me}"></i> Tu mejor: <b>${fmt(mine.kg, 2)} kg × ${mine.reps}</b></span>` : ""}${his ? `<span><i class="dot ${OTHER[me]}"></i> ${ATH[OTHER[me]]}: <b>${fmt(his.kg, 2)} kg × ${his.reps}</b></span>` : ""}</div>` : ""}
-          ${it.modo === "reps" ? `<div class="steppers">
-              ${stepper("reps", "Reps", cur.reps, 1)}${stepper("kg", "Kg", cur.kg, 2.5)}</div>`
-            : it.modo === "distancia" ? `<div class="steppers">${stepper("meters", "Metros", cur.meters, 25)}</div>` : ""}`}
+          ${steppersFor(it, cur, "cur")}`}
     </div>
     <div class="pl-foot">
       ${resting ? `<button type="button" class="btn ${paused ? "primary" : ""}" data-pl="pause">${paused ? "▶ Seguir" : "❚❚ Pausar"}</button><button type="button" class="btn primary big" data-pl="skip">${newEx ? "Estoy listo" : "Saltar descanso"}</button>`
@@ -130,8 +128,26 @@ function renderPlayer(){
   if (run.phase === "rest" || run.phase === "work" || (run.startedAt && run.phase !== "done")) runTick = setInterval(tickPlayer, 250);
 }
 function renderPlayerSoft(){ if (run && run.phase === "done") renderPlayer(); }
-function stepper(k, label, v, stepv){
-  return `<div class="stepper"><span>${label}</span><div><button type="button" data-step="${k}" data-d="${-stepv}" aria-label="Menos ${label}">−</button><output id="pl-${k}">${fmt(num(v), 2)}</output><button type="button" data-step="${k}" data-d="${stepv}" aria-label="Más ${label}">+</button></div></div>`;
+// the number can be tapped and typed, or moved with − / +; tgt says what it edits:
+// "cur" the set on screen, "next" the next set (during the rest), "last" the set just done
+function stepper(k, label, v, stepv, tgt = "cur"){
+  return `<div class="stepper"><span>${label}</span><div><button type="button" data-step="${k}" data-tgt="${tgt}" data-d="${-stepv}" aria-label="Menos ${label}">−</button><input class="stepin" id="pl-${tgt}-${k}" data-stepin="${k}" data-tgt="${tgt}" type="text" inputmode="decimal" value="${fmt(num(v), 2)}" aria-label="${label}"><button type="button" data-step="${k}" data-tgt="${tgt}" data-d="${stepv}" aria-label="Más ${label}">+</button></div></div>`;
+}
+function steppersFor(it, v, tgt, cls = ""){
+  if (!v) return "";
+  return it.modo === "reps" ? `<div class="steppers ${cls}">${stepper("reps", "Reps", v.reps, 1, tgt)}${stepper("kg", "Kg", v.kg, 2.5, tgt)}</div>`
+    : it.modo === "distancia" ? `<div class="steppers ${cls}">${stepper("meters", "Metros", v.meters, 25, tgt)}</div>` : "";
+}
+const lastSum = (it, l) => it.modo === "reps" ? `${fmt(l.reps)} reps${l.kg ? " × " + fmt(l.kg, 2) + " kg" : ""}` : fmt(l.meters) + " m";
+function refreshLastSum(){ const el = $("#pl-last-sum"), l = lastLog(); if (el && l) el.textContent = lastSum(itemOf(run.steps[run.i]), l); }
+const lastLog = () => { const st = run.steps[run.i], l = st && run.log[keyOf(st)]; return l && l.length ? l[l.length - 1] : null; };
+const stepTarget = tgt => tgt === "next" ? run.nextCur : tgt === "last" ? lastLog() : run.cur;
+// during the rest: fix what you just did, and set the weight for the next set
+function restEdit(st, next){
+  const it = itemOf(st), last = lastLog(), ni = next && itemOf(next);
+  const fixLast = it.modo !== "tiempo" && last ? `<details class="pl-edit"><summary>Acabas de hacer <b id="pl-last-sum">${lastSum(it, last)}</b> · corregir</summary>${steppersFor(it, last, "last", "sm")}</details>` : "";
+  const setNext = ni && ni.modo !== "tiempo" && run.nextCur ? `<div class="pl-edit"><div class="eyebrow">Siguiente serie${keyOf(next) !== keyOf(st) ? ` · ${esc(ni.ejercicio)}` : ""}</div>${steppersFor(ni, run.nextCur, "next", "sm")}</div>` : "";
+  return setNext + fixLast;
 }
 function tickPlayer(){
   if (!run) return;
@@ -153,6 +169,8 @@ function logSet(){
   const next = run.steps[run.i + 1];
   if (!next) { finishRun(); return; }
   run.pausedLeft = null;
+  const ni = itemOf(next);
+  run.nextCur = keyOf(next) === keyOf(st) ? { reps: num(c.reps), kg: num(c.kg), meters: c.meters } : { reps: ni.reps, kg: ni.kg, meters: ni.metros };
   if (it.descanso_s > 0) { run.phase = "rest"; run.until = Date.now() + it.descanso_s * 1000; say(`Descanso. Siguiente: ${spokenStep(next)}`); }
   else advance();
   saveRun(); renderPlayer();
@@ -162,8 +180,9 @@ function advance(){
   const prev = run.steps[run.i]; run.i++; run.until = null; run.pausedLeft = null;
   const st = run.steps[run.i]; if (!st) { finishRun(); return; }
   const it = itemOf(st), same = prev && keyOf(prev) === keyOf(st);
-  const last = same ? run.cur : null;
-  run.cur = { reps: last ? last.reps : it.reps, kg: last ? last.kg : it.kg, secs: it.segundos, meters: last ? last.meters : it.metros };
+  const last = run.nextCur || (same ? run.cur : null);
+  run.cur = { reps: last ? last.reps : it.reps, kg: last ? last.kg : it.kg, secs: it.segundos, meters: last && last.meters != null ? last.meters : it.metros };
+  run.nextCur = null;
   run.phase = "set";
 }
 function finishRun(){ run.phase = "done"; run.until = null; run.endedAt = Date.now(); say("Entreno terminado. ¡Buen trabajo!"); saveRun(); renderPlayer(); }
@@ -225,8 +244,9 @@ document.addEventListener("click", e => {
   const t = e.target.closest("#player button"); if (!t || !run) return;
   const a = t.dataset.pl;
   if (t.dataset.step) {
-    const k = t.dataset.step; run.cur[k] = Math.max(0, Math.round((num(run.cur[k]) + num(t.dataset.d)) * 100) / 100);
-    const o = $("#pl-" + k); if (o) o.textContent = fmt(run.cur[k], 2); saveRun(); return;
+    const k = t.dataset.step, tgt = t.dataset.tgt || "cur", obj = stepTarget(tgt); if (!obj) return;
+    obj[k] = Math.max(0, Math.round((num(obj[k]) + num(t.dataset.d)) * 100) / 100);
+    const o = $(`#pl-${tgt}-${k}`); if (o) o.value = fmt(obj[k], 2); if (tgt === "last") refreshLastSum(); saveRun(); return;
   }
   if (t.dataset.rpe) { run.rpe = +t.dataset.rpe; saveRun(); renderPlayer(); return; }
   if (a === "close") { if (run.phase === "preview") closePlayer(true); else { closePlayer(false); toast("Entreno en pausa: lo retomas desde Hoy"); } }
@@ -241,10 +261,15 @@ document.addEventListener("click", e => {
     saveRun(); renderPlayer();
   }
   else if (a === "skip") endRest();
-  else if (a === "skipex") { const k = keyOf(run.steps[run.i]); while (run.steps[run.i] && keyOf(run.steps[run.i]) === k) run.i++; run.i--; advance(); saveRun(); renderPlayer(); }
+  else if (a === "skipex") { run.nextCur = null; const k = keyOf(run.steps[run.i]); while (run.steps[run.i] && keyOf(run.steps[run.i]) === k) run.i++; run.i--; advance(); saveRun(); renderPlayer(); }
   else if (a === "finish") finishRun();
   else if (a === "save") saveRunSession();
   else if (a === "discard") closePlayer(true);
 });
 function advanceFromStart(){ run.i = -1; advance(); }
-document.addEventListener("input", e => { if (e.target.id === "pl-km" && run) { run.extra = e.target.value; saveRun(); } });
+document.addEventListener("input", e => {
+  if (!run) return;
+  if (e.target.id === "pl-km") { run.extra = e.target.value; saveRun(); }
+  else if (e.target.dataset && e.target.dataset.stepin) { const obj = stepTarget(e.target.dataset.tgt); if (obj) { obj[e.target.dataset.stepin] = Math.max(0, num(e.target.value)); if (e.target.dataset.tgt === "last") refreshLastSum(); saveRun(); } }
+});
+document.addEventListener("focusin", e => { if (e.target.classList && e.target.classList.contains("stepin")) e.target.select(); });

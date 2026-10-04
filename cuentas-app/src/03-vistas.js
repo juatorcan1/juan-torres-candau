@@ -208,9 +208,18 @@ function renderMovs(){
   h += `<div class="panel">`;
   if (!list.length) h += `<p class="empty">${MOVS.length ? "No hay nada con estos filtros." : "Aún no hay nada apuntado. Escanea un ticket o importa el extracto del banco."}</p>`;
   else {
-    let day = "", dayTot = 0, buf = "";
+    // cada mes empieza con una franja con su nombre y lo que salió y entró ese mes (con los filtros puestos)
+    const porMes = {};
+    for (const m of list) { const k = m.fecha.slice(0, 7), t = porMes[k] ||= { g: 0, i: 0 }; if (m.tipo === "gasto") t.g += num(m.total); else if (m.tipo === "ingreso") t.i += num(m.total); }
+    let day = "", dayTot = 0, buf = "", mes = "";
     const flush = () => { if (day) h += `<div class="day"><h3><span>${longDate(day)}</span><span class="num">${dayTot ? (dayTot < 0 ? "−" : "+") + eur(Math.abs(dayTot)) : ""}</span></h3>${buf}</div>`; };
     for (const m of list.slice(0, mf.limit)) {
+      if (m.fecha.slice(0, 7) !== mes) {
+        flush(); day = "";
+        mes = m.fecha.slice(0, 7);
+        const t = porMes[mes], d = parseISO(m.fecha + "");
+        h += `<div class="mes-band"><b>${cap(MESL[d.getMonth()])}${d.getFullYear() !== Y ? " " + d.getFullYear() : ""}</b><span class="num">${t.g ? "−" + eur(t.g) : ""}${t.g && t.i ? " · " : ""}${t.i ? "+" + eur(t.i) : ""}</span></div>`;
+      }
       if (m.fecha !== day) { flush(); day = m.fecha; dayTot = 0; buf = ""; }
       dayTot += m.tipo === "gasto" ? -num(m.total) : m.tipo === "ingreso" ? num(m.total) : 0;
       buf += movRow(m);

@@ -38,6 +38,12 @@ persona paga algo por ti (p. ej. la cuenta del bar), queda en negativo y aparece
   - `cuentas_claude_uso`: llamadas a la IA por día (tope de 150).
 - La IA (tickets, dictado, extractos y preguntas) pasa por la Edge Function `supabase/functions/cuentas-claude`,
   con la misma clave de Anthropic que el gimnasio.
+- **Tickets en Google Drive**, como en Senda: cada ticket que se guarda se archiva también en
+  `G:\Mi unidad\02 - JUAN\04 - FACTURAS\01 Tickets\<año>\<Nº TRIMESTRE>` en PDF (las fotos se pasan a PDF) y
+  con el nombre de Senda `AAAAMMDD_PROVEEDOR_IMPORTE€_NUMERO.pdf` (las reglas de `factura_nombre.py`). Lo hace la
+  Edge Function `supabase/functions/cuentas-drive`, con el mismo permiso de Google que la Tía Senda: secretos
+  `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET` y `GOOGLE_OAUTH_REFRESH_TOKEN` en las Edge Functions de
+  Supabase. En Dinero → «Tickets en Drive» se ve cuántos están subidos y se suben los que falten.
 - Tricount se lee con la Edge Function `supabase/functions/cuentas-tricount`, que usa la API **no oficial**
   de la app de Tricount (api.tricount.bunq.com): sólo pide (GET) cada tricount por la clave de su enlace,
   nunca se une a él ni escribe. bunq la puede cambiar o cerrar. Los enlaces se guardan en `config/tricount`;

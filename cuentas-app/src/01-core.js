@@ -143,7 +143,8 @@ function accOptions(sel, withNone){
 }
 
 /* ================= movimientos ================= */
-// Un movimiento: {id, fecha, tipo gasto|ingreso|traspaso, cuenta, destino, comercio, nota, total, lineas[{concepto,cat,importe}], origen, ticket, revisar, creado, banco}
+// Un movimiento: {id, fecha, tipo gasto|ingreso|traspaso, cuenta, destino, comercio, nota, total, lineas[{concepto,cat,importe}], origen, ticket, revisar, creado, banco,
+//   factura {proveedor, cif, numero} (lo que lee la IA para el nombre en Drive), drive {fileId, nombre, ruta, enlace} (si ya está en Drive)}
 function cleanMov(m){
   const tipo = ["gasto","ingreso","traspaso"].includes(m.tipo) ? m.tipo : "gasto";
   const lineas = tipo === "traspaso" ? [] : (m.lineas || []).filter(l => l && (num(l.importe) || l.concepto)).map(l => ({ concepto: String(l.concepto || "").slice(0, 120), cat: l.cat || "", importe: r2(num(l.importe)) }));
@@ -151,7 +152,8 @@ function cleanMov(m){
     id: m.id || uid(), fecha: m.fecha, tipo, cuenta: m.cuenta || "", destino: tipo === "traspaso" ? (m.destino || "") : "",
     comercio: String(m.comercio || "").slice(0, 80), nota: String(m.nota || "").slice(0, 400),
     total: r2(Math.abs(num(m.total))), lineas, origen: m.origen || "mano", ticket: m.ticket || null,
-    revisar: !!m.revisar, creado: m.creado || Date.now(), banco: m.banco || null, deuda: m.deuda || null
+    revisar: !!m.revisar, creado: m.creado || Date.now(), banco: m.banco || null, deuda: m.deuda || null,
+    factura: m.factura || null, drive: m.drive || null
   };
 }
 function rebuild(){

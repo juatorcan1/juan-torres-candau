@@ -103,6 +103,7 @@ document.addEventListener("click", async e => {
   if (ds.dsub) { dSub = ds.dsub; store.set("cj.dsub", dSub); return renderView(); }
   if (t.id === "acc-new") { accForm = { tipo: "banco", nombre: "", entidad: "", saldo: "", habitual: !(cfg.cuentas || []).some(c => c.tipo === "banco") }; renderView(); const n = $("#af-nombre"); if (n) n.scrollIntoView({ block: "center" }); return; }
   if (t.id === "bk-csv") return copiaCSV();
+  if (t.id === "drive-all") return driveTodos();
   if (t.id === "bk-json") return copiaJSON();
   if (t.id === "debt-new") { accForm = { tipo: "prestamo", nombre: "", entidad: "", saldo: "" }; cuotaForm = null; renderView(); const n = $("#af-nombre"); if (n) n.scrollIntoView({ block: "center" }); return; }
   if (ds.cuota) {
@@ -244,6 +245,7 @@ renderHeader();
   use("sample").then(async s => { sample = s; if (s) imgCaps = await s.limits().catch(() => null); if (!typing()) renderView(); });
   use("assets").then(a => { assets = a; });
   use("tricount").then(t => { tcApi = t; if (t && tab === "medias") renderView(); });
+  use("drive").then(d => { driveApi = d; if (d && tab === "dinero") renderView(); });
   db = await use("db");
   if (!db) { dbState = "none"; renderAll(); return; }
   const got = new Set();

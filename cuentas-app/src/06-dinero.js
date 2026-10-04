@@ -49,10 +49,37 @@ function cuentasHTML(){
   h += `</div></div>`;
   h += deudasHTML(ds, iso, phase);
   h += deudoresHTML(ls, iso, phase);
+  if (WEB) h += driveHTML();
   if (WEB) h += `<div class="panel"><div class="panel-head"><div><h2>Copia de seguridad</h2><p>Todo lo tuyo en un fichero, por si algún día falla algo. La de Excel se abre con cualquier programa; la completa sirve para volver a cargarlo todo.</p></div></div>
     <div class="row"><button class="btn" id="bk-csv">Descargar en Excel</button><button class="btn" id="bk-json">Descargar la copia completa</button></div></div>`;
   return h;
 }
+// Tickets en Drive: cuántos están archivados y subir los que faltan (los de antes, o los que fallaron)
+let driveBusy = null;    // {hechos, total, fallos}
+function driveHTML(){
+  const con = MOVS.filter(m => m.ticket), faltan = con.filter(m => !m.drive);
+  let h = `<div class="panel"><div class="panel-head"><div><h2>Tickets en Drive</h2><p>Cada ticket que guardas se archiva también en tu Drive, como en Senda: <b>02 - JUAN / 04 - FACTURAS / 01 Tickets / año / trimestre</b>, en PDF y con el nombre <span class="num">AAAAMMDD_PROVEEDOR_IMPORTE€_NUMERO</span>.</p></div></div>`;
+  h += `<p class="small" style="margin:0">${con.length ? `${con.length - faltan.length} de ${con.length} tickets están en Drive.` : "Todavía no hay tickets guardados."}</p>`;
+  if (driveBusy) h += `<p class="small" style="margin:6px 0 0"><span class="spin"></span> Subiendo ${driveBusy.hechos} de ${driveBusy.total}…${driveBusy.fallos ? ` (${driveBusy.fallos} sin subir)` : ""}</p>`;
+  else if (faltan.length) h += `<div class="row" style="margin-top:8px"><button class="btn" id="drive-all"${driveApi ? "" : " disabled"}>${faltan.length === 1 ? "Subir el que falta" : `Subir los ${faltan.length} que faltan`}</button></div>`;
+  if (driveErr) h += `<p class="err" style="margin:8px 0 0">${esc(driveErr)}</p>`;
+  return h + `</div>`;
+}
+async function driveTodos(){
+  const faltan = MOVS.filter(m => m.ticket && !m.drive).slice().reverse();
+  if (!faltan.length || driveBusy) return;
+  driveBusy = { hechos: 0, total: faltan.length, fallos: 0 }; renderView();
+  for (const m of faltan) {
+    const ok = await driveUp(m, null, true);
+    driveBusy.hechos++; if (!ok) driveBusy.fallos++;
+    if (!ok && /permiso/.test(driveErr)) break;      // sin permiso no sale ninguno: para y avisa
+    if (tab === "dinero" && !typing()) renderView();
+  }
+  const r = driveBusy; driveBusy = null;
+  toast(r.fallos ? `Subidos ${r.hechos - r.fallos}; ${r.fallos} no han podido subir` : `Subidos ${r.hechos} tickets a Drive`);
+  renderView();
+}
+
 // Copia de seguridad (sólo en la web: dentro de Claude no se pueden bajar ficheros)
 function bajar(nombre, tipo, texto){
   const a = document.createElement("a");

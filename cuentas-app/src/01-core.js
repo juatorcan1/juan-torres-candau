@@ -271,11 +271,14 @@ function forecast(y){
   const firstPrev = phase === "pasado" ? 12 : phase === "futuro" ? 0 : NOW.getMonth();
   const curMo = phase === "actual" ? NOW.getMonth() : -1;
 
-  // meses de referencia para la media: los 3 anteriores al mes en curso que tengan algo apuntado
+  // meses de referencia para la media: los 3 anteriores al mes en curso, desde que empezaste a apuntar.
+  // Un mes sin nada apuntado (desde entonces) cuenta como un mes sin ese gasto: así una compra suelta
+  // (unos cartuchos en agosto) no se repite como si fuera de todos los meses.
   const ref = phase === "actual" ? new Date(y, NOW.getMonth(), 1) : new Date(CUR_Y, NOW.getMonth(), 1);
   const back = [];
   for (let k = 1; k <= 3; k++) { const d = new Date(ref.getFullYear(), ref.getMonth() - k, 1); back.push([d.getFullYear(), d.getMonth()]); }
-  const withData = back.filter(([yy, mo]) => yearStats(yy).gas[mo] > 0 || yearStats(yy).ing[mo] > 0);
+  const primero = MOVS.length ? MOVS[MOVS.length - 1].fecha.slice(0, 7) : null;
+  const withData = primero ? back.filter(([yy, mo]) => `${yy}-${pad(mo + 1)}` >= primero) : [];
   const varBase = withData.length ? `la media de ${withData.length === 1 ? "el último mes" : "los últimos " + withData.length + " meses"}` : (phase === "actual" ? "lo que llevas este mes, estirado al mes entero" : "");
 
   const ing = st.ing.slice(), gas = st.gas.slice();

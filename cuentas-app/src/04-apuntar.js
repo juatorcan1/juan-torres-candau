@@ -72,6 +72,8 @@ function draftToMov(d){
     if (!d.cuenta || !d.destino) return { err: "Di de qué cuenta sale y a cuál va." };
     if (d.cuenta === d.destino) return { err: "La cuenta de salida y la de llegada son la misma." };
   }
+  // una categoría que no existe (o de otro tipo) no se guarda: la línea queda «sin categoría» y por revisar
+  for (const l of lineas) if (l.cat && !(CATIDX[l.cat] && CATIDX[l.cat].tipo === d.tipo)) l.cat = "";
   const m = cleanMov({ ...d, total, lineas: lineas.filter(l => l.importe || l.concepto || l.cat) });
   if (m.tipo !== "traspaso") {
     const s = linesSum(m);

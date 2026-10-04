@@ -113,6 +113,24 @@ document.addEventListener("click", async e => {
     return renderView();
   }
   if (ds.cuotacancel) { cuotaForm = null; return renderView(); }
+  if (t.id === "lend-new") { lendForm = { nombre: "", importe: "", desde: "", fecha: toISO(NOW) }; lendMov = null; renderView(); const n = $("#lf-nombre"); if (n) { n.scrollIntoView({ block: "center" }); n.focus(); } return; }
+  if (ds.lendedit) { const c = cuenta(ds.lendedit); if (c) { lendForm = { ...c, importe: String(teDebe(c, toISO(NOW))) }; lendMov = null; renderView(); const n = $("#lf-nombre"); if (n) n.scrollIntoView({ block: "center" }); } return; }
+  if (t.id === "lf-save") return saveLendForm();
+  if (t.id === "lf-cancel") { lendForm = null; return renderView(); }
+  if (t.id === "lf-perdido") { if (!lendForm.confirmPerdido) { readLendForm(); lendForm.confirmPerdido = true; return renderView(); } t.disabled = true; return lendPerdido(); }
+  if (t.id === "lf-del") {
+    if (!lendForm.confirmDel) { readLendForm(); lendForm.confirmDel = true; return renderView(); }
+    const list = (cfg.cuentas || []).map(c => c.id === lendForm.id ? { ...c, borrada: true } : c);
+    try { await saveCfg("cuentas", { items: list }); lendForm = null; toast("Deudor quitado. Sus movimientos se quedan."); renderView(); } catch (err) { $("#lf-err").textContent = saveErr(err); }
+    return;
+  }
+  if (ds.lenddev || ds.lendmore) {
+    const c = cuenta(ds.lenddev || ds.lendmore); if (!c) return;
+    lendMov = { id: c.id, tipo: ds.lenddev ? "devuelve" : "presta", fecha: toISO(NOW), importe: ds.lenddev ? teDebe(c, toISO(NOW)) : "", cuenta: defaultAccount() }; lendForm = null;
+    renderView(); const i = $("#lm-imp"); if (i) { i.focus(); i.select(); } return;
+  }
+  if (ds.lmcancel) { lendMov = null; return renderView(); }
+  if (ds.lmsave) return saveLendMov(ds.lmsave);
   if (ds.cuotasave) return saveCuota(ds.cuotasave);
   if (ds.acctipo) { readAccForm(); accForm.tipo = ds.acctipo; return renderView(); }
   if (ds.accbank) { readAccForm(); if (!accForm.nombre || accForm.nombre === accForm.entidad) accForm.nombre = ds.accbank; accForm.entidad = ds.accbank; return renderView(); }

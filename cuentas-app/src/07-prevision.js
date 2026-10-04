@@ -123,6 +123,7 @@ function loQueVieneHTML(){
     for (const r of f.recs) if (recHits(r, mo)) items.push({ n: r.nombre, v: (r.tipo === "ingreso" ? 1 : -1) * num(r.importe), ok: k === 0 && hecho(r), t: r.tipo === "ingreso" ? "Entra" : "Sale" });
     for (const c of cuentas()) {
       if (c.tipo === "prestamo" && num(c.cuota) > 0 && c.ancla && debe(c, toISO(NOW)) > 0.005 && !(c.termina && d > parseISO(c.termina))) items.push({ n: "Cuota de " + c.nombre, v: -num(c.cuota), ok: k === 0 && cuotaPagada(c, y, mo), t: "Cuota" });
+      if (LENT(c.tipo) && c.vence && c.vence.startsWith(key) && teDebe(c, toISO(NOW)) > 0.005) items.push({ n: c.nombre + " te devuelve", v: 0, info: `dijo que el ${shortDate(c.vence)}: te debe ${eur(teDebe(c, toISO(NOW)))}`, t: "Te deben" });
       if (c.tipo === "deposito" && c.vence && c.vence.startsWith(key)) items.push({ n: "Vence " + c.nombre, v: 0, info: `el ${shortDate(c.vence)}: ${eur(saldo(c, toISO(NOW)))} vuelven a estar libres`, t: "Vence" });
     }
     for (let yy = CUR_Y; yy <= y; yy++) for (const o of anio(yy).objetivos) if (!o.hecho && o.fecha && o.fecha.startsWith(key)) items.push({ n: "Objetivo: " + o.nombre, v: 0, info: `para el ${shortDate(o.fecha)}: ${eur(o.importe)} (te faltan ${eur(Math.max(0, num(o.importe) - goalSaved(o)))})`, t: "Objetivo" });

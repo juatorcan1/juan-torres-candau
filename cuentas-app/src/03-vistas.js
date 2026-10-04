@@ -10,8 +10,9 @@ const ICON = {
   hoja: `<svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6zM14 3v5h5M9 12h7M9 16h7"/></svg>`
 };
 const liquidNow = () => sum(cuentas().filter(c => LIQUID(c.tipo)).map(c => saldo(c, toISO(NOW))));
-const totalAt = iso => sum(cuentas().filter(c => !DEBT(c.tipo)).map(c => saldo(c, iso)));
+const totalAt = iso => sum(cuentas().filter(c => !DEBT(c.tipo) && !LENT(c.tipo)).map(c => saldo(c, iso)));
 const deudaAt = iso => sum(cuentas().filter(c => DEBT(c.tipo)).map(c => debe(c, iso)));
+const teDebenAt = iso => sum(cuentas().filter(c => LENT(c.tipo)).map(c => teDebe(c, iso)));
 
 function renderAnio(){
   const el = $("#v-anio");
@@ -31,11 +32,12 @@ function renderAnio(){
   const colchon = gastoMes > 0 && phase !== "futuro" ? liquidNow() / gastoMes : null;
   const ah = st.I - st.G;
   const deuda = phase === "futuro" ? 0 : deudaAt(refIso);
+  const teDeben = phase === "futuro" ? 0 : teDebenAt(refIso);
   h += `<div class="tiles">
     <div class="tile"><span class="l"><span class="sw" style="background:var(--ing)"></span>Ha entrado</span><span class="v">${eur(st.I)}</span><span class="s">${phase === "pasado" ? "en todo el año" : "a fin de año: " + eur(f.I)}</span></div>
     <div class="tile"><span class="l"><span class="sw" style="background:var(--gas)"></span>Ha salido</span><span class="v">${eur(st.G)}</span><span class="s">${phase === "pasado" ? "en todo el año" : "a fin de año: " + eur(f.G)}</span></div>
     <div class="tile"><span class="l">Ahorrado</span><span class="v" style="color:${ah < 0 ? "var(--over)" : "inherit"}">${eur(ah)}</span><span class="s">${st.I > 0 ? pct(ah / st.I * 100) + " de lo que ha entrado" : "&nbsp;"}</span></div>
-    <div class="tile"><span class="l"><span class="sw" style="background:var(--sal)"></span>${phase === "pasado" ? "Dinero a 31 dic" : "Dinero hoy"}</span><span class="v">${dinero == null ? "—" : eur(dinero)}</span><span class="s">${colchon != null ? "te da para " + NF0.format(Math.floor(colchon)) + (Math.floor(colchon) === 1 ? " mes" : " meses") + " de gastos" : phase === "futuro" ? "año que viene" : "en todas tus cuentas"}</span>${deuda > 0.005 ? `<span class="s" style="color:var(--over)">y debes ${eur(deuda)}</span>` : ""}</div>
+    <div class="tile"><span class="l"><span class="sw" style="background:var(--sal)"></span>${phase === "pasado" ? "Dinero a 31 dic" : "Dinero hoy"}</span><span class="v">${dinero == null ? "—" : eur(dinero)}</span><span class="s">${colchon != null ? "te da para " + NF0.format(Math.floor(colchon)) + (Math.floor(colchon) === 1 ? " mes" : " meses") + " de gastos" : phase === "futuro" ? "año que viene" : "en todas tus cuentas"}</span>${deuda > 0.005 ? `<span class="s" style="color:var(--over)">y debes ${eur(deuda)}</span>` : ""}${teDeben > 0.005 ? `<span class="s">y te deben ${eur(teDeben)}</span>` : ""}</div>
   </div>`;
   if (st.revisar) h += `<div class="banner warn"><b>${st.revisar === 1 ? "Hay 1 movimiento" : "Hay " + st.revisar + " movimientos"} que la IA no ha tenido claro.</b> <button class="btn sm" data-go="movs" data-rev="1">Revisarlos</button></div>`;
 
@@ -122,8 +124,9 @@ function resumenParaIA(){
     prevision_fin_de_año: f.phase === "pasado" ? null : { ingresos: r2(f.I), gastos: r2(f.G), ahorro: r2(f.ahorro), dinero_31_dic: f.hayCuentas ? r2(f.saldoFin) : null, deuda_31_dic: f.hayDeudas ? f.deudaFinTotal : 0, gasto_variable_medio_mes: r2(f.varAvg) },
     fijos: anio(Y).recurrentes.map(r => ({ nombre: r.nombre, tipo: r.tipo, importe: r.importe, cada_meses: r.cada })),
     presupuesto_anual_por_grupo: Object.fromEntries(Object.entries(anio(Y).presupuesto).map(([g, v]) => [groupName("gasto", g), v])),
-    cuentas: cuentas().filter(c => !DEBT(c.tipo)).map(c => ({ nombre: c.nombre, tipo: ACC_TYPES[c.tipo] || c.tipo, saldo_hoy: c.ancla ? saldo(c, toISO(NOW)) : "sin saldo apuntado", tae: c.tae || undefined, vence: c.vence || undefined })),
+    cuentas: cuentas().filter(c => !DEBT(c.tipo) && !LENT(c.tipo)).map(c => ({ nombre: c.nombre, tipo: ACC_TYPES[c.tipo] || c.tipo, saldo_hoy: c.ancla ? saldo(c, toISO(NOW)) : "sin saldo apuntado", tae: c.tae || undefined, vence: c.vence || undefined })),
     deudas: cuentas().filter(c => DEBT(c.tipo)).map(c => ({ nombre: c.nombre, tipo: ACC_TYPES[c.tipo], debe_hoy: c.ancla ? debe(c, toISO(NOW)) : "sin apuntar", cuota_mes: num(c.cuota) || undefined, tin: num(c.tin) || undefined, termina: c.termina || undefined })),
+    me_deben: cuentas().filter(c => LENT(c.tipo)).map(c => ({ quien: c.nombre, debe_hoy: c.ancla ? teDebe(c, toISO(NOW)) : "sin apuntar", por: c.nota || undefined, dijo_que_devolvia: c.vence || undefined })),
     objetivos: anio(Y).objetivos.map(o => ({ nombre: o.nombre, para: o.tipo, importe: o.importe, fecha: o.fecha, apartado: goalSaved(o) }))
   };
 }

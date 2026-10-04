@@ -285,12 +285,14 @@ function iaToDraft(o, origen){
   if (!fecha) notes.push("No he visto la fecha: ponla tú.");
   if (o.total == null) notes.push("No he visto el total.");
   if (o.dudas) notes.push(o.dudas);
+  const aMano = String(o.manuscrito || "").trim().slice(0, 400);
+  if (aMano) notes.push("Lo escrito a mano está en la nota.");
   const conf = num(o.confianza);
   return newDraft({
     tipo, fecha: fecha || toISO(NOW), total: o.total == null ? "" : r2(Math.abs(num(o.total))),
     cuenta: tipo === "traspaso" ? (cuenta(o.cuenta) ? o.cuenta : defaultAccount()) : guessAccount(o),
     destino: tipo === "traspaso" ? (cuenta(o.destino) ? o.destino : (String(o.destino || "").toLowerCase().includes("efectivo") ? cashAccount() : "")) : "",
-    comercio: String(o.comercio || ""), nota: "", origen,
+    comercio: String(o.comercio || ""), nota: aMano, origen,
     factura: o.razon_social || o.numero || o.cif ? { proveedor: String(o.razon_social || "").slice(0, 120), cif: String(o.cif || "").slice(0, 20), numero: String(o.numero || "").slice(0, 40) } : null,
     lineas: lineas.length ? lineas : [{ concepto: "", cat: "", importe: "" }],
     iaNote: notes.length ? notes.join(" ") : (conf && conf < 0.6 ? "La IA no lo ha tenido del todo claro: repásalo." : "")
@@ -339,7 +341,7 @@ async function shrink(file){
 }
 function ticketPrompt(extraText){
   return `Eres el contable personal de Juan (España). Te paso ${extraText ? "el texto de una factura o ticket" : "la foto de un ticket o factura"} de sus cuentas PERSONALES. Léelo y devuelve SOLO un objeto JSON, sin nada más:
-{"tipo":"gasto"|"ingreso","comercio":texto o null,"razon_social":texto o null,"cif":texto o null,"numero":texto o null,"fecha":"AAAA-MM-DD" o null,"total":número o null,"pago":"tarjeta"|"efectivo"|"bizum"|"transferencia"|"domiciliado"|null,"tarjeta_final":"4 cifras" o null,"lineas":[{"concepto":texto,"cat":id,"importe":número}],"confianza":número de 0 a 1,"dudas":texto o null}
+{"tipo":"gasto"|"ingreso","comercio":texto o null,"razon_social":texto o null,"cif":texto o null,"numero":texto o null,"fecha":"AAAA-MM-DD" o null,"total":número o null,"pago":"tarjeta"|"efectivo"|"bizum"|"transferencia"|"domiciliado"|null,"tarjeta_final":"4 cifras" o null,"lineas":[{"concepto":texto,"cat":id,"importe":número}],"confianza":número de 0 a 1,"dudas":texto o null,"manuscrito":texto o null}
 
 Reglas:
 - No inventes. Lo que no se lea, null. Si no es un ticket ni una factura, pon confianza 0 y explícalo en "dudas".
@@ -356,6 +358,7 @@ ${learnedForIA()}
 - Si la misma línea sale repetida varias veces, súmalas en una sola.
 - El total es lo que cuesta la compra. «Efectivo», «Entregado» o «Pagado» es lo que dio el cliente, y «Cambio» o «Devolución efectivo» es la vuelta: no son el total ni otro gasto. Si pone «Efectivo», el pago es "efectivo".
 - "tarjeta_final" SÓLO si se pagó con tarjeta bancaria. La tarjeta de socio, de puntos o de fidelización de la tienda (Decathlon, Carrefour Club, Mercadona…) no es la forma de pago: no la pongas.
+- "manuscrito": todo lo que esté ESCRITO A MANO en el papel (con bolígrafo, lápiz o rotulador, no lo impreso), copiado tal cual y en el orden en que aparece: para qué fue, con quién, una obra, un nombre, «pagado», una cuenta hecha a mano… Si es difícil de leer, pon lo que se entienda y marca lo dudoso con «(?)». Si no hay nada escrito a mano, null. Si a mano se ha añadido una propina, súmala al total en una línea aparte «Propina» con la categoría del resto y dilo en "dudas".
 - En una «factura simplificada» el "numero" es su número (p. ej. V2026036400100040626).
 - Fechas de España: 03/09/26 es el 3 de septiembre de 2026; 21/8/2026 es el 21 de agosto. Hoy es ${toISO(NOW)}.${extraText ? "\n\nTexto del papel:\n" + extraText.slice(0, 40000) : ""}`;
 }

@@ -18,11 +18,12 @@ function renderDinero(){
 function cuentasHTML(){
   const phase = yearPhase(Y);
   const iso = phase === "pasado" ? `${Y}-12-31` : toISO(NOW);
-  const cs = cuentas().filter(c => !DEBT(c.tipo)), ds = cuentas().filter(c => DEBT(c.tipo));
+  const cs = cuentas().filter(c => !DEBT(c.tipo) && !LENT(c.tipo)), ds = cuentas().filter(c => DEBT(c.tipo)), ls = cuentas().filter(c => LENT(c.tipo));
   const liq = sum(cs.filter(c => LIQUID(c.tipo)).map(c => saldo(c, iso)));
   const inv = sum(cs.filter(c => !LIQUID(c.tipo)).map(c => saldo(c, iso)));
   const deb = sum(ds.map(c => debe(c, iso)));
-  let h = `<div class="panel"><div class="panel-head"><div><h2>${phase === "pasado" ? "Tu dinero a 31 de diciembre de " + Y : "Tu dinero hoy"}</h2><p>Bancos y efectivo: <b class="num">${eur(liq)}</b>${inv ? ` · depósitos e inversiones: <b class="num">${eur(inv)}</b>` : ""}${deb > 0.005 ? ` · debes: <b class="num" style="color:var(--over)">${eur(deb)}</b> · lo tuyo de verdad: <b class="num">${eur(liq + inv - deb)}</b>` : ""}</p></div><button class="btn primary sm" id="acc-new">Añadir cuenta</button></div>`;
+  const lent = sum(ls.map(c => teDebe(c, iso)));
+  let h = `<div class="panel"><div class="panel-head"><div><h2>${phase === "pasado" ? "Tu dinero a 31 de diciembre de " + Y : "Tu dinero hoy"}</h2><p>Bancos y efectivo: <b class="num">${eur(liq)}</b>${inv ? ` · depósitos e inversiones: <b class="num">${eur(inv)}</b>` : ""}${lent > 0.005 ? ` · te deben: <b class="num">${eur(lent)}</b>` : ""}${deb > 0.005 ? ` · debes: <b class="num" style="color:var(--over)">${eur(deb)}</b>` : ""}${deb > 0.005 || lent > 0.005 ? ` · lo tuyo de verdad: <b class="num">${eur(liq + inv + lent - deb)}</b>` : ""}</p></div><button class="btn primary sm" id="acc-new">Añadir cuenta</button></div>`;
   if (!cfg.cuentas || !cfg.cuentas.length) h += `<div class="banner" style="margin-bottom:12px"><b>Empieza por aquí.</b> Añade tus bancos y dime cuánto tienes hoy en cada uno. Así sé cuánto dinero tienes y cuánto tendrás a final de año.</div>`;
   if (accForm && !DEBT(accForm.tipo)) h += accFormHTML();
   h += `<div class="accs">`;
@@ -47,6 +48,7 @@ function cuentasHTML(){
   }
   h += `</div></div>`;
   h += deudasHTML(ds, iso, phase);
+  h += deudoresHTML(ls, iso, phase);
   if (WEB) h += `<div class="panel"><div class="panel-head"><div><h2>Copia de seguridad</h2><p>Todo lo tuyo en un fichero, por si algún día falla algo. La de Excel se abre con cualquier programa; la completa sirve para volver a cargarlo todo.</p></div></div>
     <div class="row"><button class="btn" id="bk-csv">Descargar en Excel</button><button class="btn" id="bk-json">Descargar la copia completa</button></div></div>`;
   return h;
@@ -121,10 +123,124 @@ async function saveCuota(id){
   try { await saveMovs(list); cuotaForm = null; toast("Cuota apuntada"); renderView(); }
   catch (e) { $("#cu-err").textContent = saveErr(e); }
 }
+/* ---------- lo que te deben ---------- */
+let lendForm = null;     // alta o cambio de un deudor
+let lendMov = null;      // {id, tipo: "devuelve"|"presta", fecha, importe, cuenta}
+const misCuentas = () => cuentas().filter(x => !DEBT(x.tipo) && !LENT(x.tipo));
+// Lo que ha pasado con un deudor desde siempre: lo prestado, lo devuelto y lo perdido
+function lendHist(c){
+  let prestado = 0, devuelto = 0, perdido = 0, desde = null;
+  for (const m of MOVS) {
+    if (m.tipo === "traspaso" && m.destino === c.id) prestado += num(m.total);
+    else if (m.tipo === "traspaso" && m.cuenta === c.id) devuelto += num(m.total);
+    else if (m.tipo === "gasto" && m.cuenta === c.id) perdido += num(m.total);
+    else continue;
+    if (!desde || m.fecha < desde) desde = m.fecha;
+  }
+  return { prestado, devuelto, perdido, desde: c.fecha || desde };
+}
+function deudoresHTML(ls, iso, phase){
+  const vivos = ls.filter(c => teDebe(c, iso) > 0.005).sort((a, b) => teDebe(b, iso) - teDebe(a, iso));
+  const saldados = ls.filter(c => !vivos.includes(c));
+  const tot = sum(vivos.map(c => teDebe(c, iso)));
+  let h = `<div class="panel"><div class="panel-head"><div><h2>Lo que te deben</h2><p>${vivos.length ? `En total, <b class="num">${eur(tot)}</b>${vivos.length > 1 ? ` entre ${vivos.length} personas` : ""}. No lo cuento como dinero tuyo hasta que te lo devuelvan.` : "Nadie te debe nada. Si le prestas dinero a alguien, apúntalo aquí: te digo cuánto te debe cada uno y desde cuándo."}</p></div><button class="btn sm" id="lend-new">Añadir un deudor</button></div>`;
+  if (lendForm && !lendForm.id) h += lendFormHTML();
+  if (vivos.length) h += `<div class="accs">${vivos.map(c => deudorCard(c, iso, phase)).join("")}</div>`;
+  if (saldados.length) {
+    const open = lendForm && saldados.some(c => c.id === lendForm.id) || lendMov && saldados.some(c => c.id === lendMov.id);
+    h += `<details class="tbl"${open ? " open" : ""}><summary>Ya te han pagado (${saldados.length})</summary><div class="accs" style="margin-top:10px">${saldados.map(c => deudorCard(c, iso, phase)).join("")}</div></details>`;
+  }
+  return h + `</div>`;
+}
+function deudorCard(c, iso, phase){
+  if (lendForm && lendForm.id === c.id) return lendFormHTML();
+  const d = teDebe(c, iso), hi = lendHist(c);
+  let meta = c.nota ? `<div class="meta">${esc(c.nota)}</div>` : "";
+  if (hi.desde) meta += `<div class="meta">Desde el ${shortDate(hi.desde)}${parseISO(hi.desde).getFullYear() !== CUR_Y ? " de " + parseISO(hi.desde).getFullYear() : ""}</div>`;
+  if (hi.prestado || hi.devuelto || hi.perdido) meta += `<div class="meta">${hi.prestado ? "Le has prestado " + eur(hi.prestado) : ""}${hi.devuelto ? (hi.prestado ? " y te ha devuelto " : "Te ha devuelto ") + eur(hi.devuelto) : ""}${hi.perdido ? (hi.prestado || hi.devuelto ? " · " : "") + "dado por perdido " + eur(hi.perdido) : ""}.</div>`;
+  if (c.vence && d > 0.005) {
+    const tarde = c.vence < toISO(NOW);
+    meta += `<div class="meta"${tarde ? ' style="color:var(--over)"' : ""}>${tarde ? "Tenía que habértelo devuelto el " : "Dijo que te lo devolvía el "}${shortDate(c.vence)}${parseISO(c.vence).getFullYear() !== CUR_Y ? " de " + parseISO(c.vence).getFullYear() : ""}</div>`;
+  }
+  let actions;
+  if (lendMov && lendMov.id === c.id) {
+    const dev = lendMov.tipo === "devuelve";
+    actions = `<div class="fgrid"><div class="f"><label for="lm-fecha">Fecha</label><input id="lm-fecha" type="date" value="${esc(lendMov.fecha)}"></div><div class="f"><label for="lm-imp">${dev ? "Te devuelve (€)" : "Le prestas (€)"}</label><input id="lm-imp" inputmode="decimal" value="${esc(lendMov.importe ? String(lendMov.importe).replace(".", ",") : "")}"></div><div class="f"><label for="lm-cuenta">${dev ? "Entra en" : "Sale de"}</label><select id="lm-cuenta">${misCuentas().map(x => `<option value="${x.id}"${x.id === lendMov.cuenta ? " selected" : ""}>${esc(x.nombre)}</option>`).join("")}</select></div></div><div class="row"><button class="btn sm primary" data-lmsave="${c.id}">Apuntar</button><button class="btn sm ghost" data-lmcancel="1">Cancelar</button><span class="err" id="lm-err"></span></div>`;
+  } else actions = `<div class="row">${d > 0.005 && phase !== "pasado" ? `<button class="btn sm" data-lenddev="${c.id}">Me ha devuelto</button>` : ""}${phase !== "pasado" ? `<button class="btn sm" data-lendmore="${c.id}">Le presto más</button>` : ""}<button class="btn sm ghost" data-seeacc="${c.id}">Movimientos</button></div>`;
+  return `<div class="acc"><div class="acc-h"><div><b>${esc(c.nombre)}</b><div class="meta">${esc(ACC_TYPES.prestado)}</div></div><button class="btn sm ghost" data-lendedit="${c.id}">Cambiar</button></div>
+    <div class="bal num">${c.ancla ? (d > 0.005 ? "Te debe " + eur(d) : "Saldado") : "—"}</div>
+    ${meta}${actions}</div>`;
+}
+function lendFormHTML(){
+  const a = lendForm, nuevo = !a.id;
+  const c = nuevo ? null : cuenta(a.id), d = c ? teDebe(c, toISO(NOW)) : 0;
+  return `<div class="job" style="margin-bottom:14px"><b>${nuevo ? "Nuevo deudor" : "Cambiar deudor"}</b>
+    <div class="fgrid">
+      <div class="f"><label for="lf-nombre">Quién</label><input id="lf-nombre" value="${esc(a.nombre || "")}" placeholder="Pedro, mi hermana…"></div>
+      <div class="f"><label for="lf-importe">${nuevo ? "Cuánto le prestas o te debe (€)" : "Te debe hoy (€)"}</label><input id="lf-importe" inputmode="decimal" value="${esc(a.importe != null && a.importe !== "" ? String(a.importe).replace(".", ",") : "")}" placeholder="0,00"></div>
+      ${nuevo ? `<div class="f"><label for="lf-desde">¿Sale ahora de una cuenta tuya?</label><select id="lf-desde"><option value="">No: ya se lo había prestado</option>${misCuentas().map(x => `<option value="${x.id}"${x.id === a.desde ? " selected" : ""}>Sí, de ${esc(x.nombre)}</option>`).join("")}</select></div>
+      <div class="f"><label for="lf-fecha">Cuándo se lo prestaste</label><input id="lf-fecha" type="date" value="${esc(a.fecha || "")}"></div>` : ""}
+      <div class="f"><label for="lf-vence">Dijo que te lo devolvía <small>(opcional)</small></label><input id="lf-vence" type="date" value="${esc(a.vence || "")}"></div>
+      <div class="f wide"><label for="lf-nota">Por qué <small>(opcional)</small></label><input id="lf-nota" value="${esc(a.nota || "")}" placeholder="Para el coche, la entrada del piso…"></div>
+    </div>
+    ${nuevo ? `<p class="small muted" style="margin:0">Si sale ahora de tu cuenta, lo apunto como un paso de tu cuenta a la suya: baja tu dinero y sube lo que te deben. Si ya se lo habías prestado, sólo apunto lo que te debe hoy.</p>` : `<p class="small muted" style="margin:0">Si cambias lo que te debe, desde hoy cuento a partir de lo que me digas.</p>`}
+    <div class="ed-foot"><button class="btn primary" id="lf-save">Guardar</button><button class="btn ghost" id="lf-cancel">Cancelar</button>${!nuevo ? `<span class="sp"></span>${d > 0.005 ? `<button class="btn" id="lf-perdido">${a.confirmPerdido ? `Sí, perder ${eur(d)}` : "Darlo por perdido"}</button>` : ""}<button class="btn danger" id="lf-del">${a.confirmDel ? "Sí, quitarlo" : "Quitar"}</button>` : ""}<span class="err" id="lf-err"></span></div>
+    ${a.confirmPerdido ? `<p class="small muted" style="margin:0">Lo que te debe pasa a ser un gasto de hoy («Dinero prestado que no vuelve»), y queda saldado.</p>` : ""}</div>`;
+}
+function readLendForm(){
+  const a = lendForm; if (!a) return;
+  for (const k of ["nombre", "importe", "desde", "fecha", "vence", "nota"]) { const i = document.getElementById("lf-" + k); if (i) a[k] = i.value; }
+}
+async function saveLendForm(){
+  readLendForm();
+  const a = lendForm, nombre = (a.nombre || "").trim();
+  if (!nombre) { $("#lf-err").textContent = "Pon quién es."; return; }
+  const v = r2(Math.abs(num(a.importe)));
+  const list = (cfg.cuentas && cfg.cuentas.length ? cfg.cuentas : cuentas()).map(c => ({ ...c }));
+  const base = { nombre, tipo: "prestado", nota: String(a.nota || "").trim().slice(0, 200), vence: a.vence || null };
+  let movs = [];
+  if (a.id) {
+    const i = list.findIndex(c => c.id === a.id); if (i < 0) return;
+    list[i] = { ...list[i], ...base };
+    const c = cuenta(a.id);
+    if (a.importe !== "" && a.importe != null && Math.abs(v - teDebe(c, toISO(NOW))) >= 0.005) list[i].ancla = { fecha: toISO(NOW), saldo: v, ts: Date.now() };
+  } else {
+    if (!v) { $("#lf-err").textContent = "Pon cuánto te debe."; return; }
+    const fecha = a.fecha || toISO(NOW);
+    if (a.desde && fecha > toISO(NOW)) { $("#lf-err").textContent = "La fecha no puede ser de un día que no ha llegado."; return; }
+    const id = "deudor-" + (norm(nombre).replace(/ /g, "-").slice(0, 20) || "x") + "-" + uid().slice(-4);
+    // Si sale de una cuenta, empieza en cero y el préstamo es el paso de dinero; si no, se apunta lo que debe hoy.
+    list.push({ id, ...base, fecha, ancla: a.desde ? { fecha: "1900-01-01", saldo: 0, ts: 0 } : { fecha: toISO(NOW), saldo: v, ts: Date.now() } });
+    if (a.desde) movs = [cleanMov({ fecha, tipo: "traspaso", cuenta: a.desde, destino: id, comercio: nombre, nota: "Le prestas" + (base.nota ? ": " + base.nota : ""), total: v, origen: "prestado" })];
+  }
+  try {
+    await saveCfg("cuentas", { items: list });
+    if (movs.length) await saveMovs(movs);
+    lendForm = null; toast("Guardado"); renderView();
+  } catch (e) { $("#lf-err").textContent = saveErr(e); }
+}
+async function saveLendMov(id){
+  const c = cuenta(id); if (!c || !lendMov) return;
+  const fecha = ($("#lm-fecha") || {}).value || toISO(NOW), v = r2(Math.abs(num(($("#lm-imp") || {}).value))), otra = ($("#lm-cuenta") || {}).value;
+  if (!v) { $("#lm-err").textContent = "Pon el importe."; return; }
+  if (!otra) { $("#lm-err").textContent = "Di en qué cuenta."; return; }
+  const dev = lendMov.tipo === "devuelve";
+  const m = cleanMov({ fecha, tipo: "traspaso", cuenta: dev ? id : otra, destino: dev ? otra : id, comercio: c.nombre, nota: dev ? "Te devuelve" : "Le prestas", total: v, origen: "prestado" });
+  try { await saveMovs([m]); lendMov = null; toast(dev ? "Apuntado lo que te ha devuelto" : "Apuntado el préstamo"); renderView(); }
+  catch (e) { $("#lm-err").textContent = saveErr(e); }
+}
+async function lendPerdido(){
+  const c = lendForm && cuenta(lendForm.id); if (!c) return;
+  const d = teDebe(c, toISO(NOW)); if (d <= 0.005) return;
+  const m = cleanMov({ fecha: toISO(NOW), tipo: "gasto", cuenta: c.id, comercio: c.nombre, nota: "Dado por perdido", total: d, lineas: [{ concepto: "Lo que te debía " + c.nombre, cat: "otros.perdido", importe: d }], origen: "prestado" });
+  try { await saveMovs([m]); lendForm = null; toast("Dado por perdido"); renderView(); }
+  catch (e) { $("#lf-err").textContent = saveErr(e); }
+}
+
 function accFormHTML(){
   const a = accForm;
   return `<div class="job" style="margin-bottom:14px"><b>${a.id ? "Cambiar cuenta" : "Nueva cuenta"}</b>
-    <div class="f"><span class="lab">Tipo</span><div class="chips">${Object.entries(ACC_TYPES).filter(([k]) => DEBT(k) === DEBT(a.tipo)).map(([k, v]) => `<button type="button" data-acctipo="${k}" aria-pressed="${a.tipo === k}">${v}</button>`).join("")}</div></div>
+    <div class="f"><span class="lab">Tipo</span><div class="chips">${Object.entries(ACC_TYPES).filter(([k]) => !LENT(k) && DEBT(k) === DEBT(a.tipo)).map(([k, v]) => `<button type="button" data-acctipo="${k}" aria-pressed="${a.tipo === k}">${v}</button>`).join("")}</div></div>
     ${a.tipo !== "efectivo" && !a.id && !DEBT(a.tipo) ? `<div class="f"><span class="lab">Banco</span><div class="chips">${BANKS.map(b => `<button type="button" data-accbank="${esc(b)}" aria-pressed="${a.entidad === b}">${esc(b)}</button>`).join("")}</div></div>` : ""}
     <div class="fgrid">
       <div class="f"><label for="af-nombre">Nombre</label><input id="af-nombre" value="${esc(a.nombre)}" placeholder="${a.tipo === "efectivo" ? "Efectivo" : a.tipo === "prestamo" ? "Hipoteca de casa" : a.tipo === "credito" ? "Visa del BBVA" : "Santander nómina"}"></div>

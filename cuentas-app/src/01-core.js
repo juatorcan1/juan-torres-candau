@@ -51,8 +51,12 @@ const DEF_CATS = {
     { id: "otrosi", nombre: "Otros ingresos", cats: [["hacienda","Devolución de Hacienda"],["ventas","Venta de cosas"],["regalos","Regalos recibidos"],["reembolsos","Reembolsos y devoluciones"],["varios","Varios"]] }
   ]
 };
-const ACC_TYPES = { banco: "Cuenta de banco", efectivo: "Efectivo", deposito: "Depósito a plazo", inversion: "Inversión", ahorro: "Cuenta de ahorro", prestamo: "Préstamo o hipoteca", credito: "Tarjeta de crédito" };
+const ACC_TYPES = { banco: "Cuenta de banco", efectivo: "Efectivo", deposito: "Depósito a plazo", inversion: "Inversión", ahorro: "Cuenta de ahorro", prestamo: "Préstamo o hipoteca", credito: "Tarjeta de crédito", prestado: "Dinero que te deben" };
 const DEBT = t => t === "prestamo" || t === "credito";
+// Deudores: cada persona que te debe dinero es una "cuenta" con saldo a tu favor. Prestar es pasar
+// dinero de tu banco a esa cuenta, y que te devuelva es pasarlo de vuelta. No cuenta como dinero tuyo
+// disponible (ni en «Dinero hoy» ni en la previsión) hasta que te lo devuelven.
+const LENT = t => t === "prestado";
 const BANKS = ["Santander","BBVA","CaixaBank","Sabadell","Unicaja","Cajasur","Bankinter","ING","Openbank","Kutxabank","Abanca","Ibercaja","Cajamar","Revolut","MyInvestor","Trade Republic"];
 const EVERY = { 1: "cada mes", 2: "cada dos meses", 3: "cada trimestre", 6: "cada seis meses", 12: "una vez al año" };
 
@@ -93,6 +97,10 @@ function cats(){
     const f = c.gasto.find(g => g.id === "finanzas");
     if (!f) c.gasto.push({ id: "finanzas", nombre: "Impuestos y banco", cats: [["intereses", "Intereses de préstamos y tarjetas"]] });
     else if (!f.cats.some(x => x[0] === "intereses")) f.cats.unshift(["intereses", "Intereses de préstamos y tarjetas"]);
+    // y la de lo prestado que no vuelve, para cuando un deudor no paga
+    const o = c.gasto.find(g => g.id === "otros");
+    if (!o) c.gasto.push({ id: "otros", nombre: "Otros gastos", cats: [["perdido", "Dinero prestado que no vuelve"]] });
+    else if (!o.cats.some(x => x[0] === "perdido")) o.cats.push(["perdido", "Dinero prestado que no vuelve"]);
     _catsOut = c;
   }
   return _catsOut;
@@ -185,6 +193,8 @@ function saldo(c, iso){
 const LIQUID = t => t === "banco" || t === "efectivo" || t === "ahorro";
 // Lo que debes hoy (en positivo) en una deuda, y si la cuota de un mes ya está apuntada
 const debe = (c, iso) => Math.max(0, -saldo(c, iso));
+// Lo que te debe hoy un deudor
+const teDebe = (c, iso) => Math.max(0, saldo(c, iso));
 const cuotaPagada = (c, y, mo) => MOVS.some(m => m.tipo === "traspaso" && m.destino === c.id && m.fecha.startsWith(y + "-" + pad(mo + 1)));
 // Reparto de una cuota: intereses del mes sobre lo que queda, y el resto a devolver
 function repartoCuota(c, total, iso){
@@ -274,7 +284,8 @@ function forecast(y){
         const mine = recT.filter(r => (r.cat && CATIDX[r.cat] ? r.cat : "_sin") === cat);
         const fixed = mine.length > 0 && cat !== "_sin";
         let avg = 0;
-        if (tipo === "gasto" && !fixed && !(cat === "finanzas.intereses" && hayPrestamo)) {
+        // lo prestado que no vuelve es de una vez: no se repite como gasto de cada mes
+        if (tipo === "gasto" && !fixed && !(cat === "finanzas.intereses" && hayPrestamo) && cat !== "otros.perdido") {
           if (withData.length) avg = sum(withData.map(([yy, mo]) => ((yearStats(yy).byCatMonth.gasto[cat] || [])[mo] || 0))) / withData.length;
           else if (phase === "actual") avg = ((st.byCatMonth.gasto[cat] || [])[curMo] || 0) / NOW.getDate() * daysIn(y, curMo);
           if (avg < 0) avg = 0;
@@ -328,7 +339,7 @@ function forecast(y){
   const I = st.I + sum(pIng), G = st.G + sum(pGas);
 
   // dinero a fin de cada mes, sumando todas las cuentas
-  const all = cuentas().filter(c => !DEBT(c.tipo));
+  const all = cuentas().filter(c => !DEBT(c.tipo) && !LENT(c.tipo));
   const hayCuentas = all.some(c => c.ancla);
   const saldoMes = [];
   let last = null;

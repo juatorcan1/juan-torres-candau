@@ -12,7 +12,12 @@ Abajo hay cinco botones, y uno redondo (＋) para apuntar:
 - **En qué se va**: gastos e ingresos por grupos y categorías, presupuesto y la curva del año.
 - **Previsión**: cómo acabarás el año, la previsión de gastos y de ingresos por categorías, lo que viene
   los próximos seis meses, hasta 2040, y los fijos y el presupuesto de cada ejercicio.
-- **Dinero**: cuentas, deudas, objetivos, categorías y copia de seguridad.
+- **Dinero**: cuentas, deudas, lo que te deben, objetivos, categorías y copia de seguridad.
+
+**Lo que te deben** (Dinero → Cuentas): cada deudor es una cuenta de tipo `prestado` con saldo a tu favor.
+Prestar es un traspaso de tu banco a su cuenta y que te devuelva es el traspaso al revés; «Darlo por perdido»
+apunta lo que queda como gasto en «Dinero prestado que no vuelve». Lo que te deben no cuenta en «Dinero hoy»
+ni en la previsión hasta que vuelve, pero sí en «lo tuyo de verdad».
 
 ## Dos versiones, mismo código
 

@@ -27,6 +27,10 @@ function editorHTML(key){
   const img = d.ticketUrl || (d.ticket ? ticketSrc(d.ticket, () => repaintEditor(key)) : "");
   let h = `<div class="ed" data-ed="${key}">`;
   if (d.iaNote) h += `<div class="ia-note">${esc(d.iaNote)}</div>`;
+  if (d.pregunta) {
+    const l = d.lineas[d.pregunta.linea];
+    h += `<div class="ia-ask"><b>La IA te pregunta:</b> ${esc(d.pregunta.texto)}${l && l.concepto ? ` <span class="muted">(${esc(l.concepto)})</span>` : ""}<div class="chips" style="margin-top:8px">${d.pregunta.opciones.map(o => `<button type="button" data-pregcat="${esc(o.cat)}">${esc(o.etiqueta)} <small class="muted">· ${esc(catName(o.cat))}</small></button>`).join("")}</div></div>`;
+  }
   const rep = d.id ? null : repetido(d);
   if (rep) h += `<div class="ia-note" style="background:var(--warn-bg);color:var(--ink)"><b>Ojo: parece que este ticket ya está apuntado</b> — ${esc(rep.comercio || "sin sitio")}, ${shortDate(rep.fecha)}${parseISO(rep.fecha).getFullYear() !== CUR_Y ? " de " + parseISO(rep.fecha).getFullYear() : ""}, ${eur(rep.total)}${rep.drive ? ", ya en Drive" : ""}. Si es el mismo, descártalo. Si es otro distinto, guárdalo.</div>`;
   h += `<div class="${img ? "ed-top" : ""}">${img ? `<button type="button" class="thumb" data-zoom="${esc(img)}" aria-label="Ver el ticket en grande"><img src="${esc(img)}" alt="Ticket"></button>` : ""}
@@ -61,7 +65,10 @@ function paintSum(key){
 function readEd(key, el){
   const d = DRAFTS[key]; if (!d || !el) return;
   if (el.dataset.k) d[el.dataset.k] = el.value;
-  else if (el.dataset.li != null) { const l = d.lineas[+el.dataset.li]; if (l) l[el.dataset.lk] = el.value; }
+  else if (el.dataset.li != null) {
+    const l = d.lineas[+el.dataset.li]; if (l) l[el.dataset.lk] = el.value;
+    if (el.dataset.lk === "cat" && d.pregunta && +el.dataset.li === d.pregunta.linea) d.pregunta = null;   // elegida a mano: ya está contestada
+  }
 }
 function repaintEditor(key){
   const box = document.querySelector(`.ed[data-ed="${key}"]`); if (!box) return;
@@ -96,7 +103,7 @@ function draftToMov(d){
       const big = m.lineas.slice().sort((a, b) => b.importe - a.importe)[0];
       m.lineas.push({ concepto: diff > 0 ? "Resto del ticket" : "Ajuste", cat: big ? big.cat : "", importe: diff });
     }
-    m.revisar = m.lineas.some(l => !l.cat) || !m.lineas.length;
+    m.revisar = m.lineas.some(l => !l.cat) || !m.lineas.length || !!d.pregunta;
   } else m.revisar = false;
   return { mov: m };
 }
@@ -307,6 +314,15 @@ function guessAccount(o){
   if (fin) { const c = cuentas().find(c => String(c.tarjetas || "").split(/[^0-9]+/).includes(fin)); if (c) return c.id; }
   return defaultAccount();
 }
+// La pregunta de la IA cuando duda de una categoría: sólo con opciones que existan
+function preguntaDe(p, tipo, nLineas){
+  if (!p || typeof p !== "object" || !String(p.texto || "").trim()) return null;
+  const opciones = (Array.isArray(p.opciones) ? p.opciones : []).filter(o => o && CATIDX[o.cat] && CATIDX[o.cat].tipo === tipo)
+    .slice(0, 4).map(o => ({ etiqueta: String(o.etiqueta || catName(o.cat)).slice(0, 40), cat: o.cat }));
+  if (opciones.length < 2) return null;
+  const linea = Math.min(Math.max(0, parseInt(p.linea) || 0), Math.max(0, nLineas - 1));
+  return { texto: String(p.texto).trim().slice(0, 160), linea, opciones };
+}
 function iaToDraft(o, origen){
   const tipo = ["gasto", "ingreso", "traspaso"].includes(o.tipo) ? o.tipo : "gasto";
   const lineas = (Array.isArray(o.lineas) ? o.lineas : []).map(l => ({ concepto: String(l.concepto || ""), cat: CATIDX[l.cat] && CATIDX[l.cat].tipo === tipo ? l.cat : "", importe: l.importe == null ? "" : r2(num(l.importe)) }));
@@ -325,7 +341,8 @@ function iaToDraft(o, origen){
     comercio: String(o.comercio || ""), nota: aMano, origen,
     factura: o.razon_social || o.numero || o.cif ? { proveedor: String(o.razon_social || "").slice(0, 120), cif: String(o.cif || "").slice(0, 20), numero: String(o.numero || "").slice(0, 40) } : null,
     lineas: lineas.length ? lineas : [{ concepto: "", cat: "", importe: "" }],
-    iaNote: notes.length ? notes.join(" ") : (conf && conf < 0.6 ? "La IA no lo ha tenido del todo claro: repásalo." : "")
+    iaNote: notes.length ? notes.join(" ") : (conf && conf < 0.6 ? "La IA no lo ha tenido del todo claro: repásalo." : ""),
+    pregunta: preguntaDe(o.pregunta, tipo, lineas.length)
   });
 }
 
@@ -371,7 +388,7 @@ async function shrink(file){
 }
 function ticketPrompt(extraText){
   return `Eres el contable personal de Juan (España). Te paso ${extraText ? "el texto de una factura o ticket" : "la foto de un ticket o factura"} de sus cuentas PERSONALES. Léelo y devuelve SOLO un objeto JSON, sin nada más:
-{"tipo":"gasto"|"ingreso","comercio":texto o null,"razon_social":texto o null,"cif":texto o null,"numero":texto o null,"fecha":"AAAA-MM-DD" o null,"total":número o null,"pago":"tarjeta"|"efectivo"|"bizum"|"transferencia"|"domiciliado"|null,"tarjeta_final":"4 cifras" o null,"lineas":[{"concepto":texto,"cat":id,"importe":número}],"confianza":número de 0 a 1,"dudas":texto o null,"manuscrito":texto o null}
+{"tipo":"gasto"|"ingreso","comercio":texto o null,"razon_social":texto o null,"cif":texto o null,"numero":texto o null,"fecha":"AAAA-MM-DD" o null,"total":número o null,"pago":"tarjeta"|"efectivo"|"bizum"|"transferencia"|"domiciliado"|null,"tarjeta_final":"4 cifras" o null,"lineas":[{"concepto":texto,"cat":id,"importe":número}],"confianza":número de 0 a 1,"dudas":texto o null,"manuscrito":texto o null,"pregunta":null o {"linea":número de línea empezando en 0,"texto":texto,"opciones":[{"etiqueta":texto,"cat":id}]}}
 
 Reglas:
 - No inventes. Lo que no se lea, null. Si no es un ticket ni una factura, pon confianza 0 y explícalo en "dudas".
@@ -380,6 +397,7 @@ Reglas:
 - Importes tal y como se pagan, con IVA incluido. Punto decimal en el JSON.
 - Agrupa por categoría: NO una línea por producto, sino una línea por categoría con la suma de sus productos y un concepto que lo resuma, p. ej. «Comida (leche, pan, fruta…)» y «Droguería (lejía, papel…)». Los descuentos, dentro de la línea a la que afectan.
 - La suma de las líneas tiene que dar exactamente el total del papel. Si no te cuadra, dilo en "dudas".
+- Categorías: NO uses «compras.otras», «otros.varios» ni «otrosi.varios» salvo que de verdad no encaje en ninguna otra. Si dudas entre dos o tres categorías porque depende de algo que sólo sabe Juan (p. ej. si algo es un regalo o para él, si una cena es de ocio o de trabajo), pon en "cat" la más probable y rellena "pregunta": una pregunta corta y directa a Juan sobre esa línea, con 2 a 4 opciones, cada una con su categoría. Si no hay dudas, "pregunta" es null.
 - "cat" tiene que ser uno de estos ids, exactamente:
 ${catListForIA()}
 - Así ha clasificado Juan otras veces (úsalo como guía, manda sobre tu criterio; pero si el producto es claramente de otra cosa, como cartuchos en una tienda de deporte, manda el producto):
@@ -439,11 +457,12 @@ async function dictGo(){
   renderView();
   try {
     const o = await sample.json(`Eres el contable personal de Juan (España). Te cuenta uno o varios movimientos de sus cuentas PERSONALES, hablando. Devuelve SOLO JSON:
-{"movimientos":[{"tipo":"gasto"|"ingreso"|"traspaso","comercio":texto o null,"fecha":"AAAA-MM-DD","total":número,"cuenta":id de cuenta o null,"destino":id de cuenta o null (sólo traspasos),"pago":"tarjeta"|"efectivo"|null,"lineas":[{"concepto":texto,"cat":id,"importe":número}],"confianza":0-1,"dudas":texto o null}]}
+{"movimientos":[{"tipo":"gasto"|"ingreso"|"traspaso","comercio":texto o null,"fecha":"AAAA-MM-DD","total":número,"cuenta":id de cuenta o null,"destino":id de cuenta o null (sólo traspasos),"pago":"tarjeta"|"efectivo"|null,"lineas":[{"concepto":texto,"cat":id,"importe":número}],"confianza":0-1,"dudas":texto o null,"pregunta":null o {"linea":número de línea empezando en 0,"texto":texto,"opciones":[{"etiqueta":texto,"cat":id}]}}]}
 Reglas:
 - Hoy es ${toISO(NOW)} (${DIA[NOW.getDay()]}). «Ayer», «el viernes», etc., cuéntalos desde hoy.
 - «Traspaso» es mover dinero entre SUS cuentas (sacar del cajero = traspaso del banco al efectivo). No es gasto.
 - Si no dice con qué pagó, deja "cuenta" en null. No inventes importes ni fechas.
+- Categorías: NO uses «compras.otras», «otros.varios» ni «otrosi.varios» salvo que de verdad no encaje en ninguna otra. Si dudas entre dos o tres categorías porque depende de algo que sólo sabe Juan (p. ej. si algo es un regalo o para él, si una cena es de ocio o de trabajo), pon en "cat" la más probable y rellena "pregunta": una pregunta corta y directa a Juan sobre esa línea, con 2 a 4 opciones, cada una con su categoría. Si no hay dudas, "pregunta" es null.
 - "cat" (sólo gastos e ingresos), uno de estos ids exactamente:
 ${catListForIA()}
 - Sus cuentas:

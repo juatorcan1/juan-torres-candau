@@ -7,7 +7,8 @@
 // - El año y el trimestre salen de la fecha del ticket. Se usan las carpetas que ya existen
 //   («1er TRIMESTRE», «2º TRIMESTRE»…) y sólo se crea una si falta, como «3º TRIMESTRE».
 // - Las fotos se pasan a PDF (como _img_a_pdf de Senda). Si ya hay un fichero con ese nombre en la
-//   carpeta, no se sube otra vez.
+//   carpeta, no se sube otra vez. Si se corrige un gasto ya subido (fecha, importe, proveedor), se le
+//   cambia el nombre y, si toca, la carpeta, pero sólo si el fichero está dentro de «01 Tickets».
 // - Escribe con el permiso OAuth de la cuenta de Google de Juan, el mismo que usa la Tía Senda:
 //   secretos GOOGLE_OAUTH_CLIENT_ID, GOOGLE_OAUTH_CLIENT_SECRET y GOOGLE_OAUTH_REFRESH_TOKEN.
 // - NADA SE MEZCLA CON SENDA: sólo se escribe dentro de «01 Tickets» (id fijo, sin variable de entorno que lo
@@ -164,6 +165,18 @@ async function subir(token: string, padre: string, nombre: string, mime: string,
     method: "POST", headers: { "Content-Type": `multipart/related; boundary=${b}` }, body,
   });
 }
+// La carpeta: año / trimestre (o «SIN FECHA», aparte, como hace Senda con las dudas)
+async function destinoDe(token: string, fecha: string, carpetas: Record<string, string>) {
+  if (fecha) {
+    const anio = fecha.slice(0, 4), q = Math.floor((Number(fecha.slice(5, 7)) - 1) / 3) + 1;
+    const ka = "a" + anio, kq = ka + "q" + q;
+    carpetas[ka] ||= await carpeta(token, TICKETS_ID, (n) => n === anio, anio);
+    carpetas[kq] ||= await carpeta(token, carpetas[ka], (n) => n.includes("trimestre") && n.includes(String(q)), `${q}\u00ba TRIMESTRE`);
+    return { destino: carpetas[kq], ruta: `${RUTA} / ${anio} / ${q}\u00ba TRIMESTRE` };
+  }
+  carpetas.sf ||= await carpeta(token, TICKETS_ID, (n) => n === "sin fecha", "SIN FECHA");
+  return { destino: carpetas.sf, ruta: `${RUTA} / SIN FECHA` };
+}
 // El candado: «01 Tickets» tiene que colgar de «04 - FACTURAS», y esta de «02 - JUAN». Si alguien la mueve
 // (por ejemplo, dentro de Senda), no se sube nada hasta que vuelva a su sitio.
 async function carpetaBuena(token: string): Promise<boolean> {
@@ -175,6 +188,19 @@ async function carpetaBuena(token: string): Promise<boolean> {
     if (!id) return false;
   }
   return true;
+}
+// ¿Este fichero está dentro de «01 Tickets»? (fichero → trimestre → año → 01 Tickets, o fichero → SIN FECHA → 01 Tickets)
+async function dentroDeTickets(token: string, fileId: string): Promise<string | null> {
+  const f = await gd(token, `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?fields=id,parents,trashed&supportsAllDrives=true`);
+  if (f.trashed) return null;
+  const padre = (f.parents || [])[0];
+  let id = padre;
+  for (let i = 0; i < 3 && id; i++) {
+    if (id === TICKETS_ID) return padre;
+    const p = await gd(token, `https://www.googleapis.com/drive/v3/files/${id}?fields=parents&supportsAllDrives=true`);
+    id = (p.parents || [])[0];
+  }
+  return null;
 }
 const b64ToBytes = (s: string) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
 
@@ -207,6 +233,20 @@ Deno.serve(async (req: Request) => {
   for (const it of items) {
     const id = String(it?.id || "");
     try {
+      // Cambiar uno que ya está: nombre y carpeta nuevos, sin volver a subirlo (sólo si está dentro de «01 Tickets»)
+      if (typeof it?.fileId === "string" && it.fileId && !it?.data && !it?.ticket) {
+        const padre = await dentroDeTickets(token, it.fileId);
+        if (!padre) throw new Error("Ese fichero no está en la carpeta de tickets: no lo toco");
+        const fecha = /^\d{4}-\d{2}-\d{2}$/.test(String(it?.fecha || "")) ? String(it.fecha) : "";
+        const nombre = nombreFichero({ fecha, proveedor: String(it?.proveedor || ""), cif: String(it?.cif || ""), total: it?.total, numero: String(it?.numero || "") }, ".pdf");
+        const { destino, ruta } = await destinoDe(token, fecha, carpetas);
+        const mover = destino !== padre ? `&addParents=${destino}&removeParents=${padre}` : "";
+        const f = await gd(token, `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(it.fileId)}?fields=id,webViewLink&supportsAllDrives=true${mover}`, {
+          method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: nombre }),
+        });
+        out.push({ id, ok: true, fileId: f.id, enlace: f.webViewLink || "", nombre, ruta, cambiado: true });
+        continue;
+      }
       // el fichero: el PDF original que manda la web, o la foto de su carpeta privada
       let datos: Uint8Array, mime = String(it?.mime || "");
       if (typeof it?.data === "string" && it.data) {
@@ -223,18 +263,7 @@ Deno.serve(async (req: Request) => {
       const ext = pdf ? ".pdf" : mime.includes("png") ? ".png" : mime.includes("hei") ? ".heic" : ".jpg";
       const fecha = /^\d{4}-\d{2}-\d{2}$/.test(String(it?.fecha || "")) ? String(it.fecha) : "";
       const nombre = nombreFichero({ fecha, proveedor: String(it?.proveedor || ""), cif: String(it?.cif || ""), total: it?.total, numero: String(it?.numero || "") }, ext);
-      // la carpeta: año / trimestre (o «SIN FECHA», aparte, como hace Senda con las dudas)
-      let destino: string, ruta: string;
-      if (fecha) {
-        const anio = fecha.slice(0, 4), q = Math.floor((Number(fecha.slice(5, 7)) - 1) / 3) + 1;
-        const ka = "a" + anio, kq = ka + "q" + q;
-        carpetas[ka] ||= await carpeta(token, TICKETS_ID, (n) => n === anio, anio);
-        carpetas[kq] ||= await carpeta(token, carpetas[ka], (n) => n.includes("trimestre") && n.includes(String(q)), `${q}\u00ba TRIMESTRE`);
-        destino = carpetas[kq]; ruta = `${RUTA} / ${anio} / ${q}\u00ba TRIMESTRE`;
-      } else {
-        carpetas.sf ||= await carpeta(token, TICKETS_ID, (n) => n === "sin fecha", "SIN FECHA");
-        destino = carpetas.sf; ruta = `${RUTA} / SIN FECHA`;
-      }
+      const { destino, ruta } = await destinoDe(token, fecha, carpetas);
       const ya = (await hijos(token, destino, ` and name = '${qs(nombre)}'`))[0];
       const f = ya || await subir(token, destino, nombre, pdf ? "application/pdf" : (mime || "image/jpeg"), datos);
       out.push({ id, ok: true, fileId: f.id, enlace: f.webViewLink || "", nombre, ruta, yaEstaba: !!ya });

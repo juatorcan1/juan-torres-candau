@@ -9,7 +9,8 @@ Abajo hay cinco botones, y uno redondo (＋) para apuntar:
 - **El año**: lo que ha entrado, salido y ahorrado; mes a mes; cómo acabarás el año; hasta 2040.
 - **Movimientos**: todo lo apuntado, por días, con filtros.
 - **＋** (el redondo): foto del ticket (o factura en PDF), contárselo con palabras, a mano o el extracto del banco.
-- **En qué se va**: gastos e ingresos por grupos y categorías, presupuesto y la curva del año.
+- **En qué se va**: gastos e ingresos por grupos y categorías, presupuesto y la curva del año. La caza va en su
+  propio grupo (cartuchos, licencias, coto y monterías, armero, ropa y equipo, perros, viajes).
 - **Previsión**: cómo acabarás el año, la previsión de gastos y de ingresos por categorías, lo que viene
   los próximos seis meses, hasta 2040, y los fijos y el presupuesto de cada ejercicio.
 - **A medias**: dividir la cuenta en el bar. Foto del ticket + dictar qué ha tomado cada uno → cuánto paga
@@ -43,7 +44,8 @@ persona paga algo por ti (p. ej. la cuenta del bar), queda en negativo y aparece
   con el nombre de Senda `AAAAMMDD_PROVEEDOR_IMPORTE€_NUMERO.pdf` (las reglas de `factura_nombre.py`). Lo hace la
   Edge Function `supabase/functions/cuentas-drive`, con el mismo permiso de Google que la Tía Senda: secretos
   `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET` y `GOOGLE_OAUTH_REFRESH_TOKEN` en las Edge Functions de
-  Supabase. En Dinero → «Tickets en Drive» se ve cuántos están subidos y se suben los que falten.
+  Supabase. En Dinero → «Tickets en Drive» se ve cuántos están subidos y se suben los que falten. Si corriges
+  un gasto ya subido (fecha, importe o dónde), el PDF de Drive cambia de nombre y, si toca, de carpeta.
   **No se mezcla con Senda**: la función sólo escribe dentro de «01 Tickets» (id fijo en el código) y antes de
   subir comprueba que esa carpeta sigue en 02 - JUAN / 04 - FACTURAS; si no, no sube nada. La carpeta no está
   compartida con la cuenta de servicio de Senda, así que la Tía Senda tampoco la lee.

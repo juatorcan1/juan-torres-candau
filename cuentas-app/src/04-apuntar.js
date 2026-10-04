@@ -132,8 +132,12 @@ async function saveDraft(key){
       try { const up = await assets.upload(d.blob); m.ticket = up.id; d.ticket = up.id; } catch { /* sin foto, pero el gasto se guarda igual */ }
     }
     if (d.id && d.origFecha && d.origFecha.slice(0, 7) !== m.fecha.slice(0, 7)) await deleteMov({ id: d.id, fecha: d.origFecha });
+    const antes = d.id ? MOVS.find(x => x.id === d.id) : null;
+    // si cambias dónde fue, el nombre de Drive sale de lo que pones tú, no de la razón social que leyó la IA
+    if (antes && m.factura && norm(m.comercio) !== norm(antes.comercio)) m.factura = { ...m.factura, proveedor: "", cif: "" };
     await saveMovs([m]);
     if ((m.ticket || d.pdf) && !m.drive) driveUp(m, d.pdf);
+    else if (m.drive && antes && (antes.fecha !== m.fecha || num(antes.total) !== num(m.total) || norm(antes.comercio) !== norm(m.comercio))) driveUp(m, null, false, true);
     if (d.onSaved) d.onSaved(m);
     toast(d.id ? "Cambios guardados" : m.tipo === "gasto" ? "Gasto guardado" : m.tipo === "ingreso" ? "Ingreso guardado" : "Traspaso guardado");
     delete DRAFTS[key];
@@ -150,13 +154,14 @@ async function saveDraft(key){
 // dónde ha quedado (m.drive). De uno en uno, en cola, para no atascar.
 let driveApi = null, driveCola = Promise.resolve(), driveErr = "";
 const toB64 = blob => new Promise((ok, ko) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(",")[1] || ""); r.onerror = ko; r.readAsDataURL(blob); });
-function driveUp(m, pdf, quiet){
+function driveUp(m, pdf, quiet, renombrar){
   if (!driveApi) return Promise.resolve(false);
   const p = driveCola.then(async () => {
     try {
       const f = m.factura || {};
       const it = { id: m.id, fecha: m.fecha, proveedor: f.proveedor || m.comercio, cif: f.cif || "", numero: f.numero || "", total: m.total };
-      if (pdf && pdf.size < 10e6) { it.data = await toB64(pdf); it.mime = "application/pdf"; } else if (m.ticket) it.ticket = m.ticket; else return false;
+      if (renombrar && m.drive && m.drive.fileId) it.fileId = m.drive.fileId;
+      else if (pdf && pdf.size < 10e6) { it.data = await toB64(pdf); it.mime = "application/pdf"; } else if (m.ticket) it.ticket = m.ticket; else return false;
       const [r] = await driveApi.subir([it]);
       if (!r || !r.ok) throw { message: (r && r.error) || "" };
       const drive = { fileId: r.fileId, nombre: r.nombre, ruta: r.ruta, enlace: r.enlace || "" };
@@ -343,9 +348,14 @@ Reglas:
 - La suma de las líneas tiene que dar exactamente el total del papel. Si no te cuadra, dilo en "dudas".
 - "cat" tiene que ser uno de estos ids, exactamente:
 ${catListForIA()}
-- Así ha clasificado Juan otras veces (úsalo como guía, manda sobre tu criterio):
+- Así ha clasificado Juan otras veces (úsalo como guía, manda sobre tu criterio; pero si el producto es claramente de otra cosa, como cartuchos en una tienda de deporte, manda el producto):
 ${learnedForIA()}
-- Fechas de España: 03/09/26 es el 3 de septiembre de 2026. Hoy es ${toISO(NOW)}.${extraText ? "\n\nTexto del papel:\n" + extraText.slice(0, 40000) : ""}`;
+- Clasifica por lo que es cada producto, no por la tienda: unos cartuchos comprados en Decathlon son caza, no deporte. Cartuchos y munición (calibre, gramos, nº de perdigón, marcas como RIO, Saga, Fenix, Trust, Mirage; «SP RIO 50 34G/09» = cartuchos RIO de 34 g del nº 9), licencias de caza o de armas, coto, monterías, armero, ropa de caza y perros de caza van a las categorías «caza.*».
+- Si la misma línea sale repetida varias veces, súmalas en una sola.
+- El total es lo que cuesta la compra. «Efectivo», «Entregado» o «Pagado» es lo que dio el cliente, y «Cambio» o «Devolución efectivo» es la vuelta: no son el total ni otro gasto. Si pone «Efectivo», el pago es "efectivo".
+- "tarjeta_final" SÓLO si se pagó con tarjeta bancaria. La tarjeta de socio, de puntos o de fidelización de la tienda (Decathlon, Carrefour Club, Mercadona…) no es la forma de pago: no la pongas.
+- En una «factura simplificada» el "numero" es su número (p. ej. V2026036400100040626).
+- Fechas de España: 03/09/26 es el 3 de septiembre de 2026; 21/8/2026 es el 21 de agosto. Hoy es ${toISO(NOW)}.${extraText ? "\n\nTexto del papel:\n" + extraText.slice(0, 40000) : ""}`;
 }
 async function readTicket(key, files){
   const j = JOBS.find(x => x.key === key); if (!j) return;

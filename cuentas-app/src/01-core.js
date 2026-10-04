@@ -31,6 +31,8 @@ function toast(msg){ const t = $("#toast"); t.textContent = msg; t.hidden = fals
 
 /* ================= categorías por defecto ================= */
 // La caza, aparte: cartuchos, licencias, coto, armero… (se añade también a las categorías ya guardadas)
+// Las bodas a las que va Juan, todas juntas: el regalo, la ropa, el viaje, las despedidas…
+const BODAS = [["regalo","Regalo o sobre a los novios"],["ropa","Traje, vestido y complementos"],["viaje","Viaje y alojamiento"],["despedidas","Despedidas de soltero"],["estetica","Peluquería y estética"]];
 const CAZA = [["cartuchos","Cartuchos y munición"],["licencias","Licencias, permisos y seguro"],["coto","Coto, cuotas y monterías"],["armas","Armas, armero y revisiones"],["equipo","Ropa y equipo de caza"],["perros","Perros de caza"],["viajes","Viajes y comidas de caza"]];
 const DEF_CATS = {
   gasto: [
@@ -40,6 +42,7 @@ const DEF_CATS = {
     { id: "coche", nombre: "Coche y transporte", cats: [["gasolina","Gasolina"],["taller","Taller e ITV"],["seguro","Seguro del coche"],["parking","Parking y peajes"],["impuesto","Impuesto de circulación"],["transporte","Taxi, tren y avión"]] },
     { id: "salud", nombre: "Salud y deporte", cats: [["medico","Médico y dentista"],["farmacia","Farmacia"],["deporte","Gimnasio y deporte"],["seguro","Seguro médico"]] },
     { id: "caza", nombre: "Caza", cats: CAZA },
+    { id: "bodas", nombre: "Bodas", cats: BODAS },
     { id: "personal", nombre: "Ropa y cuidado", cats: [["ropa","Ropa y calzado"],["peluqueria","Peluquería y cuidado"]] },
     { id: "familia", nombre: "Familia", cats: [["colegio","Colegio y formación"],["actividades","Actividades de los niños"],["mascotas","Mascotas"],["ayudas","Ayudas a la familia"]] },
     { id: "compras", nombre: "Compras", cats: [["tecnologia","Tecnología"],["regalos","Regalos"],["internet","Compras por internet"],["otras","Otras compras"]] },
@@ -102,6 +105,7 @@ function cats(){
     else if (!f.cats.some(x => x[0] === "intereses")) f.cats.unshift(["intereses", "Intereses de préstamos y tarjetas"]);
     // la caza, si las categorías se guardaron antes de que existiera
     if (!c.gasto.some(g => g.id === "caza")) { const i = c.gasto.findIndex(g => g.id === "personal"); c.gasto.splice(i >= 0 ? i : c.gasto.length, 0, { id: "caza", nombre: "Caza", cats: CAZA.map(x => x.slice()) }); }
+    if (!c.gasto.some(g => g.id === "bodas")) { const i = c.gasto.findIndex(g => g.id === "personal"); c.gasto.splice(i >= 0 ? i : c.gasto.length, 0, { id: "bodas", nombre: "Bodas", cats: BODAS.map(x => x.slice()) }); }
     // y la de lo prestado que no vuelve, para cuando un deudor no paga
     const o = c.gasto.find(g => g.id === "otros");
     if (!o) c.gasto.push({ id: "otros", nombre: "Otros gastos", cats: [["perdido", "Dinero prestado que no vuelve"]] });

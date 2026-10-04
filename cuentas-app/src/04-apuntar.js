@@ -397,6 +397,7 @@ Reglas:
 - Importes tal y como se pagan, con IVA incluido. Punto decimal en el JSON.
 - Agrupa por categoría: NO una línea por producto, sino una línea por categoría con la suma de sus productos y un concepto que lo resuma, p. ej. «Comida (leche, pan, fruta…)» y «Droguería (lejía, papel…)». Los descuentos, dentro de la línea a la que afectan.
 - La suma de las líneas tiene que dar exactamente el total del papel. Si no te cuadra, dilo en "dudas".
+- Bodas: lo que se gasta con motivo de una boda a la que va Juan (el regalo o el sobre a los novios, una lista de bodas, un traje o vestido o complementos para la boda, el hotel o el viaje a la boda, una despedida de soltero, la peluquería para la boda) va a «bodas.*», no a ropa, regalos o viajes. Si algo podría ser de una boda pero no lo sabes (un traje, un hotel, un regalo caro), usa "pregunta" para preguntárselo.
 - Categorías: NO uses «compras.otras», «otros.varios» ni «otrosi.varios» salvo que de verdad no encaje en ninguna otra. Si dudas entre dos o tres categorías porque depende de algo que sólo sabe Juan (p. ej. si algo es un regalo o para él, si una cena es de ocio o de trabajo), pon en "cat" la más probable y rellena "pregunta": una pregunta corta y directa a Juan sobre esa línea, con 2 a 4 opciones, cada una con su categoría. Si no hay dudas, "pregunta" es null.
 - "cat" tiene que ser uno de estos ids, exactamente:
 ${catListForIA()}
@@ -462,6 +463,7 @@ Reglas:
 - Hoy es ${toISO(NOW)} (${DIA[NOW.getDay()]}). «Ayer», «el viernes», etc., cuéntalos desde hoy.
 - «Traspaso» es mover dinero entre SUS cuentas (sacar del cajero = traspaso del banco al efectivo). No es gasto.
 - Si no dice con qué pagó, deja "cuenta" en null. No inventes importes ni fechas.
+- Bodas: lo que se gasta con motivo de una boda a la que va Juan (el regalo o el sobre a los novios, una lista de bodas, un traje o vestido o complementos para la boda, el hotel o el viaje a la boda, una despedida de soltero, la peluquería para la boda) va a «bodas.*», no a ropa, regalos o viajes. Si algo podría ser de una boda pero no lo sabes (un traje, un hotel, un regalo caro), usa "pregunta" para preguntárselo.
 - Categorías: NO uses «compras.otras», «otros.varios» ni «otrosi.varios» salvo que de verdad no encaje en ninguna otra. Si dudas entre dos o tres categorías porque depende de algo que sólo sabe Juan (p. ej. si algo es un regalo o para él, si una cena es de ocio o de trabajo), pon en "cat" la más probable y rellena "pregunta": una pregunta corta y directa a Juan sobre esa línea, con 2 a 4 opciones, cada una con su categoría. Si no hay dudas, "pregunta" es null.
 - "cat" (sólo gastos e ingresos), uno de estos ids exactamente:
 ${catListForIA()}

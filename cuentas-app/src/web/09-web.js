@@ -112,8 +112,28 @@ function makeAssets(){
     async delete(id){ await sb.storage.from(B).remove([id]); }
   };
 }
-let dbNs = null, sampleNs = null, assetsNs = null;
-window.claude = { use: name => ready.then(() => name === "db" ? (dbNs ||= makeDb()) : name === "sample" ? (sampleNs ||= makeSample()) : name === "assets" ? (assetsNs ||= makeAssets()) : null) };
+// Tricount, sólo para leer: la Edge Function cuentas-tricount habla con su API (aquí no se puede, por CORS)
+function makeTricount(){
+  return {
+    async leer(links){
+      const { data } = await sb.auth.getSession();
+      if (!data.session) throw { code: "session_expired", message: "Sin sesión" };
+      let r;
+      try {
+        r = await fetch(CFG.url + "/functions/v1/cuentas-tricount", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: "Bearer " + data.session.access_token, apikey: CFG.key },
+          body: JSON.stringify({ links })
+        });
+      } catch (e) { throw { code: "unavailable", message: String(e) }; }
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw { code: j.code || "upstream_error", message: j.error || r.statusText };
+      return j.tricounts || [];
+    }
+  };
+}
+let dbNs = null, sampleNs = null, assetsNs = null, tcNs = null;
+window.claude = { use: name => ready.then(() => name === "db" ? (dbNs ||= makeDb()) : name === "sample" ? (sampleNs ||= makeSample()) : name === "assets" ? (assetsNs ||= makeAssets()) : name === "tricount" ? (tcNs ||= makeTricount()) : null) };
 
 /* pantalla de entrada */
 const loginEl = document.createElement("div");

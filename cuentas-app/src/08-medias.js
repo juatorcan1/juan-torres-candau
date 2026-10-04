@@ -40,10 +40,12 @@ function splitCalc(s){
 }
 const quienTxt = p => p === YO ? "Juan" : p;
 
+let mSub = store.get("cj.msub", "dividir");
 function renderMedias(){
   const el = $("#v-medias");
   if (!split) split = splitNew();
-  let h = `<div class="subnav" role="tablist" aria-label="A medias"><button role="tab" aria-selected="true">Dividir la cuenta</button></div>`;
+  let h = `<div class="subnav" role="tablist" aria-label="A medias"><button role="tab" data-msub="dividir" aria-selected="${mSub !== "tricount"}">Dividir la cuenta</button><button role="tab" data-msub="tricount" aria-selected="${mSub === "tricount"}">Tricount</button></div>`;
+  if (mSub === "tricount") { el.innerHTML = h + tricountHTML(); tcAuto(); return; }
   h += `<div class="panel"><div class="panel-head"><div><h2>Dividir la cuenta</h2><p>Hazle una foto al ticket y di qué ha tomado cada uno. Te digo cuánto paga cada uno y, si quieres, lo apunto en tus cuentas.</p></div>${split.lineas.length || split.dictado || splitImg ? `<button class="btn sm ghost" id="sp-reset">Empezar otra</button>` : ""}</div>`;
   if (!sample) h += `<div class="banner" style="margin-bottom:12px">${WEB ? "La IA no está disponible ahora mismo: puedes meter las líneas a mano." : "Aquí no está la IA: abre la web para leer el ticket. Puedes meter las líneas a mano."}</div>`;
   h += `<div class="split-in">
@@ -185,10 +187,124 @@ async function splitApuntar(){
   } catch (e) { err.textContent = saveErr(e); if (btn) btn.disabled = false; }
 }
 
+/* ================= Tricount (sólo leer) ================= */
+// Los enlaces se guardan en config/tricount ({items: [{key, titulo, yo}]}); lo leído, en el móvil
+// (localStorage) para verlo al momento, y se refresca al entrar si tiene más de 5 minutos.
+let tcApi = null, tcBusy = false, tcErr = "", tcOpen = null;
+let TC = store.get("cj.tc", {});          // key -> {at, ok, titulo, moneda, miembros, saldos, gastos} o {at, ok:false, error}
+const tcItems = () => cfg.tricount || [];
+const tcKeyOf = link => { const s = String(link || "").trim(); const m = s.match(/([A-Za-z0-9]{6,64})\/?(?:[?#].*)?$/); return m ? m[1] : ""; };
+const tcMoney = (v, cur) => cur && cur !== "EUR" ? NF2.format(r2(v)) + " " + cur : eur(v);
+function tcYo(it, d){
+  if (it.yo && d.miembros.some(m => m.uuid === it.yo)) return it.yo;
+  const j = d.miembros.filter(m => /^(juan|yo)\b/.test(norm(m.nombre)));
+  return j.length === 1 ? j[0].uuid : null;
+}
+// Para quedar en paz: el que más debe paga al que más le deben, y así hasta acabar
+function tcSaldar(saldos){
+  const deb = [], acr = [];
+  for (const [u, v] of Object.entries(saldos)) { const c = Math.round(v * 100); if (c < 0) deb.push([u, -c]); else if (c > 0) acr.push([u, c]); }
+  deb.sort((a, b) => b[1] - a[1]); acr.sort((a, b) => b[1] - a[1]);
+  const out = [];
+  let i = 0, j = 0;
+  while (i < deb.length && j < acr.length) {
+    const x = Math.min(deb[i][1], acr[j][1]);
+    out.push({ de: deb[i][0], a: acr[j][0], v: x / 100 });
+    deb[i][1] -= x; acr[j][1] -= x;
+    if (!deb[i][1]) i++; if (!acr[j][1]) j++;
+  }
+  return out;
+}
+const hace = ts => { const m = Math.round((Date.now() - ts) / 6e4); return m < 1 ? "ahora mismo" : m < 60 ? `hace ${m} min` : m < 1440 ? `hace ${Math.round(m / 60)} h` : `hace ${Math.round(m / 1440)} días`; };
+function tcAuto(){
+  if (!tcApi || tcBusy || !tcItems().length) return;
+  const viejo = tcItems().some(it => !TC[it.key] || Date.now() - TC[it.key].at > 5 * 6e4);
+  if (viejo) tcRefresh();
+}
+async function tcRefresh(extra){
+  if (!tcApi || tcBusy) return;
+  const links = tcItems().map(it => it.key).concat(extra ? [extra] : []);
+  if (!links.length) return;
+  tcBusy = true; tcErr = ""; if (tab === "medias") renderView();
+  let got = [];
+  try {
+    got = await tcApi.leer(links);
+    for (const d of got) TC[d.key] = { ...d, at: Date.now() };
+    store.set("cj.tc", TC);
+  } catch (e) {
+    tcErr = e && e.code === "session_expired" ? "Tu sesión ha caducado: vuelve a entrar." : e && e.code === "rate_limited" ? "Tricount pide esperar un poco. Prueba en un rato." : "No he podido hablar con Tricount ahora mismo. Prueba en un rato.";
+  }
+  tcBusy = false;
+  if (tab === "medias") renderView();
+  return got;
+}
+async function tcAdd(){
+  const inp = $("#tc-link"), link = (inp && inp.value || "").trim();
+  const key = tcKeyOf(link);
+  if (!key) { tcErr = "Eso no parece un enlace de Tricount. Cópialo desde la app: el tricount → Invitar → Copiar enlace."; return renderView(); }
+  if (tcItems().some(it => it.key === key)) { tcErr = "Ese tricount ya está."; return renderView(); }
+  const got = await tcRefresh(key) || [];
+  const d = got.find(x => x.key === key);
+  if (!d) return;
+  if (!d.ok) { tcErr = d.error || "No he podido leer ese tricount."; delete TC[key]; store.set("cj.tc", TC); return renderView(); }
+  try { await saveCfg("tricount", { items: tcItems().concat([{ key, titulo: d.titulo, yo: null }]) }); tcOpen = key; toast("Tricount añadido"); }
+  catch (e) { tcErr = saveErr(e); }
+  renderView();
+}
+function tricountHTML(){
+  let h = `<div class="panel"><div class="panel-head"><div><h2>Tus tricounts</h2><p>Seguís apuntando en Tricount como siempre; aquí ves cómo vais. Sólo leo: no cambio nada en Tricount.</p></div>${tcItems().length && tcApi ? `<button class="btn sm" id="tc-refresh"${tcBusy ? " disabled" : ""}>${tcBusy ? `<span class="spin"></span> Leyendo…` : "Actualizar"}</button>` : ""}</div>`;
+  if (!WEB) return h + `<div class="banner">Tricount sólo se puede leer desde la web.</div></div>`;
+  h += `<div class="row" style="align-items:flex-end"><div class="f" style="flex:1;min-width:220px"><label for="tc-link">Enlace del tricount <small>(en Tricount: el tricount → Invitar → Copiar enlace)</small></label><input id="tc-link" inputmode="url" placeholder="https://tricount.com/t…" autocomplete="off"></div><button class="btn primary" id="tc-add"${tcApi && !tcBusy ? "" : " disabled"}>Añadir</button></div>`;
+  if (tcErr) h += `<p class="err" style="margin:8px 0 0">${esc(tcErr)}</p>`;
+  h += `<p class="small muted" style="margin:8px 0 0">Tricount no tiene una conexión oficial: uso la misma que su app. Si un día la cambian, esto dejará de actualizarse, pero tus datos en Tricount no se tocan.</p></div>`;
+  if (!tcItems().length) return h;
+  for (const it of tcItems()) h += tcCardHTML(it);
+  return h;
+}
+function tcCardHTML(it){
+  const d = TC[it.key];
+  let h = `<div class="panel"><div class="panel-head"><div><h2>${esc((d && d.ok && d.titulo) || it.titulo || "Tricount")}</h2><p>${d ? (d.ok ? `${d.gastos.length} movimientos · ${d.miembros.filter(m => m.activo).length} personas · leído ${hace(d.at)}` : `<span style="color:var(--over)">${esc(d.error || "No se ha podido leer")}</span>`) : tcBusy ? "Leyendo…" : "Sin leer todavía"}</p></div><button class="btn sm ghost" data-tcdel="${esc(it.key)}">${it.confirmDel ? "Sí, quitarlo" : "Quitar"}</button></div>`;
+  if (!d || !d.ok) return h + `</div>`;
+  const cur = d.moneda, nom = u => (d.miembros.find(m => m.uuid === u) || {}).nombre || "¿?";
+  const yo = tcYo(it, d);
+  h += `<div class="f" style="max-width:280px"><label for="tc-yo-${esc(it.key)}">¿Quién eres tú en este tricount?</label><select id="tc-yo-${esc(it.key)}" data-tcyo="${esc(it.key)}"><option value="">— Elige —</option>${d.miembros.map(m => `<option value="${esc(m.uuid)}"${m.uuid === yo ? " selected" : ""}>${esc(m.nombre)}</option>`).join("")}</select></div>`;
+  if (yo) {
+    const v = d.saldos[yo] || 0;
+    h += `<div class="bal num" style="font-family:var(--display);font-weight:800;font-size:26px;margin:10px 0 2px;${v < -0.005 ? "color:var(--over)" : ""}">${v > 0.005 ? "Te deben " + tcMoney(v, cur) : v < -0.005 ? "Debes " + tcMoney(-v, cur) : "Estás en paz"}</div>`;
+  }
+  // saldos de todos
+  const mx = Math.max(0.01, ...Object.values(d.saldos).map(Math.abs));
+  h += `<div class="tc-bal">${d.miembros.filter(m => m.activo || Math.abs(d.saldos[m.uuid] || 0) > 0.005).sort((a, b) => (d.saldos[b.uuid] || 0) - (d.saldos[a.uuid] || 0)).map(m => { const v = d.saldos[m.uuid] || 0; return `<div class="tc-row"><span class="nm">${esc(m.nombre)}${m.uuid === yo ? " <small class='muted'>(tú)</small>" : ""}</span><span class="am num" style="color:${v > 0.005 ? "var(--ok)" : v < -0.005 ? "var(--over)" : "var(--muted)"}">${v > 0.005 ? "+" : v < -0.005 ? "−" : ""}${tcMoney(Math.abs(v), cur)}</span><span class="bar"><i style="width:${(Math.abs(v) / mx * 100).toFixed(1)}%;background:${v >= 0 ? "var(--ok)" : "var(--over)"}"></i></span></div>`; }).join("")}</div>`;
+  const pagos = tcSaldar(d.saldos);
+  if (pagos.length) h += `<h3 class="eyebrow" style="margin:16px 0 6px">Para quedar en paz</h3>${pagos.map(p => `<div class="rec" style="grid-template-columns:minmax(0,1fr) auto"><div class="n"${p.de === yo || p.a === yo ? "" : ' style="font-weight:500;color:var(--ink-2)"'}>${p.de === yo ? "Tú le pagas a " + esc(nom(p.a)) : p.a === yo ? esc(nom(p.de)) + " te paga a ti" : esc(nom(p.de)) + " le paga a " + esc(nom(p.a))}</div><span class="a">${tcMoney(p.v, cur)}</span></div>`).join("")}`;
+  // movimientos
+  const open = tcOpen === it.key;
+  const lista = d.gastos.slice(0, open ? 200 : 8);
+  h += `<h3 class="eyebrow" style="margin:16px 0 6px">Últimos movimientos</h3>`;
+  for (const g of lista) {
+    const parte = yo ? g.reparto[yo] || 0 : 0;
+    const pagoYo = g.pago === yo;
+    const qui = g.tipo === "reembolso" ? `${esc(nom(g.pago))} → ${esc(Object.keys(g.reparto).filter(u => g.reparto[u] > 0).map(nom).join(", "))}` : `pagó ${pagoYo ? "tú" : esc(nom(g.pago))}`;
+    h += `<div class="rec" style="grid-template-columns:minmax(0,1fr) auto"><div><div class="n">${esc(g.concepto || (g.tipo === "reembolso" ? "Reembolso" : "Gasto"))}</div><div class="m">${g.fecha ? shortDate(g.fecha) + (parseISO(g.fecha).getFullYear() !== CUR_Y ? " " + parseISO(g.fecha).getFullYear() : "") + " · " : ""}${g.tipo === "reembolso" ? "reembolso: " : g.tipo === "ingreso" ? "ingreso · " : ""}${qui}${yo && g.tipo === "gasto" && parte ? ` · tu parte ${tcMoney(parte, cur)}` : ""}${g.local ? ` · ${NF2.format(g.local.importe)} ${esc(g.local.moneda)}` : ""}</div></div><span class="a">${tcMoney(g.total, cur)}</span></div>`;
+  }
+  if (d.gastos.length > lista.length || open) h += `<div class="row" style="margin-top:8px"><button class="btn sm ghost" data-tcmore="${esc(it.key)}">${open ? "Ver menos" : `Ver los ${d.gastos.length}`}</button></div>`;
+  return h + `</div>`;
+}
+
 /* ---------- clics y escritura ---------- */
 document.addEventListener("click", async e => {
   const t = e.target.closest("button"); if (!t || !t.closest("#v-medias")) return;
   const ds = t.dataset;
+  if (ds.msub) { mSub = ds.msub; store.set("cj.msub", mSub); tcErr = ""; return renderView(); }
+  if (t.id === "tc-add") return tcAdd();
+  if (t.id === "tc-refresh") return tcRefresh();
+  if (ds.tcmore) { tcOpen = tcOpen === ds.tcmore ? null : ds.tcmore; return renderView(); }
+  if (ds.tcdel) {
+    const it = tcItems().find(x => x.key === ds.tcdel); if (!it) return;
+    if (!it.confirmDel) { it.confirmDel = true; renderView(); setTimeout(() => { it.confirmDel = false; }, 4000); return; }
+    try { await saveCfg("tricount", { items: tcItems().filter(x => x.key !== ds.tcdel).map(({ confirmDel, ...x }) => x) }); delete TC[ds.tcdel]; store.set("cj.tc", TC); toast("Quitado"); } catch (err) { toast(saveErr(err)); }
+    return;
+  }
   if (t.id === "sp-img") return $("#sp-file").click();
   if (t.id === "sp-img-del") { splitImg = null; if (splitImgUrl) URL.revokeObjectURL(splitImgUrl); splitImgUrl = ""; return renderView(); }
   if (t.id === "sp-go") return splitGo();
@@ -210,7 +326,10 @@ document.addEventListener("click", async e => {
     try { await navigator.clipboard.writeText(txt); toast("Copiado: pégalo en WhatsApp"); } catch { toast("No he podido copiarlo"); }
   }
 });
-document.addEventListener("keydown", e => { if (e.target.id === "sp-newp" && e.key === "Enter") { e.preventDefault(); const b = $("#sp-newp-go"); if (b) b.click(); } });
+document.addEventListener("keydown", e => {
+  if (e.target.id === "sp-newp" && e.key === "Enter") { e.preventDefault(); const b = $("#sp-newp-go"); if (b) b.click(); }
+  if (e.target.id === "tc-link" && e.key === "Enter") { e.preventDefault(); tcAdd(); }
+});
 document.addEventListener("input", e => {
   const el = e.target; if (!el.closest || !el.closest("#v-medias") || !split) return;
   if (el.id === "sp-dict") { split.dictado = el.value; splitSave(); return; }
@@ -226,6 +345,11 @@ document.addEventListener("change", async e => {
     const f = el.files && el.files[0]; el.value = ""; if (!f) return;
     splitImg = await shrink(f); if (splitImgUrl) URL.revokeObjectURL(splitImgUrl); splitImgUrl = URL.createObjectURL(splitImg);
     return renderView();
+  }
+  if (el.dataset.tcyo) {
+    const list = tcItems().map(({ confirmDel, ...x }) => x.key === el.dataset.tcyo ? { ...x, yo: el.value || null } : x);
+    try { await saveCfg("tricount", { items: list }); cfg.tricount = list; renderView(); } catch (err) { toast(saveErr(err)); }
+    return;
   }
   const k = { "sp-pagador": "pagador", "sp-cuenta": "cuenta", "sp-fecha": "fecha", "sp-cat": "cat" }[el.id];
   if (k) { split[k] = el.value; splitSave(); return renderView(); }

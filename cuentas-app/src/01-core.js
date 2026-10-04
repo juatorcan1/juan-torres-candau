@@ -78,7 +78,7 @@ function ticketSrc(id, onReady){
 }
 let dbState = "loading";           // loading | ready | none
 let meses = {};                    // "2026-09" -> doc data
-let cfg = { cuentas: null, cats: null, prefs: {} };
+let cfg = { cuentas: null, cats: null, prefs: {}, tricount: [] };
 let anios = {};                    // "2026" -> {recurrentes, presupuesto, objetivos}
 let MOVS = [];                     // todos los movimientos, más nuevos primero
 const NOW = TODAY();

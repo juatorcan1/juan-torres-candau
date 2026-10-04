@@ -15,6 +15,8 @@ Abajo hay cinco botones, y uno redondo (＋) para apuntar:
 - **A medias**: dividir la cuenta en el bar. Foto del ticket + dictar qué ha tomado cada uno → cuánto paga
   cada uno (lo compartido a partes iguales; el descuadre con el total y la propina, en proporción). Se puede
   mandar por WhatsApp y apuntar: tu parte es un gasto y lo de los demás va a «Lo que te deben».
+  En la pestaña **Tricount** se ven tus tricounts (sólo leer): saldos, quién paga a quién para quedar en
+  paz y los últimos movimientos, con tu parte de cada uno.
 - **Dinero**: cuentas, deudas, lo que te deben, objetivos, categorías y copia de seguridad.
 
 **Lo que te deben** (Dinero → Cuentas): cada deudor es una cuenta de tipo `prestado` con saldo a tu favor.
@@ -36,6 +38,10 @@ persona paga algo por ti (p. ej. la cuenta del bar), queda en negativo y aparece
   - `cuentas_claude_uso`: llamadas a la IA por día (tope de 150).
 - La IA (tickets, dictado, extractos y preguntas) pasa por la Edge Function `supabase/functions/cuentas-claude`,
   con la misma clave de Anthropic que el gimnasio.
+- Tricount se lee con la Edge Function `supabase/functions/cuentas-tricount`, que usa la API **no oficial**
+  de la app de Tricount (api.tricount.bunq.com): sólo pide (GET) cada tricount por la clave de su enlace,
+  nunca se une a él ni escribe. bunq la puede cambiar o cerrar. Los enlaces se guardan en `config/tricount`;
+  la sesión de Tricount, en `tricount/sesion` (las dos en `cuentas_docs`).
 - **Como una aplicación en el móvil**: la web lleva su ficha (`src/web/manifest.json`) y sus iconos
   (`src/web/icons/`), así que Chrome la instala con su icono y sin la barra del navegador.
 - **Copia de seguridad**: en Dinero → Cuentas, «Descargar en Excel» y «Descargar la copia completa».

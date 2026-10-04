@@ -243,6 +243,7 @@ renderHeader();
   const use = n => (window.claude && window.claude.use ? window.claude.use(n).catch(() => null) : Promise.resolve(null));
   use("sample").then(async s => { sample = s; if (s) imgCaps = await s.limits().catch(() => null); if (!typing()) renderView(); });
   use("assets").then(a => { assets = a; });
+  use("tricount").then(t => { tcApi = t; if (t && tab === "medias") renderView(); });
   db = await use("db");
   if (!db) { dbState = "none"; renderAll(); return; }
   const got = new Set();
@@ -250,8 +251,8 @@ renderHeader();
   const ready = k => { got.add(k); if (got.size === 3) dbState = "ready"; onData(); };
   db.collection("movs").onSnapshot(snap => { meses = {}; for (const d of snap.docs) meses[d.id] = d.data(); rebuild(); movsReady = true; ready("movs"); }, fail);
   db.collection("config").onSnapshot(snap => {
-    cfg = { cuentas: null, cats: null, prefs: {} };
-    for (const d of snap.docs) { const v = d.data() || {}; if (d.id === "cuentas") cfg.cuentas = v.items || []; else if (d.id === "categorias" && v.gasto && v.ingreso) cfg.cats = v; else if (d.id === "prefs") cfg.prefs = v; }
+    cfg = { cuentas: null, cats: null, prefs: {}, tricount: [] };
+    for (const d of snap.docs) { const v = d.data() || {}; if (d.id === "cuentas") cfg.cuentas = v.items || []; else if (d.id === "categorias" && v.gasto && v.ingreso) cfg.cats = v; else if (d.id === "prefs") cfg.prefs = v; else if (d.id === "tricount") cfg.tricount = v.items || []; }
     buildCatIdx(); ready("config");
   }, fail);
   db.collection("anios").onSnapshot(snap => { anios = {}; for (const d of snap.docs) anios[d.id] = d.data(); ready("anios"); }, fail);

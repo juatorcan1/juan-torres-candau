@@ -30,6 +30,8 @@ let toastT;
 function toast(msg){ const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, 2800); }
 
 /* ================= categorías por defecto ================= */
+// La caza, aparte: cartuchos, licencias, coto, armero… (se añade también a las categorías ya guardadas)
+const CAZA = [["cartuchos","Cartuchos y munición"],["licencias","Licencias, permisos y seguro"],["coto","Coto, cuotas y monterías"],["armas","Armas, armero y revisiones"],["equipo","Ropa y equipo de caza"],["perros","Perros de caza"],["viajes","Viajes y comidas de caza"]];
 const DEF_CATS = {
   gasto: [
     { id: "casa", nombre: "Casa", cats: [["hipoteca","Hipoteca o alquiler"],["comunidad","Comunidad"],["ibi","IBI y basuras"],["luz","Luz"],["agua","Agua"],["gas","Gas"],["internet","Internet y móvil"],["seguro","Seguro de hogar"],["arreglos","Arreglos y mantenimiento"],["hogar","Muebles y cosas de casa"],["limpieza","Limpieza y droguería"]] },
@@ -37,6 +39,7 @@ const DEF_CATS = {
     { id: "fuera", nombre: "Comer fuera y ocio", cats: [["restaurantes","Restaurantes"],["bares","Bares y copas"],["ocio","Ocio y espectáculos"],["viajes","Viajes y vacaciones"]] },
     { id: "coche", nombre: "Coche y transporte", cats: [["gasolina","Gasolina"],["taller","Taller e ITV"],["seguro","Seguro del coche"],["parking","Parking y peajes"],["impuesto","Impuesto de circulación"],["transporte","Taxi, tren y avión"]] },
     { id: "salud", nombre: "Salud y deporte", cats: [["medico","Médico y dentista"],["farmacia","Farmacia"],["deporte","Gimnasio y deporte"],["seguro","Seguro médico"]] },
+    { id: "caza", nombre: "Caza", cats: CAZA },
     { id: "personal", nombre: "Ropa y cuidado", cats: [["ropa","Ropa y calzado"],["peluqueria","Peluquería y cuidado"]] },
     { id: "familia", nombre: "Familia", cats: [["colegio","Colegio y formación"],["actividades","Actividades de los niños"],["mascotas","Mascotas"],["ayudas","Ayudas a la familia"]] },
     { id: "compras", nombre: "Compras", cats: [["tecnologia","Tecnología"],["regalos","Regalos"],["internet","Compras por internet"],["otras","Otras compras"]] },
@@ -97,6 +100,8 @@ function cats(){
     const f = c.gasto.find(g => g.id === "finanzas");
     if (!f) c.gasto.push({ id: "finanzas", nombre: "Impuestos y banco", cats: [["intereses", "Intereses de préstamos y tarjetas"]] });
     else if (!f.cats.some(x => x[0] === "intereses")) f.cats.unshift(["intereses", "Intereses de préstamos y tarjetas"]);
+    // la caza, si las categorías se guardaron antes de que existiera
+    if (!c.gasto.some(g => g.id === "caza")) { const i = c.gasto.findIndex(g => g.id === "personal"); c.gasto.splice(i >= 0 ? i : c.gasto.length, 0, { id: "caza", nombre: "Caza", cats: CAZA.map(x => x.slice()) }); }
     // y la de lo prestado que no vuelve, para cuando un deudor no paga
     const o = c.gasto.find(g => g.id === "otros");
     if (!o) c.gasto.push({ id: "otros", nombre: "Otros gastos", cats: [["perdido", "Dinero prestado que no vuelve"]] });

@@ -10,12 +10,16 @@
 //   carpeta, no se sube otra vez.
 // - Escribe con el permiso OAuth de la cuenta de Google de Juan, el mismo que usa la Tía Senda:
 //   secretos GOOGLE_OAUTH_CLIENT_ID, GOOGLE_OAUTH_CLIENT_SECRET y GOOGLE_OAUTH_REFRESH_TOKEN.
+// - NADA SE MEZCLA CON SENDA: sólo se escribe dentro de «01 Tickets» (id fijo, sin variable de entorno que lo
+//   cambie) y, antes de subir, se comprueba que esa carpeta es de verdad 02 - JUAN / 04 - FACTURAS / 01 Tickets.
+//   Si no lo es, no se sube nada. Esa carpeta no está compartida con la cuenta de servicio de Senda.
 // Solo para los usuarios de cuentas_usuarios; las fotos se leen de su carpeta privada cuentas-tickets.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.117.0";
 
 // «G:\Mi unidad\02 - JUAN\04 - FACTURAS\01 Tickets»
-const TICKETS_ID = (Deno.env.get("CUENTAS_DRIVE_TICKETS_ID") || "1qwlkFeobEgzOPnARJwQqj5Fk6vLZw5VR").trim();
+const TICKETS_ID = "1qwlkFeobEgzOPnARJwQqj5Fk6vLZw5VR";
+const CADENA = ["01 tickets", "04 - facturas", "02 - juan"];   // la carpeta, su madre y su abuela
 const RUTA = "02 - JUAN / 04 - FACTURAS / 01 Tickets";
 const BUCKET = "cuentas-tickets";
 const MAX_ITEMS = 5;
@@ -160,6 +164,18 @@ async function subir(token: string, padre: string, nombre: string, mime: string,
     method: "POST", headers: { "Content-Type": `multipart/related; boundary=${b}` }, body,
   });
 }
+// El candado: «01 Tickets» tiene que colgar de «04 - FACTURAS», y esta de «02 - JUAN». Si alguien la mueve
+// (por ejemplo, dentro de Senda), no se sube nada hasta que vuelva a su sitio.
+async function carpetaBuena(token: string): Promise<boolean> {
+  let id = TICKETS_ID;
+  for (const nombre of CADENA) {
+    const f = await gd(token, `https://www.googleapis.com/drive/v3/files/${id}?fields=name,parents,trashed&supportsAllDrives=true`);
+    if (f.trashed || normL(f.name) !== nombre) return false;
+    id = (f.parents || [])[0];
+    if (!id) return false;
+  }
+  return true;
+}
 const b64ToBytes = (s: string) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
 
 Deno.serve(async (req: Request) => {
@@ -182,6 +198,9 @@ Deno.serve(async (req: Request) => {
   let token: string;
   try { token = await googleToken(); }
   catch (e) { return reply({ code: (e as Any).code || "no_drive", error: (e as Error).message }, 503); }
+  try {
+    if (!(await carpetaBuena(token))) return reply({ code: "carpeta", error: "La carpeta de tickets no está en 02 - JUAN / 04 - FACTURAS / 01 Tickets: no subo nada" }, 409);
+  } catch (e) { return reply({ code: "upstream_error", error: "No puedo comprobar la carpeta de Drive: " + (e as Error).message }, 502); }
 
   const out: Any[] = [];
   const carpetas: Record<string, string> = {};

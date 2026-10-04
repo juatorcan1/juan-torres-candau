@@ -51,7 +51,7 @@ const DEF_CATS = {
     { id: "otrosi", nombre: "Otros ingresos", cats: [["hacienda","Devolución de Hacienda"],["ventas","Venta de cosas"],["regalos","Regalos recibidos"],["reembolsos","Reembolsos y devoluciones"],["varios","Varios"]] }
   ]
 };
-const ACC_TYPES = { banco: "Cuenta de banco", efectivo: "Efectivo", deposito: "Depósito a plazo", inversion: "Inversión", ahorro: "Cuenta de ahorro", prestamo: "Préstamo o hipoteca", credito: "Tarjeta de crédito", prestado: "Dinero que te deben" };
+const ACC_TYPES = { banco: "Cuenta de banco", efectivo: "Efectivo", deposito: "Depósito a plazo", inversion: "Inversión", ahorro: "Cuenta de ahorro", prestamo: "Préstamo o hipoteca", credito: "Tarjeta de crédito", prestado: "Cuenta con una persona (lo que te debe o le debes)" };
 const DEBT = t => t === "prestamo" || t === "credito";
 // Deudores: cada persona que te debe dinero es una "cuenta" con saldo a tu favor. Prestar es pasar
 // dinero de tu banco a esa cuenta, y que te devuelva es pasarlo de vuelta. No cuenta como dinero tuyo
@@ -78,7 +78,7 @@ function ticketSrc(id, onReady){
 }
 let dbState = "loading";           // loading | ready | none
 let meses = {};                    // "2026-09" -> doc data
-let cfg = { cuentas: null, cats: null, prefs: {} };
+let cfg = { cuentas: null, cats: null, prefs: {}, tricount: [] };
 let anios = {};                    // "2026" -> {recurrentes, presupuesto, objetivos}
 let MOVS = [];                     // todos los movimientos, más nuevos primero
 const NOW = TODAY();
@@ -143,7 +143,8 @@ function accOptions(sel, withNone){
 }
 
 /* ================= movimientos ================= */
-// Un movimiento: {id, fecha, tipo gasto|ingreso|traspaso, cuenta, destino, comercio, nota, total, lineas[{concepto,cat,importe}], origen, ticket, revisar, creado, banco}
+// Un movimiento: {id, fecha, tipo gasto|ingreso|traspaso, cuenta, destino, comercio, nota, total, lineas[{concepto,cat,importe}], origen, ticket, revisar, creado, banco,
+//   factura {proveedor, cif, numero} (lo que lee la IA para el nombre en Drive), drive {fileId, nombre, ruta, enlace} (si ya está en Drive)}
 function cleanMov(m){
   const tipo = ["gasto","ingreso","traspaso"].includes(m.tipo) ? m.tipo : "gasto";
   const lineas = tipo === "traspaso" ? [] : (m.lineas || []).filter(l => l && (num(l.importe) || l.concepto)).map(l => ({ concepto: String(l.concepto || "").slice(0, 120), cat: l.cat || "", importe: r2(num(l.importe)) }));
@@ -151,7 +152,8 @@ function cleanMov(m){
     id: m.id || uid(), fecha: m.fecha, tipo, cuenta: m.cuenta || "", destino: tipo === "traspaso" ? (m.destino || "") : "",
     comercio: String(m.comercio || "").slice(0, 80), nota: String(m.nota || "").slice(0, 400),
     total: r2(Math.abs(num(m.total))), lineas, origen: m.origen || "mano", ticket: m.ticket || null,
-    revisar: !!m.revisar, creado: m.creado || Date.now(), banco: m.banco || null, deuda: m.deuda || null
+    revisar: !!m.revisar, creado: m.creado || Date.now(), banco: m.banco || null, deuda: m.deuda || null,
+    factura: m.factura || null, drive: m.drive || null
   };
 }
 function rebuild(){
@@ -193,8 +195,9 @@ function saldo(c, iso){
 const LIQUID = t => t === "banco" || t === "efectivo" || t === "ahorro";
 // Lo que debes hoy (en positivo) en una deuda, y si la cuota de un mes ya está apuntada
 const debe = (c, iso) => Math.max(0, -saldo(c, iso));
-// Lo que te debe hoy un deudor
+// Lo que te debe hoy una persona, o lo que le debes tú (si pagó ella por ti)
 const teDebe = (c, iso) => Math.max(0, saldo(c, iso));
+const leDebes = (c, iso) => Math.max(0, -saldo(c, iso));
 const cuotaPagada = (c, y, mo) => MOVS.some(m => m.tipo === "traspaso" && m.destino === c.id && m.fecha.startsWith(y + "-" + pad(mo + 1)));
 // Reparto de una cuota: intereses del mes sobre lo que queda, y el resto a devolver
 function repartoCuota(c, total, iso){

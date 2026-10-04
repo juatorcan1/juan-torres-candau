@@ -12,12 +12,18 @@ Abajo hay cinco botones, y uno redondo (＋) para apuntar:
 - **En qué se va**: gastos e ingresos por grupos y categorías, presupuesto y la curva del año.
 - **Previsión**: cómo acabarás el año, la previsión de gastos y de ingresos por categorías, lo que viene
   los próximos seis meses, hasta 2040, y los fijos y el presupuesto de cada ejercicio.
+- **A medias**: dividir la cuenta en el bar. Foto del ticket + dictar qué ha tomado cada uno → cuánto paga
+  cada uno (lo compartido a partes iguales; el descuadre con el total y la propina, en proporción). Se puede
+  mandar por WhatsApp y apuntar: tu parte es un gasto y lo de los demás va a «Lo que te deben».
+  En la pestaña **Tricount** se ven tus tricounts (sólo leer): saldos, quién paga a quién para quedar en
+  paz y los últimos movimientos, con tu parte de cada uno.
 - **Dinero**: cuentas, deudas, lo que te deben, objetivos, categorías y copia de seguridad.
 
 **Lo que te deben** (Dinero → Cuentas): cada deudor es una cuenta de tipo `prestado` con saldo a tu favor.
 Prestar es un traspaso de tu banco a su cuenta y que te devuelva es el traspaso al revés; «Darlo por perdido»
 apunta lo que queda como gasto en «Dinero prestado que no vuelve». Lo que te deben no cuenta en «Dinero hoy»
-ni en la previsión hasta que vuelve, pero sí en «lo tuyo de verdad».
+ni en la previsión hasta que vuelve, pero sí en «lo tuyo de verdad». El saldo va en los dos sentidos: si una
+persona paga algo por ti (p. ej. la cuenta del bar), queda en negativo y aparece como «Le debes».
 
 ## Dos versiones, mismo código
 
@@ -32,6 +38,16 @@ ni en la previsión hasta que vuelve, pero sí en «lo tuyo de verdad».
   - `cuentas_claude_uso`: llamadas a la IA por día (tope de 150).
 - La IA (tickets, dictado, extractos y preguntas) pasa por la Edge Function `supabase/functions/cuentas-claude`,
   con la misma clave de Anthropic que el gimnasio.
+- **Tickets en Google Drive**, como en Senda: cada ticket que se guarda se archiva también en
+  `G:\Mi unidad\02 - JUAN\04 - FACTURAS\01 Tickets\<año>\<Nº TRIMESTRE>` en PDF (las fotos se pasan a PDF) y
+  con el nombre de Senda `AAAAMMDD_PROVEEDOR_IMPORTE€_NUMERO.pdf` (las reglas de `factura_nombre.py`). Lo hace la
+  Edge Function `supabase/functions/cuentas-drive`, con el mismo permiso de Google que la Tía Senda: secretos
+  `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET` y `GOOGLE_OAUTH_REFRESH_TOKEN` en las Edge Functions de
+  Supabase. En Dinero → «Tickets en Drive» se ve cuántos están subidos y se suben los que falten.
+- Tricount se lee con la Edge Function `supabase/functions/cuentas-tricount`, que usa la API **no oficial**
+  de la app de Tricount (api.tricount.bunq.com): sólo pide (GET) cada tricount por la clave de su enlace,
+  nunca se une a él ni escribe. bunq la puede cambiar o cerrar. Los enlaces se guardan en `config/tricount`;
+  la sesión de Tricount, en `tricount/sesion` (las dos en `cuentas_docs`).
 - **Como una aplicación en el móvil**: la web lleva su ficha (`src/web/manifest.json`) y sus iconos
   (`src/web/icons/`), así que Chrome la instala con su icono y sin la barra del navegador.
 - **Copia de seguridad**: en Dinero → Cuentas, «Descargar en Excel» y «Descargar la copia completa».

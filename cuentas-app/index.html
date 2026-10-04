@@ -290,7 +290,7 @@ input,select,textarea{min-width:0}
 .steps li span{font-size:13px;color:var(--ink-2)}
 
 /* navegación inferior */
-.bnav{position:fixed;left:0;right:0;bottom:0;z-index:40;display:grid;grid-template-columns:repeat(5,1fr);align-items:end;background:var(--surface);border-top:1px solid var(--line);padding:6px 6px calc(6px + env(safe-area-inset-bottom,0px))}
+.bnav{position:fixed;left:0;right:0;bottom:0;z-index:40;display:grid;grid-template-columns:repeat(6,1fr);align-items:end;background:var(--surface);border-top:1px solid var(--line);padding:6px 6px calc(6px + env(safe-area-inset-bottom,0px))}
 .bnav button{display:grid;justify-items:center;gap:2px;background:none;border:0;padding:6px 2px;color:var(--muted);font-size:11.5px;font-weight:700;cursor:pointer;border-radius:10px}
 .bnav button svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .bnav button[aria-current="page"]{color:var(--ink)}
@@ -305,6 +305,23 @@ tr.grp td{font-weight:700;background:var(--surface-2)}
 tr.subrow td{font-size:13px;color:var(--ink-2)}
 tr.subrow td:first-child{padding-left:22px}
 .toast{position:fixed;left:50%;bottom:calc(150px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:9px;font-weight:600;font-size:14px;z-index:95;max-width:calc(100% - 32px)}
+
+/* a medias */
+.split-in{display:grid;gap:14px}
+.split-lines{display:grid;gap:8px;margin-top:12px}
+.sl{border:1px solid var(--line-2);border-radius:10px;padding:8px 10px;display:grid;gap:8px}
+.sl.nobody{border-color:var(--warn);background:var(--warn-bg)}
+.sl-top{display:grid;grid-template-columns:minmax(0,1fr) 92px 32px;gap:6px;align-items:center}
+.sl-top input{font:inherit;border:1px solid var(--line);border-radius:8px;padding:7px 9px;background:var(--surface);color:var(--ink);min-width:0}
+.sl-top input.n{text-align:right;font-family:var(--mono)}
+.chips.sm button{padding:4px 10px;font-size:13px}
+.split-tot{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-top:14px}
+.split-tot .tile{border:1px solid var(--line-2);border-radius:10px;padding:10px 12px}
+.tc-bal{display:grid;gap:8px;margin-top:12px}
+.tc-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;align-items:center}
+.tc-row .am{font-family:var(--mono);font-weight:600}
+.tc-row .bar{grid-column:1/-1;height:6px;border-radius:3px;background:var(--surface-2);overflow:hidden}
+.tc-row .bar i{display:block;height:100%;border-radius:3px}
 </style>
 <div class="wrap">
   <div class="strip">
@@ -323,6 +340,7 @@ tr.subrow td:first-child{padding-left:22px}
     <section id="v-apuntar" hidden></section>
     <section id="v-analisis" hidden></section>
     <section id="v-prevision" hidden></section>
+    <section id="v-medias" hidden></section>
     <section id="v-dinero" hidden></section>
   </main>
 </div>
@@ -332,6 +350,7 @@ tr.subrow td:first-child{padding-left:22px}
   <button type="button" data-tab="movs"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg><span>Movimientos</span></button>
   <button type="button" data-tab="analisis"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12A9 9 0 1 1 12 3v9z"/><path d="M15 3.5A9 9 0 0 1 20.5 9H15z"/></svg><span>En qué se va</span></button>
   <button type="button" data-tab="prevision"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17l5-5 4 3 8-8M15 7h5v5"/></svg><span>Previsión</span></button>
+  <button type="button" data-tab="medias"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.6"/><path d="M16.5 14.2c2.6.4 4.5 2.7 4.5 5.8"/></svg><span>A medias</span></button>
   <button type="button" data-tab="dinero"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h13v4M3 7v11a2 2 0 0 0 2 2h15V9H5a2 2 0 0 1-2-2zM16 14.5h.01"/></svg><span>Dinero</span></button>
 </nav>
 <button type="button" class="fab" data-tab="apuntar" aria-label="Apuntar o escanear un ticket"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
@@ -397,7 +416,7 @@ const DEF_CATS = {
     { id: "otrosi", nombre: "Otros ingresos", cats: [["hacienda","Devolución de Hacienda"],["ventas","Venta de cosas"],["regalos","Regalos recibidos"],["reembolsos","Reembolsos y devoluciones"],["varios","Varios"]] }
   ]
 };
-const ACC_TYPES = { banco: "Cuenta de banco", efectivo: "Efectivo", deposito: "Depósito a plazo", inversion: "Inversión", ahorro: "Cuenta de ahorro", prestamo: "Préstamo o hipoteca", credito: "Tarjeta de crédito", prestado: "Dinero que te deben" };
+const ACC_TYPES = { banco: "Cuenta de banco", efectivo: "Efectivo", deposito: "Depósito a plazo", inversion: "Inversión", ahorro: "Cuenta de ahorro", prestamo: "Préstamo o hipoteca", credito: "Tarjeta de crédito", prestado: "Cuenta con una persona (lo que te debe o le debes)" };
 const DEBT = t => t === "prestamo" || t === "credito";
 // Deudores: cada persona que te debe dinero es una "cuenta" con saldo a tu favor. Prestar es pasar
 // dinero de tu banco a esa cuenta, y que te devuelva es pasarlo de vuelta. No cuenta como dinero tuyo
@@ -424,7 +443,7 @@ function ticketSrc(id, onReady){
 }
 let dbState = "loading";           // loading | ready | none
 let meses = {};                    // "2026-09" -> doc data
-let cfg = { cuentas: null, cats: null, prefs: {} };
+let cfg = { cuentas: null, cats: null, prefs: {}, tricount: [] };
 let anios = {};                    // "2026" -> {recurrentes, presupuesto, objetivos}
 let MOVS = [];                     // todos los movimientos, más nuevos primero
 const NOW = TODAY();
@@ -489,7 +508,8 @@ function accOptions(sel, withNone){
 }
 
 /* ================= movimientos ================= */
-// Un movimiento: {id, fecha, tipo gasto|ingreso|traspaso, cuenta, destino, comercio, nota, total, lineas[{concepto,cat,importe}], origen, ticket, revisar, creado, banco}
+// Un movimiento: {id, fecha, tipo gasto|ingreso|traspaso, cuenta, destino, comercio, nota, total, lineas[{concepto,cat,importe}], origen, ticket, revisar, creado, banco,
+//   factura {proveedor, cif, numero} (lo que lee la IA para el nombre en Drive), drive {fileId, nombre, ruta, enlace} (si ya está en Drive)}
 function cleanMov(m){
   const tipo = ["gasto","ingreso","traspaso"].includes(m.tipo) ? m.tipo : "gasto";
   const lineas = tipo === "traspaso" ? [] : (m.lineas || []).filter(l => l && (num(l.importe) || l.concepto)).map(l => ({ concepto: String(l.concepto || "").slice(0, 120), cat: l.cat || "", importe: r2(num(l.importe)) }));
@@ -497,7 +517,8 @@ function cleanMov(m){
     id: m.id || uid(), fecha: m.fecha, tipo, cuenta: m.cuenta || "", destino: tipo === "traspaso" ? (m.destino || "") : "",
     comercio: String(m.comercio || "").slice(0, 80), nota: String(m.nota || "").slice(0, 400),
     total: r2(Math.abs(num(m.total))), lineas, origen: m.origen || "mano", ticket: m.ticket || null,
-    revisar: !!m.revisar, creado: m.creado || Date.now(), banco: m.banco || null, deuda: m.deuda || null
+    revisar: !!m.revisar, creado: m.creado || Date.now(), banco: m.banco || null, deuda: m.deuda || null,
+    factura: m.factura || null, drive: m.drive || null
   };
 }
 function rebuild(){
@@ -539,8 +560,9 @@ function saldo(c, iso){
 const LIQUID = t => t === "banco" || t === "efectivo" || t === "ahorro";
 // Lo que debes hoy (en positivo) en una deuda, y si la cuota de un mes ya está apuntada
 const debe = (c, iso) => Math.max(0, -saldo(c, iso));
-// Lo que te debe hoy un deudor
+// Lo que te debe hoy una persona, o lo que le debes tú (si pagó ella por ti)
 const teDebe = (c, iso) => Math.max(0, saldo(c, iso));
+const leDebes = (c, iso) => Math.max(0, -saldo(c, iso));
 const cuotaPagada = (c, y, mo) => MOVS.some(m => m.tipo === "traspaso" && m.destino === c.id && m.fecha.startsWith(y + "-" + pad(mo + 1)));
 // Reparto de una cuota: intereses del mes sobre lo que queda, y el resto a devolver
 function repartoCuota(c, total, iso){
@@ -848,6 +870,7 @@ const liquidNow = () => sum(cuentas().filter(c => LIQUID(c.tipo)).map(c => saldo
 const totalAt = iso => sum(cuentas().filter(c => !DEBT(c.tipo) && !LENT(c.tipo)).map(c => saldo(c, iso)));
 const deudaAt = iso => sum(cuentas().filter(c => DEBT(c.tipo)).map(c => debe(c, iso)));
 const teDebenAt = iso => sum(cuentas().filter(c => LENT(c.tipo)).map(c => teDebe(c, iso)));
+const debesGenteAt = iso => sum(cuentas().filter(c => LENT(c.tipo)).map(c => leDebes(c, iso)));
 
 function renderAnio(){
   const el = $("#v-anio");
@@ -866,7 +889,7 @@ function renderAnio(){
   const gastoMes = mesesPasados > 0.5 ? st.G / mesesPasados : 0;
   const colchon = gastoMes > 0 && phase !== "futuro" ? liquidNow() / gastoMes : null;
   const ah = st.I - st.G;
-  const deuda = phase === "futuro" ? 0 : deudaAt(refIso);
+  const deuda = phase === "futuro" ? 0 : deudaAt(refIso) + debesGenteAt(refIso);
   const teDeben = phase === "futuro" ? 0 : teDebenAt(refIso);
   h += `<div class="tiles">
     <div class="tile"><span class="l"><span class="sw" style="background:var(--ing)"></span>Ha entrado</span><span class="v">${eur(st.I)}</span><span class="s">${phase === "pasado" ? "en todo el año" : "a fin de año: " + eur(f.I)}</span></div>
@@ -961,7 +984,7 @@ function resumenParaIA(){
     presupuesto_anual_por_grupo: Object.fromEntries(Object.entries(anio(Y).presupuesto).map(([g, v]) => [groupName("gasto", g), v])),
     cuentas: cuentas().filter(c => !DEBT(c.tipo) && !LENT(c.tipo)).map(c => ({ nombre: c.nombre, tipo: ACC_TYPES[c.tipo] || c.tipo, saldo_hoy: c.ancla ? saldo(c, toISO(NOW)) : "sin saldo apuntado", tae: c.tae || undefined, vence: c.vence || undefined })),
     deudas: cuentas().filter(c => DEBT(c.tipo)).map(c => ({ nombre: c.nombre, tipo: ACC_TYPES[c.tipo], debe_hoy: c.ancla ? debe(c, toISO(NOW)) : "sin apuntar", cuota_mes: num(c.cuota) || undefined, tin: num(c.tin) || undefined, termina: c.termina || undefined })),
-    me_deben: cuentas().filter(c => LENT(c.tipo)).map(c => ({ quien: c.nombre, debe_hoy: c.ancla ? teDebe(c, toISO(NOW)) : "sin apuntar", por: c.nota || undefined, dijo_que_devolvia: c.vence || undefined })),
+    me_deben: cuentas().filter(c => LENT(c.tipo)).map(c => ({ quien: c.nombre, te_debe_hoy: c.ancla ? saldo(c, toISO(NOW)) : "sin apuntar" /* en negativo: le debe Juan */, por: c.nota || undefined, dijo_que_devolvia: c.vence || undefined })),
     objetivos: anio(Y).objetivos.map(o => ({ nombre: o.nombre, para: o.tipo, importe: o.importe, fecha: o.fecha, apartado: goalSaved(o) }))
   };
 }
@@ -1256,6 +1279,7 @@ async function saveDraft(key){
     }
     if (d.id && d.origFecha && d.origFecha.slice(0, 7) !== m.fecha.slice(0, 7)) await deleteMov({ id: d.id, fecha: d.origFecha });
     await saveMovs([m]);
+    if ((m.ticket || d.pdf) && !m.drive) driveUp(m, d.pdf);
     if (d.onSaved) d.onSaved(m);
     toast(d.id ? "Cambios guardados" : m.tipo === "gasto" ? "Gasto guardado" : m.tipo === "ingreso" ? "Ingreso guardado" : "Traspaso guardado");
     delete DRAFTS[key];
@@ -1266,12 +1290,42 @@ async function saveDraft(key){
   }
 }
 
+/* ================= archivar los tickets en Google Drive (sólo en la web) ================= */
+// Como Senda: 02 - JUAN / 04 - FACTURAS / 01 Tickets / año / trimestre / AAAAMMDD_PROVEEDOR_IMPORTE€_NUMERO.pdf.
+// Lo hace la Edge Function cuentas-drive; aquí sólo se le pasa el ticket y se apunta en el movimiento
+// dónde ha quedado (m.drive). De uno en uno, en cola, para no atascar.
+let driveApi = null, driveCola = Promise.resolve(), driveErr = "";
+const toB64 = blob => new Promise((ok, ko) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(",")[1] || ""); r.onerror = ko; r.readAsDataURL(blob); });
+function driveUp(m, pdf, quiet){
+  if (!driveApi) return Promise.resolve(false);
+  const p = driveCola.then(async () => {
+    try {
+      const f = m.factura || {};
+      const it = { id: m.id, fecha: m.fecha, proveedor: f.proveedor || m.comercio, cif: f.cif || "", numero: f.numero || "", total: m.total };
+      if (pdf && pdf.size < 10e6) { it.data = await toB64(pdf); it.mime = "application/pdf"; } else if (m.ticket) it.ticket = m.ticket; else return false;
+      const [r] = await driveApi.subir([it]);
+      if (!r || !r.ok) throw { message: (r && r.error) || "" };
+      const drive = { fileId: r.fileId, nombre: r.nombre, ruta: r.ruta, enlace: r.enlace || "" };
+      await putItems(m.fecha.slice(0, 7), { [m.id]: { drive } });
+      driveErr = "";
+      return true;
+    } catch (e) {
+      driveErr = e && e.code === "no_drive" ? "Falta el permiso de Google Drive (mira «Tickets en Drive», en Dinero)." : "No se ha podido subir a Drive" + (e && e.message ? ": " + e.message : ".");
+      if (!quiet) toast(e && e.code === "no_drive" ? "Guardado, pero falta el permiso de Google Drive" : "Guardado, pero no se ha podido subir a Drive");
+      return false;
+    }
+  });
+  driveCola = p.catch(() => {});
+  return p;
+}
+
 /* ================= hoja para ver o cambiar un movimiento ================= */
 function openMov(id){
   const m = MOVS.find(x => x.id === id); if (!m) return;
   DRAFTS.edit = { ...JSON.parse(JSON.stringify(m)), origFecha: m.fecha, lineas: m.lineas.length ? JSON.parse(JSON.stringify(m.lineas)) : [{ concepto: "", cat: "", importe: "" }] };
   openSheet(`<div class="sheet-h"><h2>${esc(movTitle(m))}</h2><button class="x" data-close="1" aria-label="Cerrar">×</button></div>
     <p class="small muted" style="margin:0">${longDate(m.fecha)} · ${m.origen === "ticket" ? "leído de un ticket" : m.origen === "extracto" ? "del extracto del banco" : m.origen === "texto" ? "dictado" : m.origen === "cuota" ? "cuota de una deuda" : m.origen === "prestado" ? "dinero que te deben" : "apuntado a mano"}${m.banco ? " · ya visto en el banco" : ""}${m.revisar ? ` · <span class="flag">por revisar</span>` : ""}</p>
+    ${m.drive ? `<p class="small muted" style="margin:0">En Drive: ${m.drive.enlace ? `<a href="${esc(m.drive.enlace)}" target="_blank" rel="noopener">${esc(m.drive.nombre)}</a>` : esc(m.drive.nombre)} <span class="muted">(${esc(m.drive.ruta)})</span></p>` : ""}
     ${editorHTML("edit")}`);
   paintSum("edit");
 }
@@ -1376,6 +1430,7 @@ function iaToDraft(o, origen){
     cuenta: tipo === "traspaso" ? (cuenta(o.cuenta) ? o.cuenta : defaultAccount()) : guessAccount(o),
     destino: tipo === "traspaso" ? (cuenta(o.destino) ? o.destino : (String(o.destino || "").toLowerCase().includes("efectivo") ? cashAccount() : "")) : "",
     comercio: String(o.comercio || ""), nota: "", origen,
+    factura: o.razon_social || o.numero || o.cif ? { proveedor: String(o.razon_social || "").slice(0, 120), cif: String(o.cif || "").slice(0, 20), numero: String(o.numero || "").slice(0, 40) } : null,
     lineas: lineas.length ? lineas : [{ concepto: "", cat: "", importe: "" }],
     iaNote: notes.length ? notes.join(" ") : (conf && conf < 0.6 ? "La IA no lo ha tenido del todo claro: repásalo." : "")
   });
@@ -1423,11 +1478,12 @@ async function shrink(file){
 }
 function ticketPrompt(extraText){
   return `Eres el contable personal de Juan (España). Te paso ${extraText ? "el texto de una factura o ticket" : "la foto de un ticket o factura"} de sus cuentas PERSONALES. Léelo y devuelve SOLO un objeto JSON, sin nada más:
-{"tipo":"gasto"|"ingreso","comercio":texto o null,"fecha":"AAAA-MM-DD" o null,"total":número o null,"pago":"tarjeta"|"efectivo"|"bizum"|"transferencia"|"domiciliado"|null,"tarjeta_final":"4 cifras" o null,"lineas":[{"concepto":texto,"cat":id,"importe":número}],"confianza":número de 0 a 1,"dudas":texto o null}
+{"tipo":"gasto"|"ingreso","comercio":texto o null,"razon_social":texto o null,"cif":texto o null,"numero":texto o null,"fecha":"AAAA-MM-DD" o null,"total":número o null,"pago":"tarjeta"|"efectivo"|"bizum"|"transferencia"|"domiciliado"|null,"tarjeta_final":"4 cifras" o null,"lineas":[{"concepto":texto,"cat":id,"importe":número}],"confianza":número de 0 a 1,"dudas":texto o null}
 
 Reglas:
 - No inventes. Lo que no se lea, null. Si no es un ticket ni una factura, pon confianza 0 y explícalo en "dudas".
 - "comercio": el nombre corto del sitio, como lo diría una persona («Mercadona», «Repsol», «Endesa»), no la razón social entera.
+- "razon_social": quien factura, tal como sale en el papel («Mercadona, S.A.», «Estación de Servicio Los Pinos, S.L.»), con el centro si lo pone; "cif": su CIF o NIF; "numero": el número de factura o de ticket tal cual. Lo que no salga, null.
 - Importes tal y como se pagan, con IVA incluido. Punto decimal en el JSON.
 - Agrupa por categoría: NO una línea por producto, sino una línea por categoría con la suma de sus productos y un concepto que lo resuma, p. ej. «Comida (leche, pan, fruta…)» y «Droguería (lejía, papel…)». Los descuentos, dentro de la línea a la que afectan.
 - La suma de las líneas tiene que dar exactamente el total del papel. Si no te cuadra, dilo en "dudas".
@@ -1441,11 +1497,12 @@ async function readTicket(key, files){
   const j = JOBS.find(x => x.key === key); if (!j) return;
   jobUpdate(key, { state: "leyendo", msg: "Preparando…" });
   try {
-    let images = [], text = "", thumb = null;
+    let images = [], text = "", thumb = null, pdf = null;
     for (const f of files) {
       if (f.type === "application/pdf" || /\.pdf$/i.test(f.name)) {
         jobUpdate(key, { msg: "Abriendo el PDF…" });
         const r = await pdfRead(f, 2);
+        if (!pdf && files.length === 1) pdf = f;   // el PDF tal cual, para archivarlo en Drive
         if (r.text.replace(/\s/g, "").length > 60) text += r.text + "\n"; else images.push(...r.images);
         if (!thumb && r.images[0]) thumb = r.images[0];
       } else { const b = await shrink(f); images.push(b); if (!thumb) thumb = b; }
@@ -1457,7 +1514,7 @@ async function readTicket(key, files){
     const o = await sample.json(ticketPrompt(text), { images: images.length ? images : undefined, cache: false });
     if (!o || typeof o !== "object") throw { mine: "La IA no ha devuelto nada que se pueda usar." };
     const d = iaToDraft(o, "ticket");
-    d.blob = thumb; d.ticketUrl = thumb ? URL.createObjectURL(thumb) : "";
+    d.blob = thumb; d.ticketUrl = thumb ? URL.createObjectURL(thumb) : ""; d.pdf = pdf;
     d.revisar = num(o.confianza) < 0.6;
     DRAFTS[key] = d;
     jobUpdate(key, { state: "listo", name: d.comercio || "Ticket", url: d.ticketUrl });
@@ -1515,7 +1572,7 @@ async function saveAllReady(){
     if (r.err) { bad++; continue; }
     try {
       if (d.blob && assets) { try { const up = await assets.upload(d.blob); r.mov.ticket = up.id; } catch {} }
-      await saveMovs([r.mov]); removeJob(j.key); ok++;
+      await saveMovs([r.mov]); if (r.mov.ticket || d.pdf) driveUp(r.mov, d.pdf); removeJob(j.key); ok++;
     } catch { bad++; }
   }
   toast(bad ? `Guardados ${ok}. ${bad} necesitan que los mires.` : `Guardados ${ok}.`);
@@ -1716,8 +1773,8 @@ function cuentasHTML(){
   const liq = sum(cs.filter(c => LIQUID(c.tipo)).map(c => saldo(c, iso)));
   const inv = sum(cs.filter(c => !LIQUID(c.tipo)).map(c => saldo(c, iso)));
   const deb = sum(ds.map(c => debe(c, iso)));
-  const lent = sum(ls.map(c => teDebe(c, iso)));
-  let h = `<div class="panel"><div class="panel-head"><div><h2>${phase === "pasado" ? "Tu dinero a 31 de diciembre de " + Y : "Tu dinero hoy"}</h2><p>Bancos y efectivo: <b class="num">${eur(liq)}</b>${inv ? ` · depósitos e inversiones: <b class="num">${eur(inv)}</b>` : ""}${lent > 0.005 ? ` · te deben: <b class="num">${eur(lent)}</b>` : ""}${deb > 0.005 ? ` · debes: <b class="num" style="color:var(--over)">${eur(deb)}</b>` : ""}${deb > 0.005 || lent > 0.005 ? ` · lo tuyo de verdad: <b class="num">${eur(liq + inv + lent - deb)}</b>` : ""}</p></div><button class="btn primary sm" id="acc-new">Añadir cuenta</button></div>`;
+  const lent = sum(ls.map(c => teDebe(c, iso))), amigos = sum(ls.map(c => leDebes(c, iso)));
+  let h = `<div class="panel"><div class="panel-head"><div><h2>${phase === "pasado" ? "Tu dinero a 31 de diciembre de " + Y : "Tu dinero hoy"}</h2><p>Bancos y efectivo: <b class="num">${eur(liq)}</b>${inv ? ` · depósitos e inversiones: <b class="num">${eur(inv)}</b>` : ""}${lent > 0.005 ? ` · te deben: <b class="num">${eur(lent)}</b>` : ""}${deb + amigos > 0.005 ? ` · debes: <b class="num" style="color:var(--over)">${eur(deb + amigos)}</b>` : ""}${deb + amigos > 0.005 || lent > 0.005 ? ` · lo tuyo de verdad: <b class="num">${eur(liq + inv + lent - deb - amigos)}</b>` : ""}</p></div><button class="btn primary sm" id="acc-new">Añadir cuenta</button></div>`;
   if (!cfg.cuentas || !cfg.cuentas.length) h += `<div class="banner" style="margin-bottom:12px"><b>Empieza por aquí.</b> Añade tus bancos y dime cuánto tienes hoy en cada uno. Así sé cuánto dinero tienes y cuánto tendrás a final de año.</div>`;
   if (accForm && !DEBT(accForm.tipo)) h += accFormHTML();
   h += `<div class="accs">`;
@@ -1743,10 +1800,37 @@ function cuentasHTML(){
   h += `</div></div>`;
   h += deudasHTML(ds, iso, phase);
   h += deudoresHTML(ls, iso, phase);
+  if (WEB) h += driveHTML();
   if (WEB) h += `<div class="panel"><div class="panel-head"><div><h2>Copia de seguridad</h2><p>Todo lo tuyo en un fichero, por si algún día falla algo. La de Excel se abre con cualquier programa; la completa sirve para volver a cargarlo todo.</p></div></div>
     <div class="row"><button class="btn" id="bk-csv">Descargar en Excel</button><button class="btn" id="bk-json">Descargar la copia completa</button></div></div>`;
   return h;
 }
+// Tickets en Drive: cuántos están archivados y subir los que faltan (los de antes, o los que fallaron)
+let driveBusy = null;    // {hechos, total, fallos}
+function driveHTML(){
+  const con = MOVS.filter(m => m.ticket), faltan = con.filter(m => !m.drive);
+  let h = `<div class="panel"><div class="panel-head"><div><h2>Tickets en Drive</h2><p>Cada ticket que guardas se archiva también en tu Drive, como en Senda: <b>02 - JUAN / 04 - FACTURAS / 01 Tickets / año / trimestre</b>, en PDF y con el nombre <span class="num">AAAAMMDD_PROVEEDOR_IMPORTE€_NUMERO</span>.</p></div></div>`;
+  h += `<p class="small" style="margin:0">${con.length ? `${con.length - faltan.length} de ${con.length} tickets están en Drive.` : "Todavía no hay tickets guardados."}</p>`;
+  if (driveBusy) h += `<p class="small" style="margin:6px 0 0"><span class="spin"></span> Subiendo ${driveBusy.hechos} de ${driveBusy.total}…${driveBusy.fallos ? ` (${driveBusy.fallos} sin subir)` : ""}</p>`;
+  else if (faltan.length) h += `<div class="row" style="margin-top:8px"><button class="btn" id="drive-all"${driveApi ? "" : " disabled"}>${faltan.length === 1 ? "Subir el que falta" : `Subir los ${faltan.length} que faltan`}</button></div>`;
+  if (driveErr) h += `<p class="err" style="margin:8px 0 0">${esc(driveErr)}</p>`;
+  return h + `</div>`;
+}
+async function driveTodos(){
+  const faltan = MOVS.filter(m => m.ticket && !m.drive).slice().reverse();
+  if (!faltan.length || driveBusy) return;
+  driveBusy = { hechos: 0, total: faltan.length, fallos: 0 }; renderView();
+  for (const m of faltan) {
+    const ok = await driveUp(m, null, true);
+    driveBusy.hechos++; if (!ok) driveBusy.fallos++;
+    if (!ok && /permiso/.test(driveErr)) break;      // sin permiso no sale ninguno: para y avisa
+    if (tab === "dinero" && !typing()) renderView();
+  }
+  const r = driveBusy; driveBusy = null;
+  toast(r.fallos ? `Subidos ${r.hechos - r.fallos}; ${r.fallos} no han podido subir` : `Subidos ${r.hechos} tickets a Drive`);
+  renderView();
+}
+
 // Copia de seguridad (sólo en la web: dentro de Claude no se pueden bajar ficheros)
 function bajar(nombre, tipo, texto){
   const a = document.createElement("a");
@@ -1821,23 +1905,29 @@ async function saveCuota(id){
 let lendForm = null;     // alta o cambio de un deudor
 let lendMov = null;      // {id, tipo: "devuelve"|"presta", fecha, importe, cuenta}
 const misCuentas = () => cuentas().filter(x => !DEBT(x.tipo) && !LENT(x.tipo));
-// Lo que ha pasado con un deudor desde siempre: lo prestado, lo devuelto y lo perdido
+// Lo que ha pasado con una persona desde siempre: lo que le has dado (prestado o pagado), lo que te ha
+// devuelto, lo que ha pagado ella por ti y lo dado por perdido
+const esPerdido = m => m.tipo === "gasto" && m.lineas.some(l => l.cat === "otros.perdido");
 function lendHist(c){
-  let prestado = 0, devuelto = 0, perdido = 0, desde = null;
+  let prestado = 0, devuelto = 0, perdido = 0, pagoPorTi = 0, desde = null;
   for (const m of MOVS) {
     if (m.tipo === "traspaso" && m.destino === c.id) prestado += num(m.total);
     else if (m.tipo === "traspaso" && m.cuenta === c.id) devuelto += num(m.total);
-    else if (m.tipo === "gasto" && m.cuenta === c.id) perdido += num(m.total);
+    else if (m.tipo === "gasto" && m.cuenta === c.id) { if (esPerdido(m)) perdido += num(m.total); else pagoPorTi += num(m.total); }
     else continue;
     if (!desde || m.fecha < desde) desde = m.fecha;
   }
-  return { prestado, devuelto, perdido, desde: c.fecha || desde };
+  return { prestado, devuelto, perdido, pagoPorTi, desde: c.fecha || desde };
 }
 function deudoresHTML(ls, iso, phase){
-  const vivos = ls.filter(c => teDebe(c, iso) > 0.005).sort((a, b) => teDebe(b, iso) - teDebe(a, iso));
+  const vivos = ls.filter(c => Math.abs(saldo(c, iso)) > 0.005).sort((a, b) => saldo(b, iso) - saldo(a, iso));
   const saldados = ls.filter(c => !vivos.includes(c));
-  const tot = sum(vivos.map(c => teDebe(c, iso)));
-  let h = `<div class="panel"><div class="panel-head"><div><h2>Lo que te deben</h2><p>${vivos.length ? `En total, <b class="num">${eur(tot)}</b>${vivos.length > 1 ? ` entre ${vivos.length} personas` : ""}. No lo cuento como dinero tuyo hasta que te lo devuelvan.` : "Nadie te debe nada. Si le prestas dinero a alguien, apúntalo aquí: te digo cuánto te debe cada uno y desde cuándo."}</p></div><button class="btn sm" id="lend-new">Añadir un deudor</button></div>`;
+  const tot = sum(vivos.map(c => teDebe(c, iso))), deb = sum(vivos.map(c => leDebes(c, iso)));
+  const nTe = vivos.filter(c => teDebe(c, iso) > 0.005).length, nLe = vivos.filter(c => leDebes(c, iso) > 0.005).length;
+  let p = !vivos.length ? "Nadie te debe nada. Si le prestas dinero a alguien, apúntalo aquí: te digo cuánto te debe cada uno y desde cuándo." : "";
+  if (tot > 0.005) p += `Te deben <b class="num">${eur(tot)}</b>${nTe > 1 ? ` entre ${nTe} personas` : ""}. No lo cuento como dinero tuyo hasta que te lo devuelvan.`;
+  if (deb > 0.005) p += `${p ? " " : ""}Tú debes <b class="num" style="color:var(--over)">${eur(deb)}</b>${nLe > 1 ? ` a ${nLe} personas` : ""}.`;
+  let h = `<div class="panel"><div class="panel-head"><div><h2>Lo que te deben</h2><p>${p}</p></div><button class="btn sm" id="lend-new">Añadir un deudor</button></div>`;
   if (lendForm && !lendForm.id) h += lendFormHTML();
   if (vivos.length) h += `<div class="accs">${vivos.map(c => deudorCard(c, iso, phase)).join("")}</div>`;
   if (saldados.length) {
@@ -1848,10 +1938,11 @@ function deudoresHTML(ls, iso, phase){
 }
 function deudorCard(c, iso, phase){
   if (lendForm && lendForm.id === c.id) return lendFormHTML();
-  const d = teDebe(c, iso), hi = lendHist(c);
+  const d = teDebe(c, iso), le = leDebes(c, iso), hi = lendHist(c);
   let meta = c.nota ? `<div class="meta">${esc(c.nota)}</div>` : "";
   if (hi.desde) meta += `<div class="meta">Desde el ${shortDate(hi.desde)}${parseISO(hi.desde).getFullYear() !== CUR_Y ? " de " + parseISO(hi.desde).getFullYear() : ""}</div>`;
-  if (hi.prestado || hi.devuelto || hi.perdido) meta += `<div class="meta">${hi.prestado ? "Le has prestado " + eur(hi.prestado) : ""}${hi.devuelto ? (hi.prestado ? " y te ha devuelto " : "Te ha devuelto ") + eur(hi.devuelto) : ""}${hi.perdido ? (hi.prestado || hi.devuelto ? " · " : "") + "dado por perdido " + eur(hi.perdido) : ""}.</div>`;
+  const hs = [hi.prestado && "le has dado " + eur(hi.prestado), hi.devuelto && "te ha devuelto " + eur(hi.devuelto), hi.pagoPorTi && "ha pagado por ti " + eur(hi.pagoPorTi), hi.perdido && "dado por perdido " + eur(hi.perdido)].filter(Boolean);
+  if (hs.length) meta += `<div class="meta">${cap(hs.join(" · "))}.</div>`;
   if (c.vence && d > 0.005) {
     const tarde = c.vence < toISO(NOW);
     meta += `<div class="meta"${tarde ? ' style="color:var(--over)"' : ""}>${tarde ? "Tenía que habértelo devuelto el " : "Dijo que te lo devolvía el "}${shortDate(c.vence)}${parseISO(c.vence).getFullYear() !== CUR_Y ? " de " + parseISO(c.vence).getFullYear() : ""}</div>`;
@@ -1859,10 +1950,10 @@ function deudorCard(c, iso, phase){
   let actions;
   if (lendMov && lendMov.id === c.id) {
     const dev = lendMov.tipo === "devuelve";
-    actions = `<div class="fgrid"><div class="f"><label for="lm-fecha">Fecha</label><input id="lm-fecha" type="date" value="${esc(lendMov.fecha)}"></div><div class="f"><label for="lm-imp">${dev ? "Te devuelve (€)" : "Le prestas (€)"}</label><input id="lm-imp" inputmode="decimal" value="${esc(lendMov.importe ? String(lendMov.importe).replace(".", ",") : "")}"></div><div class="f"><label for="lm-cuenta">${dev ? "Entra en" : "Sale de"}</label><select id="lm-cuenta">${misCuentas().map(x => `<option value="${x.id}"${x.id === lendMov.cuenta ? " selected" : ""}>${esc(x.nombre)}</option>`).join("")}</select></div></div><div class="row"><button class="btn sm primary" data-lmsave="${c.id}">Apuntar</button><button class="btn sm ghost" data-lmcancel="1">Cancelar</button><span class="err" id="lm-err"></span></div>`;
-  } else actions = `<div class="row">${d > 0.005 && phase !== "pasado" ? `<button class="btn sm" data-lenddev="${c.id}">Me ha devuelto</button>` : ""}${phase !== "pasado" ? `<button class="btn sm" data-lendmore="${c.id}">Le presto más</button>` : ""}<button class="btn sm ghost" data-seeacc="${c.id}">Movimientos</button></div>`;
-  return `<div class="acc"><div class="acc-h"><div><b>${esc(c.nombre)}</b><div class="meta">${esc(ACC_TYPES.prestado)}</div></div><button class="btn sm ghost" data-lendedit="${c.id}">Cambiar</button></div>
-    <div class="bal num">${c.ancla ? (d > 0.005 ? "Te debe " + eur(d) : "Saldado") : "—"}</div>
+    actions = `<div class="fgrid"><div class="f"><label for="lm-fecha">Fecha</label><input id="lm-fecha" type="date" value="${esc(lendMov.fecha)}"></div><div class="f"><label for="lm-imp">${dev ? "Te devuelve (€)" : le > 0.005 ? "Le pagas (€)" : "Le prestas (€)"}</label><input id="lm-imp" inputmode="decimal" value="${esc(lendMov.importe ? String(lendMov.importe).replace(".", ",") : "")}"></div><div class="f"><label for="lm-cuenta">${dev ? "Entra en" : "Sale de"}</label><select id="lm-cuenta">${misCuentas().map(x => `<option value="${x.id}"${x.id === lendMov.cuenta ? " selected" : ""}>${esc(x.nombre)}</option>`).join("")}</select></div></div><div class="row"><button class="btn sm primary" data-lmsave="${c.id}">Apuntar</button><button class="btn sm ghost" data-lmcancel="1">Cancelar</button><span class="err" id="lm-err"></span></div>`;
+  } else actions = `<div class="row">${d > 0.005 && phase !== "pasado" ? `<button class="btn sm" data-lenddev="${c.id}">Me ha devuelto</button>` : ""}${phase !== "pasado" ? `<button class="btn sm" data-lendmore="${c.id}">${le > 0.005 ? "Le he pagado" : "Le presto más"}</button>` : ""}<button class="btn sm ghost" data-seeacc="${c.id}">Movimientos</button></div>`;
+  return `<div class="acc"><div class="acc-h"><div><b>${esc(c.nombre)}</b></div><button class="btn sm ghost" data-lendedit="${c.id}">Cambiar</button></div>
+    <div class="bal num${le > 0.005 ? " neg" : ""}">${c.ancla ? (d > 0.005 ? "Te debe " + eur(d) : le > 0.005 ? "Le debes " + eur(le) : "Saldado") : "—"}</div>
     ${meta}${actions}</div>`;
 }
 function lendFormHTML(){
@@ -1871,7 +1962,7 @@ function lendFormHTML(){
   return `<div class="job" style="margin-bottom:14px"><b>${nuevo ? "Nuevo deudor" : "Cambiar deudor"}</b>
     <div class="fgrid">
       <div class="f"><label for="lf-nombre">Quién</label><input id="lf-nombre" value="${esc(a.nombre || "")}" placeholder="Pedro, mi hermana…"></div>
-      <div class="f"><label for="lf-importe">${nuevo ? "Cuánto le prestas o te debe (€)" : "Te debe hoy (€)"}</label><input id="lf-importe" inputmode="decimal" value="${esc(a.importe != null && a.importe !== "" ? String(a.importe).replace(".", ",") : "")}" placeholder="0,00"></div>
+      <div class="f"><label for="lf-importe">${nuevo ? "Cuánto le prestas o te debe (€)" : "Te debe hoy (€)"}${!nuevo ? ` <small>(si le debes tú, en negativo)</small>` : ""}</label><input id="lf-importe" inputmode="decimal" value="${esc(a.importe != null && a.importe !== "" ? String(a.importe).replace(".", ",") : "")}" placeholder="0,00"></div>
       ${nuevo ? `<div class="f"><label for="lf-desde">¿Sale ahora de una cuenta tuya?</label><select id="lf-desde"><option value="">No: ya se lo había prestado</option>${misCuentas().map(x => `<option value="${x.id}"${x.id === a.desde ? " selected" : ""}>Sí, de ${esc(x.nombre)}</option>`).join("")}</select></div>
       <div class="f"><label for="lf-fecha">Cuándo se lo prestaste</label><input id="lf-fecha" type="date" value="${esc(a.fecha || "")}"></div>` : ""}
       <div class="f"><label for="lf-vence">Dijo que te lo devolvía <small>(opcional)</small></label><input id="lf-vence" type="date" value="${esc(a.vence || "")}"></div>
@@ -1889,7 +1980,7 @@ async function saveLendForm(){
   readLendForm();
   const a = lendForm, nombre = (a.nombre || "").trim();
   if (!nombre) { $("#lf-err").textContent = "Pon quién es."; return; }
-  const v = r2(Math.abs(num(a.importe)));
+  const v = r2(Math.abs(num(a.importe))), vs = r2(num(a.importe));
   const list = (cfg.cuentas && cfg.cuentas.length ? cfg.cuentas : cuentas()).map(c => ({ ...c }));
   const base = { nombre, tipo: "prestado", nota: String(a.nota || "").trim().slice(0, 200), vence: a.vence || null };
   let movs = [];
@@ -1897,7 +1988,7 @@ async function saveLendForm(){
     const i = list.findIndex(c => c.id === a.id); if (i < 0) return;
     list[i] = { ...list[i], ...base };
     const c = cuenta(a.id);
-    if (a.importe !== "" && a.importe != null && Math.abs(v - teDebe(c, toISO(NOW))) >= 0.005) list[i].ancla = { fecha: toISO(NOW), saldo: v, ts: Date.now() };
+    if (a.importe !== "" && a.importe != null && Math.abs(vs - saldo(c, toISO(NOW))) >= 0.005) list[i].ancla = { fecha: toISO(NOW), saldo: vs, ts: Date.now() };
   } else {
     if (!v) { $("#lf-err").textContent = "Pon cuánto te debe."; return; }
     const fecha = a.fecha || toISO(NOW);
@@ -2312,9 +2403,367 @@ function loQueVieneHTML(){
   return h + `</div>`;
 }
 
+/* ===== 08-medias.js ===== */
+/* ================= pantalla: a medias (dividir la cuenta) ================= */
+// En el bar: foto del ticket + dictar qué ha tomado cada uno → cuánto paga cada uno. Al guardarlo,
+// tu parte es un gasto y lo de los demás va a «Lo que te deben» (o lo que debes tú, si pagó otro).
+// La cuenta a medio hacer se queda en el móvil (localStorage) por si se cierra la página.
+const YO = "Yo";
+let split = store.get("cj.split", null);
+let splitImg = null, splitImgUrl = "", splitBusy = false, splitErr = "";
+function splitNew(){ return { personas: [YO], lineas: [], total: "", propina: "", sitio: "", fecha: toISO(NOW), cat: "", pagador: YO, cuenta: defaultAccount(), dictado: "", hecho: false, dudas: "" }; }
+function splitSave(){ store.set("cj.split", split); }
+const splitPeopleKnown = () => {
+  const s = new Set(store.get("cj.split.gente", []));
+  for (const c of cuentas()) if (LENT(c.tipo)) s.add(c.nombre);
+  return [...s].filter(n => n && norm(n) !== norm(YO)).slice(0, 20);
+};
+// Cuánto le toca a cada uno: cada línea se reparte a partes iguales entre los suyos (si no tiene a nadie,
+// entre todos); lo que no cuadra con el total del ticket y la propina, en proporción a lo consumido.
+function splitCalc(s){
+  const P = s.personas, base = Object.fromEntries(P.map(p => [p, 0]));
+  let items = 0, sinDueño = 0;
+  for (const l of s.lineas) {
+    const v = num(l.importe); if (!v) continue;
+    items += v;
+    const who = (l.personas || []).filter(p => P.includes(p));
+    if (!who.length) sinDueño++;
+    const list = who.length ? who : P;
+    for (const p of list) base[p] += v / list.length;
+  }
+  const total = num(s.total) || items;
+  const extra = (total - items) + num(s.propina);
+  const B = sum(Object.values(base));
+  const out = {};
+  for (const p of P) out[p] = base[p] + (B > 0 ? extra * base[p] / B : extra / P.length);
+  // a céntimos, y el céntimo que sobra o falta para quien ha pagado
+  const final = total + num(s.propina);
+  let acc = 0;
+  for (const p of P) { out[p] = r2(out[p]); acc += out[p]; }
+  const res = r2(final - acc);
+  if (Math.abs(res) >= 0.005 && P.length) { const k = P.includes(s.pagador) ? s.pagador : P[0]; out[k] = r2(out[k] + res); }
+  return { por: out, items: r2(items), total: r2(total), final: r2(final), cuadre: r2(total - items), sinDueño };
+}
+const quienTxt = p => p === YO ? "Juan" : p;
+
+let mSub = store.get("cj.msub", "dividir");
+function renderMedias(){
+  const el = $("#v-medias");
+  if (!split) split = splitNew();
+  let h = `<div class="subnav" role="tablist" aria-label="A medias"><button role="tab" data-msub="dividir" aria-selected="${mSub !== "tricount"}">Dividir la cuenta</button><button role="tab" data-msub="tricount" aria-selected="${mSub === "tricount"}">Tricount</button></div>`;
+  if (mSub === "tricount") { el.innerHTML = h + tricountHTML(); tcAuto(); return; }
+  h += `<div class="panel"><div class="panel-head"><div><h2>Dividir la cuenta</h2><p>Hazle una foto al ticket y di qué ha tomado cada uno. Te digo cuánto paga cada uno y, si quieres, lo apunto en tus cuentas.</p></div>${split.lineas.length || split.dictado || splitImg ? `<button class="btn sm ghost" id="sp-reset">Empezar otra</button>` : ""}</div>`;
+  if (!sample) h += `<div class="banner" style="margin-bottom:12px">${WEB ? "La IA no está disponible ahora mismo: puedes meter las líneas a mano." : "Aquí no está la IA: abre la web para leer el ticket. Puedes meter las líneas a mano."}</div>`;
+  h += `<div class="split-in">
+    <div class="f"><span class="lab">1 · El ticket <small>(opcional)</small></span>${splitImgUrl ? `<div class="row" style="align-items:center"><button type="button" class="thumb" data-zoom="${esc(splitImgUrl)}" aria-label="Ver el ticket en grande"><img src="${esc(splitImgUrl)}" alt="Ticket"></button><button class="btn sm ghost" id="sp-img-del">Quitar la foto</button></div>` : `<button type="button" class="btn" id="sp-img"${sample ? "" : " disabled"}>${ICON.camara.replace("<svg", '<svg style="width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;vertical-align:-4px;margin-right:6px"')}Foto del ticket</button>`}<input type="file" id="sp-file" accept="image/*" capture="environment" hidden></div>
+    <div class="f"><label for="sp-dict">2 · Quién ha tomado qué <small>(usa el micrófono del teclado)</small></label><textarea id="sp-dict" class="inp area" rows="3" placeholder="Yo dos cañas y las bravas. Ignacio un vino y la tortilla. Las croquetas, a medias entre todos.">${esc(split.dictado)}</textarea></div>
+    <div class="row"><button class="btn primary" id="sp-go"${sample && !splitBusy ? "" : " disabled"}>${splitBusy ? `<span class="spin"></span> Haciendo las cuentas…` : split.lineas.length ? "Volver a hacer las cuentas" : "Hacer las cuentas"}</button>${!split.lineas.length ? `<button class="btn ghost" id="sp-manual">Meterlo a mano</button>` : ""}<span class="err">${esc(splitErr)}</span></div>
+  </div></div>`;
+  if (split.lineas.length) h += splitResultHTML();
+  el.innerHTML = h;
+}
+function splitResultHTML(){
+  const s = split, c = splitCalc(s), P = s.personas;
+  if (!misCuentas().some(x => x.id === s.cuenta)) s.cuenta = misCuentas().some(x => x.id === defaultAccount()) ? defaultAccount() : (misCuentas()[0] || {}).id || "";
+  let h = `<div class="panel"><div class="panel-head"><div><h2>${esc(s.sitio || "La cuenta")}</h2><p>Toca los nombres de cada línea para cambiar de quién es. Lo que es de varios se reparte a partes iguales.</p></div></div>`;
+  if (s.dudas) h += `<div class="ia-note" style="margin-bottom:10px">${esc(s.dudas)}</div>`;
+  h += `<div class="f"><span class="lab">En la mesa</span><div class="chips">${P.map(p => `<button type="button" data-sppdel="${esc(p)}" title="${p === YO ? "Tú" : "Quitar"}" aria-pressed="true">${esc(p)}${p === YO ? "" : " ×"}</button>`).join("")}${splitPeopleKnown().filter(n => !P.some(p => norm(p) === norm(n))).slice(0, 6).map(n => `<button type="button" data-sppadd="${esc(n)}">+ ${esc(n)}</button>`).join("")}</div>
+    <div class="row" style="margin-top:6px"><input class="inp" id="sp-newp" placeholder="Otra persona" style="max-width:200px"><button class="btn sm" id="sp-newp-go">Añadir</button></div></div>`;
+  h += `<div class="split-lines">`;
+  s.lineas.forEach((l, i) => {
+    const who = (l.personas || []).filter(p => P.includes(p));
+    h += `<div class="sl${who.length ? "" : " nobody"}"><div class="sl-top"><input data-sli="${i}" data-slk="concepto" value="${esc(l.concepto)}" aria-label="Qué" placeholder="Qué"><input class="n" data-sli="${i}" data-slk="importe" inputmode="decimal" value="${esc(l.importe === "" || l.importe == null ? "" : typeof l.importe === "number" ? NF2.format(l.importe) : l.importe)}" placeholder="0,00" aria-label="Importe"><button type="button" class="x" data-sldel="${i}" aria-label="Quitar línea">×</button></div>
+      <div class="chips sm">${P.map(p => `<button type="button" data-slp="${i}|${esc(p)}" aria-pressed="${who.includes(p)}">${esc(p)}</button>`).join("")}${who.length ? "" : `<span class="small" style="color:var(--warn);align-self:center">De nadie: lo pagan todos</span>`}</div></div>`;
+  });
+  h += `</div><div class="row"><button class="btn sm" id="sp-addl">+ Otra línea</button></div>`;
+  h += `<div class="fgrid" style="margin-top:12px"><div class="f"><label for="sp-total">Total del ticket (€)</label><input id="sp-total" inputmode="decimal" value="${esc(s.total === "" ? "" : String(s.total).replace(".", ","))}" placeholder="${esc(NF2.format(c.items))}"></div><div class="f"><label for="sp-propina">Propina o bote (€)</label><input id="sp-propina" inputmode="decimal" value="${esc(s.propina === "" ? "" : String(s.propina).replace(".", ","))}" placeholder="0,00"></div></div>`;
+  h += `<div id="sp-res">${splitTotalsHTML(c)}</div>`;
+  // quién paga y guardar
+  const hay = c.final > 0;
+  h += `<div class="fgrid" style="margin-top:14px"><div class="f"><label for="sp-pagador">¿Quién ha pagado?</label><select id="sp-pagador">${P.map(p => `<option value="${esc(p)}"${p === s.pagador ? " selected" : ""}>${p === YO ? "Yo" : esc(p)}</option>`).join("")}</select></div>
+    ${s.pagador === YO ? `<div class="f"><label for="sp-cuenta">Con qué</label><select id="sp-cuenta">${misCuentas().map(x => `<option value="${x.id}"${x.id === s.cuenta ? " selected" : ""}>${esc(x.nombre)}</option>`).join("")}</select></div>` : ""}
+    <div class="f"><label for="sp-fecha">Fecha</label><input id="sp-fecha" type="date" value="${esc(s.fecha || toISO(NOW))}"></div>
+    <div class="f"><label for="sp-cat">Tu parte es</label><select id="sp-cat">${catOptions("gasto", s.cat || (CATIDX["fuera.bares"] ? "fuera.bares" : ""))}</select></div></div>`;
+  h += `<p class="small" id="sp-qd" style="margin:8px 0 0">${splitQuienDebe(c)}</p>`;
+  h += `<div class="ed-foot"><button class="btn primary" id="sp-save"${hay && !s.hecho ? "" : " disabled"}>${s.hecho ? "Ya está en tus cuentas" : "Apuntarlo en mis cuentas"}</button><button class="btn" id="sp-share"${hay ? "" : " disabled"}>Mandar el reparto</button><span class="err" id="sp-err"></span></div>
+    <p class="small muted" style="margin:6px 0 0">Al apuntarlo: ${s.pagador === YO ? "sale el total de tu cuenta, tu parte es un gasto y lo de cada uno pasa a «Lo que te deben»." : `tu parte es un gasto que ha pagado ${esc(s.pagador)}, y pasa a «Lo que te deben» como que le debes eso.`}</p></div>`;
+  return h;
+}
+function splitTotalsHTML(c){
+  const P = split.personas;
+  let h = `<div class="split-tot">${P.map(p => `<div class="tile"><span class="l">${p === YO ? "Tú" : esc(p)}</span><span class="v">${eur(c.por[p] || 0)}</span></div>`).join("")}</div>`;
+  const notes = [];
+  if (Math.abs(c.cuadre) >= 0.01 && num(split.total)) notes.push(`Las líneas suman ${eur(c.items)} y el ticket ${eur(c.total)}: ${c.cuadre > 0 ? "lo que falta" : "lo que sobra"} (${eur(Math.abs(c.cuadre))}) lo reparto según lo que ha tomado cada uno.`);
+  if (num(split.propina)) notes.push(`La propina, también según lo que ha tomado cada uno.`);
+  h += `<p class="small" style="margin:8px 0 0">Total: <b class="num">${eur(c.final)}</b>${notes.length ? ` · <span class="muted">${notes.join(" ")}</span>` : ""}</p>`;
+  return h;
+}
+function splitQuienDebe(c){
+  const s = split, pg = s.pagador;
+  const deudas = s.personas.filter(p => p !== pg && (c.por[p] || 0) > 0.005);
+  if (!deudas.length) return "Nadie le debe nada a nadie.";
+  return deudas.map(p => `<b>${p === YO ? "Tú le debes" : esc(p) + (pg === YO ? " te debe" : " le debe")}</b> ${eur(c.por[p])}${pg === YO ? "" : " a " + esc(pg)}`).join(" · ");
+}
+function splitShareText(){
+  const s = split, c = splitCalc(s);
+  let t = `${s.sitio || "La cuenta"}${s.fecha ? " (" + shortDate(s.fecha) + ")" : ""}: ${eur(c.final)}\n`;
+  for (const p of s.personas) t += `· ${quienTxt(p)}: ${eur(c.por[p] || 0)}\n`;
+  t += `Pagó ${quienTxt(s.pagador)}.`;
+  return t;
+}
+function repaintSplitTotals(){
+  const box = $("#sp-res"); if (!box || !split) return;
+  const c = splitCalc(split);
+  box.innerHTML = splitTotalsHTML(c);
+  const qd = $("#sp-qd"); if (qd) qd.innerHTML = splitQuienDebe(c);
+  const sv = $("#sp-save"), sh = $("#sp-share");
+  if (sv) sv.disabled = !(c.final > 0) || split.hecho;
+  if (sh) sh.disabled = !(c.final > 0);
+}
+
+/* ---------- la IA ---------- */
+function splitPrompt(dict){
+  return `Estás en un bar o restaurante con Juan (España) y hay que dividir la cuenta. ${splitImg ? "Te paso la foto del ticket y" : "No hay foto del ticket:"} lo que dice Juan de qué ha tomado cada uno. Devuelve SOLO un objeto JSON, sin nada más:
+{"sitio":texto o null,"fecha":"AAAA-MM-DD" o null,"total":número o null,"cat":id,"personas":[nombres],"lineas":[{"concepto":texto,"importe":número o null,"personas":[nombres]}],"dudas":texto o null}
+
+Reglas:
+- Juan es siempre "${YO}" (si dice «yo», «me», «mío»… es "${YO}"). A los demás, con el nombre que diga, con mayúscula.${split.personas.length > 1 ? `\n- En la mesa están: ${split.personas.join(", ")}.` : ""}
+- "personas": todos los que están en la mesa, empezando por "${YO}".
+- ${splitImg ? "Las líneas salen del ticket, con su importe con IVA tal y como se paga. Si una línea tiene varias unidades que han tomado personas distintas (3 cañas: 2 de Juan y 1 de Ignacio), pártela en varias líneas con su parte del importe. La suma de las líneas tiene que dar el total del ticket; si no cuadra, dilo en \"dudas\"." : "Saca las líneas de lo que dice, con los precios que diga. Si no dice el precio de algo, importe null."}
+- «A medias», «entre todos», «para compartir», «al centro» → en "personas" pon todos los que lo comparten. Si de una línea no sabes de quién es, deja "personas" vacío y dilo en "dudas".
+- No inventes nada. "total": el total del ticket (null si no hay ticket).
+- "cat": la categoría del gasto, uno de estos ids exactamente:
+${catListForIA("gasto")}
+- Fechas de España. Hoy es ${toISO(NOW)}.
+
+Lo que dice Juan:
+${(dict || "(no ha dicho nada: pon todas las líneas sin personas)").slice(0, 4000)}`;
+}
+async function splitGo(){
+  const dict = ($("#sp-dict") || {}).value || "";
+  split.dictado = dict; splitSave();
+  if (!dict.trim() && !splitImg) { splitErr = "Haz la foto del ticket o di qué ha tomado cada uno."; return renderView(); }
+  splitBusy = true; splitErr = ""; renderView();
+  try {
+    const o = await sample.json(splitPrompt(dict), { images: splitImg ? [splitImg] : undefined, cache: false });
+    if (!o || !Array.isArray(o.lineas)) throw { mine: "La IA no ha devuelto nada que se pueda usar." };
+    const personas = [YO];
+    for (const p of [].concat(o.personas || [], ...o.lineas.map(l => l.personas || []))) { const n = String(p || "").trim().slice(0, 30); if (n && !personas.some(x => norm(x) === norm(n))) personas.push(norm(n) === norm(YO) ? YO : n); }
+    for (const p of split.personas) if (!personas.some(x => norm(x) === norm(p))) personas.push(p);
+    const fix = n => personas.find(x => norm(x) === norm(n)) || null;
+    split = { ...split, personas, sitio: String(o.sitio || split.sitio || ""), fecha: /^\d{4}-\d{2}-\d{2}$/.test(o.fecha || "") && o.fecha <= toISO(NOW) ? o.fecha : split.fecha, total: o.total == null ? "" : r2(Math.abs(num(o.total))), cat: CATIDX[o.cat] && CATIDX[o.cat].tipo === "gasto" ? o.cat : split.cat, dudas: String(o.dudas || ""),
+      lineas: o.lineas.map(l => ({ concepto: String(l.concepto || "").slice(0, 80), importe: l.importe == null ? "" : r2(num(l.importe)), personas: [...new Set((l.personas || []).map(fix).filter(Boolean))] })) };
+    splitSave();
+  } catch (e) {
+    splitErr = e && e.mine ? e.mine : e && e.code === "rate_limited" ? "Demasiadas seguidas: espera un minuto." : e && e.code === "invalid_json" ? "La IA no ha sabido leerlo bien. Prueba otra vez." : "No ha salido. Prueba otra vez.";
+  }
+  splitBusy = false; renderView();
+}
+
+/* ---------- apuntarlo en las cuentas ---------- */
+async function splitApuntar(){
+  const s = split, c = splitCalc(s), err = $("#sp-err");
+  const fecha = s.fecha || toISO(NOW);
+  if (fecha > toISO(NOW)) { err.textContent = "La fecha no puede ser de un día que no ha llegado."; return; }
+  if (s.pagador === YO && !misCuentas().some(x => x.id === s.cuenta)) { err.textContent = "Di con qué cuenta has pagado."; return; }
+  const sitio = s.sitio || "La cuenta", cat = s.cat || (CATIDX["fuera.bares"] ? "fuera.bares" : "");
+  // la cuenta de cada persona: la que ya tenga en «Lo que te deben», o una nueva
+  const list = (cfg.cuentas && cfg.cuentas.length ? cfg.cuentas : cuentas()).map(x => ({ ...x }));
+  let nuevas = false;
+  const accOf = p => {
+    let a = list.find(x => LENT(x.tipo) && !x.borrada && norm(x.nombre) === norm(p));
+    if (!a) { a = { id: "deudor-" + (norm(p).replace(/ /g, "-").slice(0, 20) || "x") + "-" + uid().slice(-4), nombre: p, tipo: "prestado", nota: "", vence: null, fecha, ancla: { fecha: "1900-01-01", saldo: 0, ts: 0 } }; list.push(a); nuevas = true; }
+    return a.id;
+  };
+  const movs = [], mio = c.por[YO] || 0;
+  if (s.pagador === YO) {
+    if (mio > 0.005) movs.push(cleanMov({ fecha, tipo: "gasto", cuenta: s.cuenta, comercio: sitio, nota: "Tu parte de la cuenta", total: mio, lineas: [{ concepto: "Tu parte en " + sitio, cat, importe: mio }], origen: "dividir" }));
+    for (const p of s.personas) if (p !== YO && (c.por[p] || 0) > 0.005) movs.push(cleanMov({ fecha, tipo: "traspaso", cuenta: s.cuenta, destino: accOf(p), comercio: p, nota: "Su parte en " + sitio, total: c.por[p], origen: "dividir" }));
+  } else if (mio > 0.005) {
+    movs.push(cleanMov({ fecha, tipo: "gasto", cuenta: accOf(s.pagador), comercio: sitio, nota: "Pagó " + s.pagador, total: mio, lineas: [{ concepto: "Tu parte en " + sitio, cat, importe: mio }], origen: "dividir" }));
+  }
+  if (!movs.length) { err.textContent = "No hay nada que apuntar en tus cuentas."; return; }
+  const btn = $("#sp-save"); if (btn) btn.disabled = true;
+  try {
+    if (nuevas) await saveCfg("cuentas", { items: list });
+    await saveMovs(movs);
+    store.set("cj.split.gente", [...new Set(s.personas.filter(p => p !== YO).concat(store.get("cj.split.gente", [])))].slice(0, 20));
+    split.hecho = true; splitSave();
+    toast(s.pagador === YO ? "Apuntado: tu parte y lo que te deben" : "Apuntado: tu parte y lo que le debes"); renderView();
+  } catch (e) { err.textContent = saveErr(e); if (btn) btn.disabled = false; }
+}
+
+/* ================= Tricount (sólo leer) ================= */
+// Los enlaces se guardan en config/tricount ({items: [{key, titulo, yo}]}); lo leído, en el móvil
+// (localStorage) para verlo al momento, y se refresca al entrar si tiene más de 5 minutos.
+let tcApi = null, tcBusy = false, tcErr = "", tcOpen = null;
+let TC = store.get("cj.tc", {});          // key -> {at, ok, titulo, moneda, miembros, saldos, gastos} o {at, ok:false, error}
+const tcItems = () => cfg.tricount || [];
+const tcKeyOf = link => { const s = String(link || "").trim(); const m = s.match(/([A-Za-z0-9]{6,64})\/?(?:[?#].*)?$/); return m ? m[1] : ""; };
+const tcMoney = (v, cur) => cur && cur !== "EUR" ? NF2.format(r2(v)) + " " + cur : eur(v);
+function tcYo(it, d){
+  if (it.yo && d.miembros.some(m => m.uuid === it.yo)) return it.yo;
+  const j = d.miembros.filter(m => /^(juan|yo)\b/.test(norm(m.nombre)));
+  return j.length === 1 ? j[0].uuid : null;
+}
+// Para quedar en paz: el que más debe paga al que más le deben, y así hasta acabar
+function tcSaldar(saldos){
+  const deb = [], acr = [];
+  for (const [u, v] of Object.entries(saldos)) { const c = Math.round(v * 100); if (c < 0) deb.push([u, -c]); else if (c > 0) acr.push([u, c]); }
+  deb.sort((a, b) => b[1] - a[1]); acr.sort((a, b) => b[1] - a[1]);
+  const out = [];
+  let i = 0, j = 0;
+  while (i < deb.length && j < acr.length) {
+    const x = Math.min(deb[i][1], acr[j][1]);
+    out.push({ de: deb[i][0], a: acr[j][0], v: x / 100 });
+    deb[i][1] -= x; acr[j][1] -= x;
+    if (!deb[i][1]) i++; if (!acr[j][1]) j++;
+  }
+  return out;
+}
+const hace = ts => { const m = Math.round((Date.now() - ts) / 6e4); return m < 1 ? "ahora mismo" : m < 60 ? `hace ${m} min` : m < 1440 ? `hace ${Math.round(m / 60)} h` : `hace ${Math.round(m / 1440)} días`; };
+function tcAuto(){
+  if (!tcApi || tcBusy || !tcItems().length) return;
+  const viejo = tcItems().some(it => !TC[it.key] || Date.now() - TC[it.key].at > 5 * 6e4);
+  if (viejo) tcRefresh();
+}
+async function tcRefresh(extra){
+  if (!tcApi || tcBusy) return;
+  const links = tcItems().map(it => it.key).concat(extra ? [extra] : []);
+  if (!links.length) return;
+  tcBusy = true; tcErr = ""; if (tab === "medias") renderView();
+  let got = [];
+  try {
+    got = await tcApi.leer(links);
+    for (const d of got) TC[d.key] = { ...d, at: Date.now() };
+    store.set("cj.tc", TC);
+  } catch (e) {
+    tcErr = e && e.code === "session_expired" ? "Tu sesión ha caducado: vuelve a entrar." : e && e.code === "rate_limited" ? "Tricount pide esperar un poco. Prueba en un rato." : "No he podido hablar con Tricount ahora mismo. Prueba en un rato.";
+  }
+  tcBusy = false;
+  if (tab === "medias") renderView();
+  return got;
+}
+async function tcAdd(){
+  const inp = $("#tc-link"), link = (inp && inp.value || "").trim();
+  const key = tcKeyOf(link);
+  if (!key) { tcErr = "Eso no parece un enlace de Tricount. Cópialo desde la app: el tricount → Invitar → Copiar enlace."; return renderView(); }
+  if (tcItems().some(it => it.key === key)) { tcErr = "Ese tricount ya está."; return renderView(); }
+  const got = await tcRefresh(key) || [];
+  const d = got.find(x => x.key === key);
+  if (!d) return;
+  if (!d.ok) { tcErr = d.error || "No he podido leer ese tricount."; delete TC[key]; store.set("cj.tc", TC); return renderView(); }
+  try { await saveCfg("tricount", { items: tcItems().concat([{ key, titulo: d.titulo, yo: null }]) }); tcOpen = key; toast("Tricount añadido"); }
+  catch (e) { tcErr = saveErr(e); }
+  renderView();
+}
+function tricountHTML(){
+  let h = `<div class="panel"><div class="panel-head"><div><h2>Tus tricounts</h2><p>Seguís apuntando en Tricount como siempre; aquí ves cómo vais. Sólo leo: no cambio nada en Tricount.</p></div>${tcItems().length && tcApi ? `<button class="btn sm" id="tc-refresh"${tcBusy ? " disabled" : ""}>${tcBusy ? `<span class="spin"></span> Leyendo…` : "Actualizar"}</button>` : ""}</div>`;
+  if (!WEB) return h + `<div class="banner">Tricount sólo se puede leer desde la web.</div></div>`;
+  h += `<div class="row" style="align-items:flex-end"><div class="f" style="flex:1;min-width:220px"><label for="tc-link">Enlace del tricount <small>(en Tricount: el tricount → Invitar → Copiar enlace)</small></label><input id="tc-link" inputmode="url" placeholder="https://tricount.com/t…" autocomplete="off"></div><button class="btn primary" id="tc-add"${tcApi && !tcBusy ? "" : " disabled"}>Añadir</button></div>`;
+  if (tcErr) h += `<p class="err" style="margin:8px 0 0">${esc(tcErr)}</p>`;
+  h += `<p class="small muted" style="margin:8px 0 0">Tricount no tiene una conexión oficial: uso la misma que su app. Si un día la cambian, esto dejará de actualizarse, pero tus datos en Tricount no se tocan.</p></div>`;
+  if (!tcItems().length) return h;
+  for (const it of tcItems()) h += tcCardHTML(it);
+  return h;
+}
+function tcCardHTML(it){
+  const d = TC[it.key];
+  let h = `<div class="panel"><div class="panel-head"><div><h2>${esc((d && d.ok && d.titulo) || it.titulo || "Tricount")}</h2><p>${d ? (d.ok ? `${d.gastos.length} movimientos · ${d.miembros.filter(m => m.activo).length} personas · leído ${hace(d.at)}` : `<span style="color:var(--over)">${esc(d.error || "No se ha podido leer")}</span>`) : tcBusy ? "Leyendo…" : "Sin leer todavía"}</p></div><button class="btn sm ghost" data-tcdel="${esc(it.key)}">${it.confirmDel ? "Sí, quitarlo" : "Quitar"}</button></div>`;
+  if (!d || !d.ok) return h + `</div>`;
+  const cur = d.moneda, nom = u => (d.miembros.find(m => m.uuid === u) || {}).nombre || "¿?";
+  const yo = tcYo(it, d);
+  h += `<div class="f" style="max-width:280px"><label for="tc-yo-${esc(it.key)}">¿Quién eres tú en este tricount?</label><select id="tc-yo-${esc(it.key)}" data-tcyo="${esc(it.key)}"><option value="">— Elige —</option>${d.miembros.map(m => `<option value="${esc(m.uuid)}"${m.uuid === yo ? " selected" : ""}>${esc(m.nombre)}</option>`).join("")}</select></div>`;
+  if (yo) {
+    const v = d.saldos[yo] || 0;
+    h += `<div class="bal num" style="font-family:var(--display);font-weight:800;font-size:26px;margin:10px 0 2px;${v < -0.005 ? "color:var(--over)" : ""}">${v > 0.005 ? "Te deben " + tcMoney(v, cur) : v < -0.005 ? "Debes " + tcMoney(-v, cur) : "Estás en paz"}</div>`;
+  }
+  // saldos de todos
+  const mx = Math.max(0.01, ...Object.values(d.saldos).map(Math.abs));
+  h += `<div class="tc-bal">${d.miembros.filter(m => m.activo || Math.abs(d.saldos[m.uuid] || 0) > 0.005).sort((a, b) => (d.saldos[b.uuid] || 0) - (d.saldos[a.uuid] || 0)).map(m => { const v = d.saldos[m.uuid] || 0; return `<div class="tc-row"><span class="nm">${esc(m.nombre)}${m.uuid === yo ? " <small class='muted'>(tú)</small>" : ""}</span><span class="am num" style="color:${v > 0.005 ? "var(--ok)" : v < -0.005 ? "var(--over)" : "var(--muted)"}">${v > 0.005 ? "+" : v < -0.005 ? "−" : ""}${tcMoney(Math.abs(v), cur)}</span><span class="bar"><i style="width:${(Math.abs(v) / mx * 100).toFixed(1)}%;background:${v >= 0 ? "var(--ok)" : "var(--over)"}"></i></span></div>`; }).join("")}</div>`;
+  const pagos = tcSaldar(d.saldos);
+  if (pagos.length) h += `<h3 class="eyebrow" style="margin:16px 0 6px">Para quedar en paz</h3>${pagos.map(p => `<div class="rec" style="grid-template-columns:minmax(0,1fr) auto"><div class="n"${p.de === yo || p.a === yo ? "" : ' style="font-weight:500;color:var(--ink-2)"'}>${p.de === yo ? "Tú le pagas a " + esc(nom(p.a)) : p.a === yo ? esc(nom(p.de)) + " te paga a ti" : esc(nom(p.de)) + " le paga a " + esc(nom(p.a))}</div><span class="a">${tcMoney(p.v, cur)}</span></div>`).join("")}`;
+  // movimientos
+  const open = tcOpen === it.key;
+  const lista = d.gastos.slice(0, open ? 200 : 8);
+  h += `<h3 class="eyebrow" style="margin:16px 0 6px">Últimos movimientos</h3>`;
+  for (const g of lista) {
+    const parte = yo ? g.reparto[yo] || 0 : 0;
+    const pagoYo = g.pago === yo;
+    const qui = g.tipo === "reembolso" ? `${esc(nom(g.pago))} → ${esc(Object.keys(g.reparto).filter(u => g.reparto[u] > 0).map(nom).join(", "))}` : `pagó ${pagoYo ? "tú" : esc(nom(g.pago))}`;
+    h += `<div class="rec" style="grid-template-columns:minmax(0,1fr) auto"><div><div class="n">${esc(g.concepto || (g.tipo === "reembolso" ? "Reembolso" : "Gasto"))}</div><div class="m">${g.fecha ? shortDate(g.fecha) + (parseISO(g.fecha).getFullYear() !== CUR_Y ? " " + parseISO(g.fecha).getFullYear() : "") + " · " : ""}${g.tipo === "reembolso" ? "reembolso: " : g.tipo === "ingreso" ? "ingreso · " : ""}${qui}${yo && g.tipo === "gasto" && parte ? ` · tu parte ${tcMoney(parte, cur)}` : ""}${g.local ? ` · ${NF2.format(g.local.importe)} ${esc(g.local.moneda)}` : ""}</div></div><span class="a">${tcMoney(g.total, cur)}</span></div>`;
+  }
+  if (d.gastos.length > lista.length || open) h += `<div class="row" style="margin-top:8px"><button class="btn sm ghost" data-tcmore="${esc(it.key)}">${open ? "Ver menos" : `Ver los ${d.gastos.length}`}</button></div>`;
+  return h + `</div>`;
+}
+
+/* ---------- clics y escritura ---------- */
+document.addEventListener("click", async e => {
+  const t = e.target.closest("button"); if (!t || !t.closest("#v-medias")) return;
+  const ds = t.dataset;
+  if (ds.msub) { mSub = ds.msub; store.set("cj.msub", mSub); tcErr = ""; return renderView(); }
+  if (t.id === "tc-add") return tcAdd();
+  if (t.id === "tc-refresh") return tcRefresh();
+  if (ds.tcmore) { tcOpen = tcOpen === ds.tcmore ? null : ds.tcmore; return renderView(); }
+  if (ds.tcdel) {
+    const it = tcItems().find(x => x.key === ds.tcdel); if (!it) return;
+    if (!it.confirmDel) { it.confirmDel = true; renderView(); setTimeout(() => { it.confirmDel = false; }, 4000); return; }
+    try { await saveCfg("tricount", { items: tcItems().filter(x => x.key !== ds.tcdel).map(({ confirmDel, ...x }) => x) }); delete TC[ds.tcdel]; store.set("cj.tc", TC); toast("Quitado"); } catch (err) { toast(saveErr(err)); }
+    return;
+  }
+  if (t.id === "sp-img") return $("#sp-file").click();
+  if (t.id === "sp-img-del") { splitImg = null; if (splitImgUrl) URL.revokeObjectURL(splitImgUrl); splitImgUrl = ""; return renderView(); }
+  if (t.id === "sp-go") return splitGo();
+  if (t.id === "sp-manual") { split.dictado = ($("#sp-dict") || {}).value || ""; split.lineas = [{ concepto: "", importe: "", personas: [] }]; splitSave(); return renderView(); }
+  if (t.id === "sp-reset") { split = splitNew(); splitImg = null; if (splitImgUrl) URL.revokeObjectURL(splitImgUrl); splitImgUrl = ""; splitErr = ""; splitSave(); return renderView(); }
+  if (t.id === "sp-addl") { split.lineas.push({ concepto: "", importe: "", personas: [] }); splitSave(); renderView(); const ins = $$("#v-medias [data-slk=concepto]"); if (ins.length) ins[ins.length - 1].focus(); return; }
+  if (ds.sldel != null) { split.lineas.splice(+ds.sldel, 1); splitSave(); return renderView(); }
+  if (ds.slp) { const [i, p] = ds.slp.split("|"); const l = split.lineas[+i]; if (!l) return; const w = new Set(l.personas || []); w.has(p) ? w.delete(p) : w.add(p); l.personas = split.personas.filter(x => w.has(x)); splitSave(); return renderView(); }
+  if (ds.sppdel != null) { const p = ds.sppdel; if (p === YO) return; split.personas = split.personas.filter(x => x !== p); for (const l of split.lineas) l.personas = (l.personas || []).filter(x => x !== p); if (split.pagador === p) split.pagador = YO; splitSave(); return renderView(); }
+  if (ds.sppadd || t.id === "sp-newp-go") {
+    const n = (ds.sppadd || ($("#sp-newp") || {}).value || "").trim().slice(0, 30);
+    if (n && !split.personas.some(x => norm(x) === norm(n))) { split.personas.push(norm(n) === norm(YO) ? YO : cap(n)); splitSave(); }
+    return renderView();
+  }
+  if (t.id === "sp-save") return splitApuntar();
+  if (t.id === "sp-share") {
+    const txt = splitShareText();
+    try { if (navigator.share) { await navigator.share({ text: txt }); return; } } catch (err) { if (err && err.name === "AbortError") return; }
+    try { await navigator.clipboard.writeText(txt); toast("Copiado: pégalo en WhatsApp"); } catch { toast("No he podido copiarlo"); }
+  }
+});
+document.addEventListener("keydown", e => {
+  if (e.target.id === "sp-newp" && e.key === "Enter") { e.preventDefault(); const b = $("#sp-newp-go"); if (b) b.click(); }
+  if (e.target.id === "tc-link" && e.key === "Enter") { e.preventDefault(); tcAdd(); }
+});
+document.addEventListener("input", e => {
+  const el = e.target; if (!el.closest || !el.closest("#v-medias") || !split) return;
+  if (el.id === "sp-dict") { split.dictado = el.value; splitSave(); return; }
+  if (el.dataset.sli != null) { const l = split.lineas[+el.dataset.sli]; if (l) l[el.dataset.slk] = el.value; }
+  else if (el.id === "sp-total") split.total = el.value;
+  else if (el.id === "sp-propina") split.propina = el.value;
+  else return;
+  splitSave(); repaintSplitTotals();
+});
+document.addEventListener("change", async e => {
+  const el = e.target; if (!el.closest || !el.closest("#v-medias") || !split) return;
+  if (el.id === "sp-file") {
+    const f = el.files && el.files[0]; el.value = ""; if (!f) return;
+    splitImg = await shrink(f); if (splitImgUrl) URL.revokeObjectURL(splitImgUrl); splitImgUrl = URL.createObjectURL(splitImg);
+    return renderView();
+  }
+  if (el.dataset.tcyo) {
+    const list = tcItems().map(({ confirmDel, ...x }) => x.key === el.dataset.tcyo ? { ...x, yo: el.value || null } : x);
+    try { await saveCfg("tricount", { items: list }); cfg.tricount = list; renderView(); } catch (err) { toast(saveErr(err)); }
+    return;
+  }
+  const k = { "sp-pagador": "pagador", "sp-cuenta": "cuenta", "sp-fecha": "fecha", "sp-cat": "cat" }[el.id];
+  if (k) { split[k] = el.value; splitSave(); return renderView(); }
+});
+
 /* ===== 99-boot.js ===== */
 /* ================= navegación ================= */
-const TABS = ["anio", "movs", "apuntar", "analisis", "prevision", "dinero"];
+const TABS = ["anio", "movs", "apuntar", "analisis", "prevision", "medias", "dinero"];
 function renderHeader(){
   $("#y-lab").textContent = Y;
   $("#y-prev").disabled = Y <= CUR_Y - 15; $("#y-next").disabled = Y >= MAX_Y;
@@ -2326,7 +2775,7 @@ function renderView(){
   const a = document.activeElement;
   const keep = a && a.id && $("#main").contains(a) ? { id: a.id, s: (() => { try { return [a.selectionStart, a.selectionEnd]; } catch { return null; } })() } : null;
   stale = false;
-  ({ anio: renderAnio, movs: renderMovs, apuntar: renderApuntar, analisis: renderAnalisis, prevision: renderPrevision, dinero: renderDinero }[tab] || renderAnio)();
+  ({ anio: renderAnio, movs: renderMovs, apuntar: renderApuntar, analisis: renderAnalisis, prevision: renderPrevision, medias: renderMedias, dinero: renderDinero }[tab] || renderAnio)();
   if (keep) { const n = document.getElementById(keep.id); if (n && n !== document.activeElement) { n.focus({ preventScroll: true }); try { if (keep.s && keep.s[0] != null) n.setSelectionRange(keep.s[0], keep.s[1]); } catch {} } }
 }
 function renderAll(){ renderHeader(); renderView(); }
@@ -2418,6 +2867,7 @@ document.addEventListener("click", async e => {
   if (ds.dsub) { dSub = ds.dsub; store.set("cj.dsub", dSub); return renderView(); }
   if (t.id === "acc-new") { accForm = { tipo: "banco", nombre: "", entidad: "", saldo: "", habitual: !(cfg.cuentas || []).some(c => c.tipo === "banco") }; renderView(); const n = $("#af-nombre"); if (n) n.scrollIntoView({ block: "center" }); return; }
   if (t.id === "bk-csv") return copiaCSV();
+  if (t.id === "drive-all") return driveTodos();
   if (t.id === "bk-json") return copiaJSON();
   if (t.id === "debt-new") { accForm = { tipo: "prestamo", nombre: "", entidad: "", saldo: "" }; cuotaForm = null; renderView(); const n = $("#af-nombre"); if (n) n.scrollIntoView({ block: "center" }); return; }
   if (ds.cuota) {
@@ -2429,7 +2879,7 @@ document.addEventListener("click", async e => {
   }
   if (ds.cuotacancel) { cuotaForm = null; return renderView(); }
   if (t.id === "lend-new") { lendForm = { nombre: "", importe: "", desde: "", fecha: toISO(NOW) }; lendMov = null; renderView(); const n = $("#lf-nombre"); if (n) { n.scrollIntoView({ block: "center" }); n.focus(); } return; }
-  if (ds.lendedit) { const c = cuenta(ds.lendedit); if (c) { lendForm = { ...c, importe: String(teDebe(c, toISO(NOW))) }; lendMov = null; renderView(); const n = $("#lf-nombre"); if (n) n.scrollIntoView({ block: "center" }); } return; }
+  if (ds.lendedit) { const c = cuenta(ds.lendedit); if (c) { lendForm = { ...c, importe: String(saldo(c, toISO(NOW))) }; lendMov = null; renderView(); const n = $("#lf-nombre"); if (n) n.scrollIntoView({ block: "center" }); } return; }
   if (t.id === "lf-save") return saveLendForm();
   if (t.id === "lf-cancel") { lendForm = null; return renderView(); }
   if (t.id === "lf-perdido") { if (!lendForm.confirmPerdido) { readLendForm(); lendForm.confirmPerdido = true; return renderView(); } t.disabled = true; return lendPerdido(); }
@@ -2441,7 +2891,7 @@ document.addEventListener("click", async e => {
   }
   if (ds.lenddev || ds.lendmore) {
     const c = cuenta(ds.lenddev || ds.lendmore); if (!c) return;
-    lendMov = { id: c.id, tipo: ds.lenddev ? "devuelve" : "presta", fecha: toISO(NOW), importe: ds.lenddev ? teDebe(c, toISO(NOW)) : "", cuenta: defaultAccount() }; lendForm = null;
+    lendMov = { id: c.id, tipo: ds.lenddev ? "devuelve" : "presta", fecha: toISO(NOW), importe: ds.lenddev ? teDebe(c, toISO(NOW)) : leDebes(c, toISO(NOW)) || "", cuenta: defaultAccount() }; lendForm = null;
     renderView(); const i = $("#lm-imp"); if (i) { i.focus(); i.select(); } return;
   }
   if (ds.lmcancel) { lendMov = null; return renderView(); }
@@ -2558,6 +3008,8 @@ renderHeader();
   const use = n => (window.claude && window.claude.use ? window.claude.use(n).catch(() => null) : Promise.resolve(null));
   use("sample").then(async s => { sample = s; if (s) imgCaps = await s.limits().catch(() => null); if (!typing()) renderView(); });
   use("assets").then(a => { assets = a; });
+  use("tricount").then(t => { tcApi = t; if (t && tab === "medias") renderView(); });
+  use("drive").then(d => { driveApi = d; if (d && tab === "dinero") renderView(); });
   db = await use("db");
   if (!db) { dbState = "none"; renderAll(); return; }
   const got = new Set();
@@ -2565,8 +3017,8 @@ renderHeader();
   const ready = k => { got.add(k); if (got.size === 3) dbState = "ready"; onData(); };
   db.collection("movs").onSnapshot(snap => { meses = {}; for (const d of snap.docs) meses[d.id] = d.data(); rebuild(); movsReady = true; ready("movs"); }, fail);
   db.collection("config").onSnapshot(snap => {
-    cfg = { cuentas: null, cats: null, prefs: {} };
-    for (const d of snap.docs) { const v = d.data() || {}; if (d.id === "cuentas") cfg.cuentas = v.items || []; else if (d.id === "categorias" && v.gasto && v.ingreso) cfg.cats = v; else if (d.id === "prefs") cfg.prefs = v; }
+    cfg = { cuentas: null, cats: null, prefs: {}, tricount: [] };
+    for (const d of snap.docs) { const v = d.data() || {}; if (d.id === "cuentas") cfg.cuentas = v.items || []; else if (d.id === "categorias" && v.gasto && v.ingreso) cfg.cats = v; else if (d.id === "prefs") cfg.prefs = v; else if (d.id === "tricount") cfg.tricount = v.items || []; }
     buildCatIdx(); ready("config");
   }, fail);
   db.collection("anios").onSnapshot(snap => { anios = {}; for (const d of snap.docs) anios[d.id] = d.data(); ready("anios"); }, fail);

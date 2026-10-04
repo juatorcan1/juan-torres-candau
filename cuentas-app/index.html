@@ -1823,7 +1823,7 @@ async function driveTodos(){
   for (const m of faltan) {
     const ok = await driveUp(m, null, true);
     driveBusy.hechos++; if (!ok) driveBusy.fallos++;
-    if (!ok && /permiso/.test(driveErr)) break;      // sin permiso no sale ninguno: para y avisa
+    if (!ok && /permiso|carpeta/.test(driveErr)) break;      // sin permiso o con la carpeta fuera de su sitio no sale ninguno: para y avisa
     if (tab === "dinero" && !typing()) renderView();
   }
   const r = driveBusy; driveBusy = null;

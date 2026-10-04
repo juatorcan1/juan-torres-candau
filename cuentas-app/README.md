@@ -44,6 +44,9 @@ persona paga algo por ti (p. ej. la cuenta del bar), queda en negativo y aparece
   Edge Function `supabase/functions/cuentas-drive`, con el mismo permiso de Google que la Tía Senda: secretos
   `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET` y `GOOGLE_OAUTH_REFRESH_TOKEN` en las Edge Functions de
   Supabase. En Dinero → «Tickets en Drive» se ve cuántos están subidos y se suben los que falten.
+  **No se mezcla con Senda**: la función sólo escribe dentro de «01 Tickets» (id fijo en el código) y antes de
+  subir comprueba que esa carpeta sigue en 02 - JUAN / 04 - FACTURAS; si no, no sube nada. La carpeta no está
+  compartida con la cuenta de servicio de Senda, así que la Tía Senda tampoco la lee.
 - Tricount se lee con la Edge Function `supabase/functions/cuentas-tricount`, que usa la API **no oficial**
   de la app de Tricount (api.tricount.bunq.com): sólo pide (GET) cada tricount por la clave de su enlace,
   nunca se une a él ni escribe. bunq la puede cambiar o cerrar. Los enlaces se guardan en `config/tricount`;

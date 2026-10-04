@@ -316,3 +316,8 @@ tr.subrow td:first-child{padding-left:22px}
 .tc-row .am{font-family:var(--mono);font-weight:600}
 .tc-row .bar{grid-column:1/-1;height:6px;border-radius:3px;background:var(--surface-2);overflow:hidden}
 .tc-row .bar i{display:block;height:100%;border-radius:3px}
+.mes-band{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;margin:22px -8px 10px;padding:10px 12px;border-radius:10px;background:var(--acc-wash);border-left:4px solid var(--acc)}
+.mes-band:first-child{margin-top:0}
+.mes-band b{font-family:var(--display);font-weight:800;font-size:19px;letter-spacing:-.01em;color:var(--ink)}
+.mes-band span{font-size:14px;font-weight:600;color:var(--ink-2)}
+.mes-band + .day{margin-top:6px}

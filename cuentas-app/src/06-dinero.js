@@ -62,7 +62,8 @@ function driveHTML(){
   h += `<p class="small" style="margin:0">${con.length ? `${con.length - faltan.length} de ${con.length} tickets están en Drive.` : "Todavía no hay tickets guardados."}</p>`;
   if (driveBusy) h += `<p class="small" style="margin:6px 0 0"><span class="spin"></span> Subiendo ${driveBusy.hechos} de ${driveBusy.total}…${driveBusy.fallos ? ` (${driveBusy.fallos} sin subir)` : ""}</p>`;
   else if (faltan.length) h += `<div class="row" style="margin-top:8px"><button class="btn" id="drive-all"${driveApi ? "" : " disabled"}>${faltan.length === 1 ? "Subir el que falta" : `Subir los ${faltan.length} que faltan`}</button></div>`;
-  if (driveErr) h += `<p class="err" style="margin:8px 0 0">${esc(driveErr)}</p>`;
+  const ultimoFallo = faltan.map(m => m.driveError).filter(Boolean).sort((a, b) => num(b.at) - num(a.at))[0];
+  if (driveErr || ultimoFallo) h += `<p class="err" style="margin:8px 0 0">${esc(driveErr || ultimoFallo.msg)}</p>`;
   return h + `</div>`;
 }
 async function driveTodos(){

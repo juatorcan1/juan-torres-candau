@@ -167,17 +167,32 @@ function driveUp(m, pdf, quiet, renombrar){
       const [r] = await driveApi.subir([it]);
       if (!r || !r.ok) throw { message: (r && r.error) || "" };
       const drive = { fileId: r.fileId, nombre: r.nombre, ruta: r.ruta, enlace: r.enlace || "" };
-      await putItems(m.fecha.slice(0, 7), { [m.id]: { drive } });
+      await putItems(m.fecha.slice(0, 7), { [m.id]: { drive, driveError: null } });
       driveErr = "";
       return true;
     } catch (e) {
       driveErr = e && e.code === "no_drive" ? "Falta el permiso de Google Drive (mira «Tickets en Drive», en Dinero)." : "No se ha podido subir a Drive" + (e && e.message ? ": " + e.message : ".");
+      // el porqué se queda en el movimiento: así se puede mirar después y se reintenta solo más tarde
+      try { await putItems(m.fecha.slice(0, 7), { [m.id]: { driveError: { msg: String(driveErr).slice(0, 300), code: (e && e.code) || "", at: Date.now() } } }); } catch {}
       if (!quiet) toast(e && e.code === "no_drive" ? "Guardado, pero falta el permiso de Google Drive" : "Guardado, pero no se ha podido subir a Drive");
       return false;
     }
   });
   driveCola = p.catch(() => {});
   return p;
+}
+
+// Al abrir la web, los tickets que se quedaron sin subir (porque falló Drive o no había conexión) se suben
+// solos, en segundo plano. Uno que falló se vuelve a intentar pasada media hora.
+let driveAutoHecho = false;
+async function driveAuto(){
+  if (driveAutoHecho || !driveApi || !movsReady) return;
+  driveAutoHecho = true;
+  const faltan = MOVS.filter(m => m.ticket && !m.drive && !(m.driveError && Date.now() - num(m.driveError.at) < 30 * 6e4)).slice(0, 10);
+  let ok = 0;
+  for (const m of faltan) { if (await driveUp(m, null, true)) ok++; else if (/permiso|carpeta/.test(driveErr)) break; }
+  if (ok) toast(ok === 1 ? "Subido a Drive un ticket que faltaba" : `Subidos a Drive ${ok} tickets que faltaban`);
+  if (faltan.length && tab === "dinero" && !typing()) renderView();
 }
 
 /* ================= hoja para ver o cambiar un movimiento ================= */

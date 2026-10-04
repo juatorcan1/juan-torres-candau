@@ -321,3 +321,5 @@ tr.subrow td:first-child{padding-left:22px}
 .mes-band b{font-family:var(--display);font-weight:800;font-size:19px;letter-spacing:-.01em;color:var(--ink)}
 .mes-band span{font-size:14px;font-weight:600;color:var(--ink-2)}
 .mes-band + .day{margin-top:6px}
+.ia-ask{font-size:14px;color:var(--ink);background:var(--acc-wash);border:1px solid var(--acc);border-radius:10px;padding:10px 12px}
+.ia-ask .chips button small{font-weight:500}

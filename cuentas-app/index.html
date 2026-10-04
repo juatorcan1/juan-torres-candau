@@ -290,7 +290,7 @@ input,select,textarea{min-width:0}
 .steps li span{font-size:13px;color:var(--ink-2)}
 
 /* navegación inferior */
-.bnav{position:fixed;left:0;right:0;bottom:0;z-index:40;display:grid;grid-template-columns:repeat(5,1fr);align-items:end;background:var(--surface);border-top:1px solid var(--line);padding:6px 6px calc(6px + env(safe-area-inset-bottom,0px))}
+.bnav{position:fixed;left:0;right:0;bottom:0;z-index:40;display:grid;grid-template-columns:repeat(6,1fr);align-items:end;background:var(--surface);border-top:1px solid var(--line);padding:6px 6px calc(6px + env(safe-area-inset-bottom,0px))}
 .bnav button{display:grid;justify-items:center;gap:2px;background:none;border:0;padding:6px 2px;color:var(--muted);font-size:11.5px;font-weight:700;cursor:pointer;border-radius:10px}
 .bnav button svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .bnav button[aria-current="page"]{color:var(--ink)}
@@ -305,6 +305,18 @@ tr.grp td{font-weight:700;background:var(--surface-2)}
 tr.subrow td{font-size:13px;color:var(--ink-2)}
 tr.subrow td:first-child{padding-left:22px}
 .toast{position:fixed;left:50%;bottom:calc(150px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:9px;font-weight:600;font-size:14px;z-index:95;max-width:calc(100% - 32px)}
+
+/* a medias */
+.split-in{display:grid;gap:14px}
+.split-lines{display:grid;gap:8px;margin-top:12px}
+.sl{border:1px solid var(--line-2);border-radius:10px;padding:8px 10px;display:grid;gap:8px}
+.sl.nobody{border-color:var(--warn);background:var(--warn-bg)}
+.sl-top{display:grid;grid-template-columns:minmax(0,1fr) 92px 32px;gap:6px;align-items:center}
+.sl-top input{font:inherit;border:1px solid var(--line);border-radius:8px;padding:7px 9px;background:var(--surface);color:var(--ink);min-width:0}
+.sl-top input.n{text-align:right;font-family:var(--mono)}
+.chips.sm button{padding:4px 10px;font-size:13px}
+.split-tot{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-top:14px}
+.split-tot .tile{border:1px solid var(--line-2);border-radius:10px;padding:10px 12px}
 </style>
 <div class="wrap">
   <div class="strip">
@@ -323,6 +335,7 @@ tr.subrow td:first-child{padding-left:22px}
     <section id="v-apuntar" hidden></section>
     <section id="v-analisis" hidden></section>
     <section id="v-prevision" hidden></section>
+    <section id="v-medias" hidden></section>
     <section id="v-dinero" hidden></section>
   </main>
 </div>
@@ -332,6 +345,7 @@ tr.subrow td:first-child{padding-left:22px}
   <button type="button" data-tab="movs"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg><span>Movimientos</span></button>
   <button type="button" data-tab="analisis"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12A9 9 0 1 1 12 3v9z"/><path d="M15 3.5A9 9 0 0 1 20.5 9H15z"/></svg><span>En qué se va</span></button>
   <button type="button" data-tab="prevision"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17l5-5 4 3 8-8M15 7h5v5"/></svg><span>Previsión</span></button>
+  <button type="button" data-tab="medias"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.6"/><path d="M16.5 14.2c2.6.4 4.5 2.7 4.5 5.8"/></svg><span>A medias</span></button>
   <button type="button" data-tab="dinero"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h13v4M3 7v11a2 2 0 0 0 2 2h15V9H5a2 2 0 0 1-2-2zM16 14.5h.01"/></svg><span>Dinero</span></button>
 </nav>
 <button type="button" class="fab" data-tab="apuntar" aria-label="Apuntar o escanear un ticket"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
@@ -397,7 +411,7 @@ const DEF_CATS = {
     { id: "otrosi", nombre: "Otros ingresos", cats: [["hacienda","Devolución de Hacienda"],["ventas","Venta de cosas"],["regalos","Regalos recibidos"],["reembolsos","Reembolsos y devoluciones"],["varios","Varios"]] }
   ]
 };
-const ACC_TYPES = { banco: "Cuenta de banco", efectivo: "Efectivo", deposito: "Depósito a plazo", inversion: "Inversión", ahorro: "Cuenta de ahorro", prestamo: "Préstamo o hipoteca", credito: "Tarjeta de crédito", prestado: "Dinero que te deben" };
+const ACC_TYPES = { banco: "Cuenta de banco", efectivo: "Efectivo", deposito: "Depósito a plazo", inversion: "Inversión", ahorro: "Cuenta de ahorro", prestamo: "Préstamo o hipoteca", credito: "Tarjeta de crédito", prestado: "Cuenta con una persona (lo que te debe o le debes)" };
 const DEBT = t => t === "prestamo" || t === "credito";
 // Deudores: cada persona que te debe dinero es una "cuenta" con saldo a tu favor. Prestar es pasar
 // dinero de tu banco a esa cuenta, y que te devuelva es pasarlo de vuelta. No cuenta como dinero tuyo
@@ -539,8 +553,9 @@ function saldo(c, iso){
 const LIQUID = t => t === "banco" || t === "efectivo" || t === "ahorro";
 // Lo que debes hoy (en positivo) en una deuda, y si la cuota de un mes ya está apuntada
 const debe = (c, iso) => Math.max(0, -saldo(c, iso));
-// Lo que te debe hoy un deudor
+// Lo que te debe hoy una persona, o lo que le debes tú (si pagó ella por ti)
 const teDebe = (c, iso) => Math.max(0, saldo(c, iso));
+const leDebes = (c, iso) => Math.max(0, -saldo(c, iso));
 const cuotaPagada = (c, y, mo) => MOVS.some(m => m.tipo === "traspaso" && m.destino === c.id && m.fecha.startsWith(y + "-" + pad(mo + 1)));
 // Reparto de una cuota: intereses del mes sobre lo que queda, y el resto a devolver
 function repartoCuota(c, total, iso){
@@ -848,6 +863,7 @@ const liquidNow = () => sum(cuentas().filter(c => LIQUID(c.tipo)).map(c => saldo
 const totalAt = iso => sum(cuentas().filter(c => !DEBT(c.tipo) && !LENT(c.tipo)).map(c => saldo(c, iso)));
 const deudaAt = iso => sum(cuentas().filter(c => DEBT(c.tipo)).map(c => debe(c, iso)));
 const teDebenAt = iso => sum(cuentas().filter(c => LENT(c.tipo)).map(c => teDebe(c, iso)));
+const debesGenteAt = iso => sum(cuentas().filter(c => LENT(c.tipo)).map(c => leDebes(c, iso)));
 
 function renderAnio(){
   const el = $("#v-anio");
@@ -866,7 +882,7 @@ function renderAnio(){
   const gastoMes = mesesPasados > 0.5 ? st.G / mesesPasados : 0;
   const colchon = gastoMes > 0 && phase !== "futuro" ? liquidNow() / gastoMes : null;
   const ah = st.I - st.G;
-  const deuda = phase === "futuro" ? 0 : deudaAt(refIso);
+  const deuda = phase === "futuro" ? 0 : deudaAt(refIso) + debesGenteAt(refIso);
   const teDeben = phase === "futuro" ? 0 : teDebenAt(refIso);
   h += `<div class="tiles">
     <div class="tile"><span class="l"><span class="sw" style="background:var(--ing)"></span>Ha entrado</span><span class="v">${eur(st.I)}</span><span class="s">${phase === "pasado" ? "en todo el año" : "a fin de año: " + eur(f.I)}</span></div>
@@ -961,7 +977,7 @@ function resumenParaIA(){
     presupuesto_anual_por_grupo: Object.fromEntries(Object.entries(anio(Y).presupuesto).map(([g, v]) => [groupName("gasto", g), v])),
     cuentas: cuentas().filter(c => !DEBT(c.tipo) && !LENT(c.tipo)).map(c => ({ nombre: c.nombre, tipo: ACC_TYPES[c.tipo] || c.tipo, saldo_hoy: c.ancla ? saldo(c, toISO(NOW)) : "sin saldo apuntado", tae: c.tae || undefined, vence: c.vence || undefined })),
     deudas: cuentas().filter(c => DEBT(c.tipo)).map(c => ({ nombre: c.nombre, tipo: ACC_TYPES[c.tipo], debe_hoy: c.ancla ? debe(c, toISO(NOW)) : "sin apuntar", cuota_mes: num(c.cuota) || undefined, tin: num(c.tin) || undefined, termina: c.termina || undefined })),
-    me_deben: cuentas().filter(c => LENT(c.tipo)).map(c => ({ quien: c.nombre, debe_hoy: c.ancla ? teDebe(c, toISO(NOW)) : "sin apuntar", por: c.nota || undefined, dijo_que_devolvia: c.vence || undefined })),
+    me_deben: cuentas().filter(c => LENT(c.tipo)).map(c => ({ quien: c.nombre, te_debe_hoy: c.ancla ? saldo(c, toISO(NOW)) : "sin apuntar" /* en negativo: le debe Juan */, por: c.nota || undefined, dijo_que_devolvia: c.vence || undefined })),
     objetivos: anio(Y).objetivos.map(o => ({ nombre: o.nombre, para: o.tipo, importe: o.importe, fecha: o.fecha, apartado: goalSaved(o) }))
   };
 }
@@ -1716,8 +1732,8 @@ function cuentasHTML(){
   const liq = sum(cs.filter(c => LIQUID(c.tipo)).map(c => saldo(c, iso)));
   const inv = sum(cs.filter(c => !LIQUID(c.tipo)).map(c => saldo(c, iso)));
   const deb = sum(ds.map(c => debe(c, iso)));
-  const lent = sum(ls.map(c => teDebe(c, iso)));
-  let h = `<div class="panel"><div class="panel-head"><div><h2>${phase === "pasado" ? "Tu dinero a 31 de diciembre de " + Y : "Tu dinero hoy"}</h2><p>Bancos y efectivo: <b class="num">${eur(liq)}</b>${inv ? ` · depósitos e inversiones: <b class="num">${eur(inv)}</b>` : ""}${lent > 0.005 ? ` · te deben: <b class="num">${eur(lent)}</b>` : ""}${deb > 0.005 ? ` · debes: <b class="num" style="color:var(--over)">${eur(deb)}</b>` : ""}${deb > 0.005 || lent > 0.005 ? ` · lo tuyo de verdad: <b class="num">${eur(liq + inv + lent - deb)}</b>` : ""}</p></div><button class="btn primary sm" id="acc-new">Añadir cuenta</button></div>`;
+  const lent = sum(ls.map(c => teDebe(c, iso))), amigos = sum(ls.map(c => leDebes(c, iso)));
+  let h = `<div class="panel"><div class="panel-head"><div><h2>${phase === "pasado" ? "Tu dinero a 31 de diciembre de " + Y : "Tu dinero hoy"}</h2><p>Bancos y efectivo: <b class="num">${eur(liq)}</b>${inv ? ` · depósitos e inversiones: <b class="num">${eur(inv)}</b>` : ""}${lent > 0.005 ? ` · te deben: <b class="num">${eur(lent)}</b>` : ""}${deb + amigos > 0.005 ? ` · debes: <b class="num" style="color:var(--over)">${eur(deb + amigos)}</b>` : ""}${deb + amigos > 0.005 || lent > 0.005 ? ` · lo tuyo de verdad: <b class="num">${eur(liq + inv + lent - deb - amigos)}</b>` : ""}</p></div><button class="btn primary sm" id="acc-new">Añadir cuenta</button></div>`;
   if (!cfg.cuentas || !cfg.cuentas.length) h += `<div class="banner" style="margin-bottom:12px"><b>Empieza por aquí.</b> Añade tus bancos y dime cuánto tienes hoy en cada uno. Así sé cuánto dinero tienes y cuánto tendrás a final de año.</div>`;
   if (accForm && !DEBT(accForm.tipo)) h += accFormHTML();
   h += `<div class="accs">`;
@@ -1821,23 +1837,29 @@ async function saveCuota(id){
 let lendForm = null;     // alta o cambio de un deudor
 let lendMov = null;      // {id, tipo: "devuelve"|"presta", fecha, importe, cuenta}
 const misCuentas = () => cuentas().filter(x => !DEBT(x.tipo) && !LENT(x.tipo));
-// Lo que ha pasado con un deudor desde siempre: lo prestado, lo devuelto y lo perdido
+// Lo que ha pasado con una persona desde siempre: lo que le has dado (prestado o pagado), lo que te ha
+// devuelto, lo que ha pagado ella por ti y lo dado por perdido
+const esPerdido = m => m.tipo === "gasto" && m.lineas.some(l => l.cat === "otros.perdido");
 function lendHist(c){
-  let prestado = 0, devuelto = 0, perdido = 0, desde = null;
+  let prestado = 0, devuelto = 0, perdido = 0, pagoPorTi = 0, desde = null;
   for (const m of MOVS) {
     if (m.tipo === "traspaso" && m.destino === c.id) prestado += num(m.total);
     else if (m.tipo === "traspaso" && m.cuenta === c.id) devuelto += num(m.total);
-    else if (m.tipo === "gasto" && m.cuenta === c.id) perdido += num(m.total);
+    else if (m.tipo === "gasto" && m.cuenta === c.id) { if (esPerdido(m)) perdido += num(m.total); else pagoPorTi += num(m.total); }
     else continue;
     if (!desde || m.fecha < desde) desde = m.fecha;
   }
-  return { prestado, devuelto, perdido, desde: c.fecha || desde };
+  return { prestado, devuelto, perdido, pagoPorTi, desde: c.fecha || desde };
 }
 function deudoresHTML(ls, iso, phase){
-  const vivos = ls.filter(c => teDebe(c, iso) > 0.005).sort((a, b) => teDebe(b, iso) - teDebe(a, iso));
+  const vivos = ls.filter(c => Math.abs(saldo(c, iso)) > 0.005).sort((a, b) => saldo(b, iso) - saldo(a, iso));
   const saldados = ls.filter(c => !vivos.includes(c));
-  const tot = sum(vivos.map(c => teDebe(c, iso)));
-  let h = `<div class="panel"><div class="panel-head"><div><h2>Lo que te deben</h2><p>${vivos.length ? `En total, <b class="num">${eur(tot)}</b>${vivos.length > 1 ? ` entre ${vivos.length} personas` : ""}. No lo cuento como dinero tuyo hasta que te lo devuelvan.` : "Nadie te debe nada. Si le prestas dinero a alguien, apúntalo aquí: te digo cuánto te debe cada uno y desde cuándo."}</p></div><button class="btn sm" id="lend-new">Añadir un deudor</button></div>`;
+  const tot = sum(vivos.map(c => teDebe(c, iso))), deb = sum(vivos.map(c => leDebes(c, iso)));
+  const nTe = vivos.filter(c => teDebe(c, iso) > 0.005).length, nLe = vivos.filter(c => leDebes(c, iso) > 0.005).length;
+  let p = !vivos.length ? "Nadie te debe nada. Si le prestas dinero a alguien, apúntalo aquí: te digo cuánto te debe cada uno y desde cuándo." : "";
+  if (tot > 0.005) p += `Te deben <b class="num">${eur(tot)}</b>${nTe > 1 ? ` entre ${nTe} personas` : ""}. No lo cuento como dinero tuyo hasta que te lo devuelvan.`;
+  if (deb > 0.005) p += `${p ? " " : ""}Tú debes <b class="num" style="color:var(--over)">${eur(deb)}</b>${nLe > 1 ? ` a ${nLe} personas` : ""}.`;
+  let h = `<div class="panel"><div class="panel-head"><div><h2>Lo que te deben</h2><p>${p}</p></div><button class="btn sm" id="lend-new">Añadir un deudor</button></div>`;
   if (lendForm && !lendForm.id) h += lendFormHTML();
   if (vivos.length) h += `<div class="accs">${vivos.map(c => deudorCard(c, iso, phase)).join("")}</div>`;
   if (saldados.length) {
@@ -1848,10 +1870,11 @@ function deudoresHTML(ls, iso, phase){
 }
 function deudorCard(c, iso, phase){
   if (lendForm && lendForm.id === c.id) return lendFormHTML();
-  const d = teDebe(c, iso), hi = lendHist(c);
+  const d = teDebe(c, iso), le = leDebes(c, iso), hi = lendHist(c);
   let meta = c.nota ? `<div class="meta">${esc(c.nota)}</div>` : "";
   if (hi.desde) meta += `<div class="meta">Desde el ${shortDate(hi.desde)}${parseISO(hi.desde).getFullYear() !== CUR_Y ? " de " + parseISO(hi.desde).getFullYear() : ""}</div>`;
-  if (hi.prestado || hi.devuelto || hi.perdido) meta += `<div class="meta">${hi.prestado ? "Le has prestado " + eur(hi.prestado) : ""}${hi.devuelto ? (hi.prestado ? " y te ha devuelto " : "Te ha devuelto ") + eur(hi.devuelto) : ""}${hi.perdido ? (hi.prestado || hi.devuelto ? " · " : "") + "dado por perdido " + eur(hi.perdido) : ""}.</div>`;
+  const hs = [hi.prestado && "le has dado " + eur(hi.prestado), hi.devuelto && "te ha devuelto " + eur(hi.devuelto), hi.pagoPorTi && "ha pagado por ti " + eur(hi.pagoPorTi), hi.perdido && "dado por perdido " + eur(hi.perdido)].filter(Boolean);
+  if (hs.length) meta += `<div class="meta">${cap(hs.join(" · "))}.</div>`;
   if (c.vence && d > 0.005) {
     const tarde = c.vence < toISO(NOW);
     meta += `<div class="meta"${tarde ? ' style="color:var(--over)"' : ""}>${tarde ? "Tenía que habértelo devuelto el " : "Dijo que te lo devolvía el "}${shortDate(c.vence)}${parseISO(c.vence).getFullYear() !== CUR_Y ? " de " + parseISO(c.vence).getFullYear() : ""}</div>`;
@@ -1859,10 +1882,10 @@ function deudorCard(c, iso, phase){
   let actions;
   if (lendMov && lendMov.id === c.id) {
     const dev = lendMov.tipo === "devuelve";
-    actions = `<div class="fgrid"><div class="f"><label for="lm-fecha">Fecha</label><input id="lm-fecha" type="date" value="${esc(lendMov.fecha)}"></div><div class="f"><label for="lm-imp">${dev ? "Te devuelve (€)" : "Le prestas (€)"}</label><input id="lm-imp" inputmode="decimal" value="${esc(lendMov.importe ? String(lendMov.importe).replace(".", ",") : "")}"></div><div class="f"><label for="lm-cuenta">${dev ? "Entra en" : "Sale de"}</label><select id="lm-cuenta">${misCuentas().map(x => `<option value="${x.id}"${x.id === lendMov.cuenta ? " selected" : ""}>${esc(x.nombre)}</option>`).join("")}</select></div></div><div class="row"><button class="btn sm primary" data-lmsave="${c.id}">Apuntar</button><button class="btn sm ghost" data-lmcancel="1">Cancelar</button><span class="err" id="lm-err"></span></div>`;
-  } else actions = `<div class="row">${d > 0.005 && phase !== "pasado" ? `<button class="btn sm" data-lenddev="${c.id}">Me ha devuelto</button>` : ""}${phase !== "pasado" ? `<button class="btn sm" data-lendmore="${c.id}">Le presto más</button>` : ""}<button class="btn sm ghost" data-seeacc="${c.id}">Movimientos</button></div>`;
-  return `<div class="acc"><div class="acc-h"><div><b>${esc(c.nombre)}</b><div class="meta">${esc(ACC_TYPES.prestado)}</div></div><button class="btn sm ghost" data-lendedit="${c.id}">Cambiar</button></div>
-    <div class="bal num">${c.ancla ? (d > 0.005 ? "Te debe " + eur(d) : "Saldado") : "—"}</div>
+    actions = `<div class="fgrid"><div class="f"><label for="lm-fecha">Fecha</label><input id="lm-fecha" type="date" value="${esc(lendMov.fecha)}"></div><div class="f"><label for="lm-imp">${dev ? "Te devuelve (€)" : le > 0.005 ? "Le pagas (€)" : "Le prestas (€)"}</label><input id="lm-imp" inputmode="decimal" value="${esc(lendMov.importe ? String(lendMov.importe).replace(".", ",") : "")}"></div><div class="f"><label for="lm-cuenta">${dev ? "Entra en" : "Sale de"}</label><select id="lm-cuenta">${misCuentas().map(x => `<option value="${x.id}"${x.id === lendMov.cuenta ? " selected" : ""}>${esc(x.nombre)}</option>`).join("")}</select></div></div><div class="row"><button class="btn sm primary" data-lmsave="${c.id}">Apuntar</button><button class="btn sm ghost" data-lmcancel="1">Cancelar</button><span class="err" id="lm-err"></span></div>`;
+  } else actions = `<div class="row">${d > 0.005 && phase !== "pasado" ? `<button class="btn sm" data-lenddev="${c.id}">Me ha devuelto</button>` : ""}${phase !== "pasado" ? `<button class="btn sm" data-lendmore="${c.id}">${le > 0.005 ? "Le he pagado" : "Le presto más"}</button>` : ""}<button class="btn sm ghost" data-seeacc="${c.id}">Movimientos</button></div>`;
+  return `<div class="acc"><div class="acc-h"><div><b>${esc(c.nombre)}</b></div><button class="btn sm ghost" data-lendedit="${c.id}">Cambiar</button></div>
+    <div class="bal num${le > 0.005 ? " neg" : ""}">${c.ancla ? (d > 0.005 ? "Te debe " + eur(d) : le > 0.005 ? "Le debes " + eur(le) : "Saldado") : "—"}</div>
     ${meta}${actions}</div>`;
 }
 function lendFormHTML(){
@@ -1871,7 +1894,7 @@ function lendFormHTML(){
   return `<div class="job" style="margin-bottom:14px"><b>${nuevo ? "Nuevo deudor" : "Cambiar deudor"}</b>
     <div class="fgrid">
       <div class="f"><label for="lf-nombre">Quién</label><input id="lf-nombre" value="${esc(a.nombre || "")}" placeholder="Pedro, mi hermana…"></div>
-      <div class="f"><label for="lf-importe">${nuevo ? "Cuánto le prestas o te debe (€)" : "Te debe hoy (€)"}</label><input id="lf-importe" inputmode="decimal" value="${esc(a.importe != null && a.importe !== "" ? String(a.importe).replace(".", ",") : "")}" placeholder="0,00"></div>
+      <div class="f"><label for="lf-importe">${nuevo ? "Cuánto le prestas o te debe (€)" : "Te debe hoy (€)"}${!nuevo ? ` <small>(si le debes tú, en negativo)</small>` : ""}</label><input id="lf-importe" inputmode="decimal" value="${esc(a.importe != null && a.importe !== "" ? String(a.importe).replace(".", ",") : "")}" placeholder="0,00"></div>
       ${nuevo ? `<div class="f"><label for="lf-desde">¿Sale ahora de una cuenta tuya?</label><select id="lf-desde"><option value="">No: ya se lo había prestado</option>${misCuentas().map(x => `<option value="${x.id}"${x.id === a.desde ? " selected" : ""}>Sí, de ${esc(x.nombre)}</option>`).join("")}</select></div>
       <div class="f"><label for="lf-fecha">Cuándo se lo prestaste</label><input id="lf-fecha" type="date" value="${esc(a.fecha || "")}"></div>` : ""}
       <div class="f"><label for="lf-vence">Dijo que te lo devolvía <small>(opcional)</small></label><input id="lf-vence" type="date" value="${esc(a.vence || "")}"></div>
@@ -1889,7 +1912,7 @@ async function saveLendForm(){
   readLendForm();
   const a = lendForm, nombre = (a.nombre || "").trim();
   if (!nombre) { $("#lf-err").textContent = "Pon quién es."; return; }
-  const v = r2(Math.abs(num(a.importe)));
+  const v = r2(Math.abs(num(a.importe))), vs = r2(num(a.importe));
   const list = (cfg.cuentas && cfg.cuentas.length ? cfg.cuentas : cuentas()).map(c => ({ ...c }));
   const base = { nombre, tipo: "prestado", nota: String(a.nota || "").trim().slice(0, 200), vence: a.vence || null };
   let movs = [];
@@ -1897,7 +1920,7 @@ async function saveLendForm(){
     const i = list.findIndex(c => c.id === a.id); if (i < 0) return;
     list[i] = { ...list[i], ...base };
     const c = cuenta(a.id);
-    if (a.importe !== "" && a.importe != null && Math.abs(v - teDebe(c, toISO(NOW))) >= 0.005) list[i].ancla = { fecha: toISO(NOW), saldo: v, ts: Date.now() };
+    if (a.importe !== "" && a.importe != null && Math.abs(vs - saldo(c, toISO(NOW))) >= 0.005) list[i].ancla = { fecha: toISO(NOW), saldo: vs, ts: Date.now() };
   } else {
     if (!v) { $("#lf-err").textContent = "Pon cuánto te debe."; return; }
     const fecha = a.fecha || toISO(NOW);
@@ -2312,9 +2335,243 @@ function loQueVieneHTML(){
   return h + `</div>`;
 }
 
+/* ===== 08-medias.js ===== */
+/* ================= pantalla: a medias (dividir la cuenta) ================= */
+// En el bar: foto del ticket + dictar qué ha tomado cada uno → cuánto paga cada uno. Al guardarlo,
+// tu parte es un gasto y lo de los demás va a «Lo que te deben» (o lo que debes tú, si pagó otro).
+// La cuenta a medio hacer se queda en el móvil (localStorage) por si se cierra la página.
+const YO = "Yo";
+let split = store.get("cj.split", null);
+let splitImg = null, splitImgUrl = "", splitBusy = false, splitErr = "";
+function splitNew(){ return { personas: [YO], lineas: [], total: "", propina: "", sitio: "", fecha: toISO(NOW), cat: "", pagador: YO, cuenta: defaultAccount(), dictado: "", hecho: false, dudas: "" }; }
+function splitSave(){ store.set("cj.split", split); }
+const splitPeopleKnown = () => {
+  const s = new Set(store.get("cj.split.gente", []));
+  for (const c of cuentas()) if (LENT(c.tipo)) s.add(c.nombre);
+  return [...s].filter(n => n && norm(n) !== norm(YO)).slice(0, 20);
+};
+// Cuánto le toca a cada uno: cada línea se reparte a partes iguales entre los suyos (si no tiene a nadie,
+// entre todos); lo que no cuadra con el total del ticket y la propina, en proporción a lo consumido.
+function splitCalc(s){
+  const P = s.personas, base = Object.fromEntries(P.map(p => [p, 0]));
+  let items = 0, sinDueño = 0;
+  for (const l of s.lineas) {
+    const v = num(l.importe); if (!v) continue;
+    items += v;
+    const who = (l.personas || []).filter(p => P.includes(p));
+    if (!who.length) sinDueño++;
+    const list = who.length ? who : P;
+    for (const p of list) base[p] += v / list.length;
+  }
+  const total = num(s.total) || items;
+  const extra = (total - items) + num(s.propina);
+  const B = sum(Object.values(base));
+  const out = {};
+  for (const p of P) out[p] = base[p] + (B > 0 ? extra * base[p] / B : extra / P.length);
+  // a céntimos, y el céntimo que sobra o falta para quien ha pagado
+  const final = total + num(s.propina);
+  let acc = 0;
+  for (const p of P) { out[p] = r2(out[p]); acc += out[p]; }
+  const res = r2(final - acc);
+  if (Math.abs(res) >= 0.005 && P.length) { const k = P.includes(s.pagador) ? s.pagador : P[0]; out[k] = r2(out[k] + res); }
+  return { por: out, items: r2(items), total: r2(total), final: r2(final), cuadre: r2(total - items), sinDueño };
+}
+const quienTxt = p => p === YO ? "Juan" : p;
+
+function renderMedias(){
+  const el = $("#v-medias");
+  if (!split) split = splitNew();
+  let h = `<div class="subnav" role="tablist" aria-label="A medias"><button role="tab" aria-selected="true">Dividir la cuenta</button></div>`;
+  h += `<div class="panel"><div class="panel-head"><div><h2>Dividir la cuenta</h2><p>Hazle una foto al ticket y di qué ha tomado cada uno. Te digo cuánto paga cada uno y, si quieres, lo apunto en tus cuentas.</p></div>${split.lineas.length || split.dictado || splitImg ? `<button class="btn sm ghost" id="sp-reset">Empezar otra</button>` : ""}</div>`;
+  if (!sample) h += `<div class="banner" style="margin-bottom:12px">${WEB ? "La IA no está disponible ahora mismo: puedes meter las líneas a mano." : "Aquí no está la IA: abre la web para leer el ticket. Puedes meter las líneas a mano."}</div>`;
+  h += `<div class="split-in">
+    <div class="f"><span class="lab">1 · El ticket <small>(opcional)</small></span>${splitImgUrl ? `<div class="row" style="align-items:center"><button type="button" class="thumb" data-zoom="${esc(splitImgUrl)}" aria-label="Ver el ticket en grande"><img src="${esc(splitImgUrl)}" alt="Ticket"></button><button class="btn sm ghost" id="sp-img-del">Quitar la foto</button></div>` : `<button type="button" class="btn" id="sp-img"${sample ? "" : " disabled"}>${ICON.camara.replace("<svg", '<svg style="width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;vertical-align:-4px;margin-right:6px"')}Foto del ticket</button>`}<input type="file" id="sp-file" accept="image/*" capture="environment" hidden></div>
+    <div class="f"><label for="sp-dict">2 · Quién ha tomado qué <small>(usa el micrófono del teclado)</small></label><textarea id="sp-dict" class="inp area" rows="3" placeholder="Yo dos cañas y las bravas. Ignacio un vino y la tortilla. Las croquetas, a medias entre todos.">${esc(split.dictado)}</textarea></div>
+    <div class="row"><button class="btn primary" id="sp-go"${sample && !splitBusy ? "" : " disabled"}>${splitBusy ? `<span class="spin"></span> Haciendo las cuentas…` : split.lineas.length ? "Volver a hacer las cuentas" : "Hacer las cuentas"}</button>${!split.lineas.length ? `<button class="btn ghost" id="sp-manual">Meterlo a mano</button>` : ""}<span class="err">${esc(splitErr)}</span></div>
+  </div></div>`;
+  if (split.lineas.length) h += splitResultHTML();
+  el.innerHTML = h;
+}
+function splitResultHTML(){
+  const s = split, c = splitCalc(s), P = s.personas;
+  if (!misCuentas().some(x => x.id === s.cuenta)) s.cuenta = misCuentas().some(x => x.id === defaultAccount()) ? defaultAccount() : (misCuentas()[0] || {}).id || "";
+  let h = `<div class="panel"><div class="panel-head"><div><h2>${esc(s.sitio || "La cuenta")}</h2><p>Toca los nombres de cada línea para cambiar de quién es. Lo que es de varios se reparte a partes iguales.</p></div></div>`;
+  if (s.dudas) h += `<div class="ia-note" style="margin-bottom:10px">${esc(s.dudas)}</div>`;
+  h += `<div class="f"><span class="lab">En la mesa</span><div class="chips">${P.map(p => `<button type="button" data-sppdel="${esc(p)}" title="${p === YO ? "Tú" : "Quitar"}" aria-pressed="true">${esc(p)}${p === YO ? "" : " ×"}</button>`).join("")}${splitPeopleKnown().filter(n => !P.some(p => norm(p) === norm(n))).slice(0, 6).map(n => `<button type="button" data-sppadd="${esc(n)}">+ ${esc(n)}</button>`).join("")}</div>
+    <div class="row" style="margin-top:6px"><input class="inp" id="sp-newp" placeholder="Otra persona" style="max-width:200px"><button class="btn sm" id="sp-newp-go">Añadir</button></div></div>`;
+  h += `<div class="split-lines">`;
+  s.lineas.forEach((l, i) => {
+    const who = (l.personas || []).filter(p => P.includes(p));
+    h += `<div class="sl${who.length ? "" : " nobody"}"><div class="sl-top"><input data-sli="${i}" data-slk="concepto" value="${esc(l.concepto)}" aria-label="Qué" placeholder="Qué"><input class="n" data-sli="${i}" data-slk="importe" inputmode="decimal" value="${esc(l.importe === "" || l.importe == null ? "" : typeof l.importe === "number" ? NF2.format(l.importe) : l.importe)}" placeholder="0,00" aria-label="Importe"><button type="button" class="x" data-sldel="${i}" aria-label="Quitar línea">×</button></div>
+      <div class="chips sm">${P.map(p => `<button type="button" data-slp="${i}|${esc(p)}" aria-pressed="${who.includes(p)}">${esc(p)}</button>`).join("")}${who.length ? "" : `<span class="small" style="color:var(--warn);align-self:center">De nadie: lo pagan todos</span>`}</div></div>`;
+  });
+  h += `</div><div class="row"><button class="btn sm" id="sp-addl">+ Otra línea</button></div>`;
+  h += `<div class="fgrid" style="margin-top:12px"><div class="f"><label for="sp-total">Total del ticket (€)</label><input id="sp-total" inputmode="decimal" value="${esc(s.total === "" ? "" : String(s.total).replace(".", ","))}" placeholder="${esc(NF2.format(c.items))}"></div><div class="f"><label for="sp-propina">Propina o bote (€)</label><input id="sp-propina" inputmode="decimal" value="${esc(s.propina === "" ? "" : String(s.propina).replace(".", ","))}" placeholder="0,00"></div></div>`;
+  h += `<div id="sp-res">${splitTotalsHTML(c)}</div>`;
+  // quién paga y guardar
+  const hay = c.final > 0;
+  h += `<div class="fgrid" style="margin-top:14px"><div class="f"><label for="sp-pagador">¿Quién ha pagado?</label><select id="sp-pagador">${P.map(p => `<option value="${esc(p)}"${p === s.pagador ? " selected" : ""}>${p === YO ? "Yo" : esc(p)}</option>`).join("")}</select></div>
+    ${s.pagador === YO ? `<div class="f"><label for="sp-cuenta">Con qué</label><select id="sp-cuenta">${misCuentas().map(x => `<option value="${x.id}"${x.id === s.cuenta ? " selected" : ""}>${esc(x.nombre)}</option>`).join("")}</select></div>` : ""}
+    <div class="f"><label for="sp-fecha">Fecha</label><input id="sp-fecha" type="date" value="${esc(s.fecha || toISO(NOW))}"></div>
+    <div class="f"><label for="sp-cat">Tu parte es</label><select id="sp-cat">${catOptions("gasto", s.cat || (CATIDX["fuera.bares"] ? "fuera.bares" : ""))}</select></div></div>`;
+  h += `<p class="small" id="sp-qd" style="margin:8px 0 0">${splitQuienDebe(c)}</p>`;
+  h += `<div class="ed-foot"><button class="btn primary" id="sp-save"${hay && !s.hecho ? "" : " disabled"}>${s.hecho ? "Ya está en tus cuentas" : "Apuntarlo en mis cuentas"}</button><button class="btn" id="sp-share"${hay ? "" : " disabled"}>Mandar el reparto</button><span class="err" id="sp-err"></span></div>
+    <p class="small muted" style="margin:6px 0 0">Al apuntarlo: ${s.pagador === YO ? "sale el total de tu cuenta, tu parte es un gasto y lo de cada uno pasa a «Lo que te deben»." : `tu parte es un gasto que ha pagado ${esc(s.pagador)}, y pasa a «Lo que te deben» como que le debes eso.`}</p></div>`;
+  return h;
+}
+function splitTotalsHTML(c){
+  const P = split.personas;
+  let h = `<div class="split-tot">${P.map(p => `<div class="tile"><span class="l">${p === YO ? "Tú" : esc(p)}</span><span class="v">${eur(c.por[p] || 0)}</span></div>`).join("")}</div>`;
+  const notes = [];
+  if (Math.abs(c.cuadre) >= 0.01 && num(split.total)) notes.push(`Las líneas suman ${eur(c.items)} y el ticket ${eur(c.total)}: ${c.cuadre > 0 ? "lo que falta" : "lo que sobra"} (${eur(Math.abs(c.cuadre))}) lo reparto según lo que ha tomado cada uno.`);
+  if (num(split.propina)) notes.push(`La propina, también según lo que ha tomado cada uno.`);
+  h += `<p class="small" style="margin:8px 0 0">Total: <b class="num">${eur(c.final)}</b>${notes.length ? ` · <span class="muted">${notes.join(" ")}</span>` : ""}</p>`;
+  return h;
+}
+function splitQuienDebe(c){
+  const s = split, pg = s.pagador;
+  const deudas = s.personas.filter(p => p !== pg && (c.por[p] || 0) > 0.005);
+  if (!deudas.length) return "Nadie le debe nada a nadie.";
+  return deudas.map(p => `<b>${p === YO ? "Tú le debes" : esc(p) + (pg === YO ? " te debe" : " le debe")}</b> ${eur(c.por[p])}${pg === YO ? "" : " a " + esc(pg)}`).join(" · ");
+}
+function splitShareText(){
+  const s = split, c = splitCalc(s);
+  let t = `${s.sitio || "La cuenta"}${s.fecha ? " (" + shortDate(s.fecha) + ")" : ""}: ${eur(c.final)}\n`;
+  for (const p of s.personas) t += `· ${quienTxt(p)}: ${eur(c.por[p] || 0)}\n`;
+  t += `Pagó ${quienTxt(s.pagador)}.`;
+  return t;
+}
+function repaintSplitTotals(){
+  const box = $("#sp-res"); if (!box || !split) return;
+  const c = splitCalc(split);
+  box.innerHTML = splitTotalsHTML(c);
+  const qd = $("#sp-qd"); if (qd) qd.innerHTML = splitQuienDebe(c);
+  const sv = $("#sp-save"), sh = $("#sp-share");
+  if (sv) sv.disabled = !(c.final > 0) || split.hecho;
+  if (sh) sh.disabled = !(c.final > 0);
+}
+
+/* ---------- la IA ---------- */
+function splitPrompt(dict){
+  return `Estás en un bar o restaurante con Juan (España) y hay que dividir la cuenta. ${splitImg ? "Te paso la foto del ticket y" : "No hay foto del ticket:"} lo que dice Juan de qué ha tomado cada uno. Devuelve SOLO un objeto JSON, sin nada más:
+{"sitio":texto o null,"fecha":"AAAA-MM-DD" o null,"total":número o null,"cat":id,"personas":[nombres],"lineas":[{"concepto":texto,"importe":número o null,"personas":[nombres]}],"dudas":texto o null}
+
+Reglas:
+- Juan es siempre "${YO}" (si dice «yo», «me», «mío»… es "${YO}"). A los demás, con el nombre que diga, con mayúscula.${split.personas.length > 1 ? `\n- En la mesa están: ${split.personas.join(", ")}.` : ""}
+- "personas": todos los que están en la mesa, empezando por "${YO}".
+- ${splitImg ? "Las líneas salen del ticket, con su importe con IVA tal y como se paga. Si una línea tiene varias unidades que han tomado personas distintas (3 cañas: 2 de Juan y 1 de Ignacio), pártela en varias líneas con su parte del importe. La suma de las líneas tiene que dar el total del ticket; si no cuadra, dilo en \"dudas\"." : "Saca las líneas de lo que dice, con los precios que diga. Si no dice el precio de algo, importe null."}
+- «A medias», «entre todos», «para compartir», «al centro» → en "personas" pon todos los que lo comparten. Si de una línea no sabes de quién es, deja "personas" vacío y dilo en "dudas".
+- No inventes nada. "total": el total del ticket (null si no hay ticket).
+- "cat": la categoría del gasto, uno de estos ids exactamente:
+${catListForIA("gasto")}
+- Fechas de España. Hoy es ${toISO(NOW)}.
+
+Lo que dice Juan:
+${(dict || "(no ha dicho nada: pon todas las líneas sin personas)").slice(0, 4000)}`;
+}
+async function splitGo(){
+  const dict = ($("#sp-dict") || {}).value || "";
+  split.dictado = dict; splitSave();
+  if (!dict.trim() && !splitImg) { splitErr = "Haz la foto del ticket o di qué ha tomado cada uno."; return renderView(); }
+  splitBusy = true; splitErr = ""; renderView();
+  try {
+    const o = await sample.json(splitPrompt(dict), { images: splitImg ? [splitImg] : undefined, cache: false });
+    if (!o || !Array.isArray(o.lineas)) throw { mine: "La IA no ha devuelto nada que se pueda usar." };
+    const personas = [YO];
+    for (const p of [].concat(o.personas || [], ...o.lineas.map(l => l.personas || []))) { const n = String(p || "").trim().slice(0, 30); if (n && !personas.some(x => norm(x) === norm(n))) personas.push(norm(n) === norm(YO) ? YO : n); }
+    for (const p of split.personas) if (!personas.some(x => norm(x) === norm(p))) personas.push(p);
+    const fix = n => personas.find(x => norm(x) === norm(n)) || null;
+    split = { ...split, personas, sitio: String(o.sitio || split.sitio || ""), fecha: /^\d{4}-\d{2}-\d{2}$/.test(o.fecha || "") && o.fecha <= toISO(NOW) ? o.fecha : split.fecha, total: o.total == null ? "" : r2(Math.abs(num(o.total))), cat: CATIDX[o.cat] && CATIDX[o.cat].tipo === "gasto" ? o.cat : split.cat, dudas: String(o.dudas || ""),
+      lineas: o.lineas.map(l => ({ concepto: String(l.concepto || "").slice(0, 80), importe: l.importe == null ? "" : r2(num(l.importe)), personas: [...new Set((l.personas || []).map(fix).filter(Boolean))] })) };
+    splitSave();
+  } catch (e) {
+    splitErr = e && e.mine ? e.mine : e && e.code === "rate_limited" ? "Demasiadas seguidas: espera un minuto." : e && e.code === "invalid_json" ? "La IA no ha sabido leerlo bien. Prueba otra vez." : "No ha salido. Prueba otra vez.";
+  }
+  splitBusy = false; renderView();
+}
+
+/* ---------- apuntarlo en las cuentas ---------- */
+async function splitApuntar(){
+  const s = split, c = splitCalc(s), err = $("#sp-err");
+  const fecha = s.fecha || toISO(NOW);
+  if (fecha > toISO(NOW)) { err.textContent = "La fecha no puede ser de un día que no ha llegado."; return; }
+  if (s.pagador === YO && !misCuentas().some(x => x.id === s.cuenta)) { err.textContent = "Di con qué cuenta has pagado."; return; }
+  const sitio = s.sitio || "La cuenta", cat = s.cat || (CATIDX["fuera.bares"] ? "fuera.bares" : "");
+  // la cuenta de cada persona: la que ya tenga en «Lo que te deben», o una nueva
+  const list = (cfg.cuentas && cfg.cuentas.length ? cfg.cuentas : cuentas()).map(x => ({ ...x }));
+  let nuevas = false;
+  const accOf = p => {
+    let a = list.find(x => LENT(x.tipo) && !x.borrada && norm(x.nombre) === norm(p));
+    if (!a) { a = { id: "deudor-" + (norm(p).replace(/ /g, "-").slice(0, 20) || "x") + "-" + uid().slice(-4), nombre: p, tipo: "prestado", nota: "", vence: null, fecha, ancla: { fecha: "1900-01-01", saldo: 0, ts: 0 } }; list.push(a); nuevas = true; }
+    return a.id;
+  };
+  const movs = [], mio = c.por[YO] || 0;
+  if (s.pagador === YO) {
+    if (mio > 0.005) movs.push(cleanMov({ fecha, tipo: "gasto", cuenta: s.cuenta, comercio: sitio, nota: "Tu parte de la cuenta", total: mio, lineas: [{ concepto: "Tu parte en " + sitio, cat, importe: mio }], origen: "dividir" }));
+    for (const p of s.personas) if (p !== YO && (c.por[p] || 0) > 0.005) movs.push(cleanMov({ fecha, tipo: "traspaso", cuenta: s.cuenta, destino: accOf(p), comercio: p, nota: "Su parte en " + sitio, total: c.por[p], origen: "dividir" }));
+  } else if (mio > 0.005) {
+    movs.push(cleanMov({ fecha, tipo: "gasto", cuenta: accOf(s.pagador), comercio: sitio, nota: "Pagó " + s.pagador, total: mio, lineas: [{ concepto: "Tu parte en " + sitio, cat, importe: mio }], origen: "dividir" }));
+  }
+  if (!movs.length) { err.textContent = "No hay nada que apuntar en tus cuentas."; return; }
+  const btn = $("#sp-save"); if (btn) btn.disabled = true;
+  try {
+    if (nuevas) await saveCfg("cuentas", { items: list });
+    await saveMovs(movs);
+    store.set("cj.split.gente", [...new Set(s.personas.filter(p => p !== YO).concat(store.get("cj.split.gente", [])))].slice(0, 20));
+    split.hecho = true; splitSave();
+    toast(s.pagador === YO ? "Apuntado: tu parte y lo que te deben" : "Apuntado: tu parte y lo que le debes"); renderView();
+  } catch (e) { err.textContent = saveErr(e); if (btn) btn.disabled = false; }
+}
+
+/* ---------- clics y escritura ---------- */
+document.addEventListener("click", async e => {
+  const t = e.target.closest("button"); if (!t || !t.closest("#v-medias")) return;
+  const ds = t.dataset;
+  if (t.id === "sp-img") return $("#sp-file").click();
+  if (t.id === "sp-img-del") { splitImg = null; if (splitImgUrl) URL.revokeObjectURL(splitImgUrl); splitImgUrl = ""; return renderView(); }
+  if (t.id === "sp-go") return splitGo();
+  if (t.id === "sp-manual") { split.dictado = ($("#sp-dict") || {}).value || ""; split.lineas = [{ concepto: "", importe: "", personas: [] }]; splitSave(); return renderView(); }
+  if (t.id === "sp-reset") { split = splitNew(); splitImg = null; if (splitImgUrl) URL.revokeObjectURL(splitImgUrl); splitImgUrl = ""; splitErr = ""; splitSave(); return renderView(); }
+  if (t.id === "sp-addl") { split.lineas.push({ concepto: "", importe: "", personas: [] }); splitSave(); renderView(); const ins = $$("#v-medias [data-slk=concepto]"); if (ins.length) ins[ins.length - 1].focus(); return; }
+  if (ds.sldel != null) { split.lineas.splice(+ds.sldel, 1); splitSave(); return renderView(); }
+  if (ds.slp) { const [i, p] = ds.slp.split("|"); const l = split.lineas[+i]; if (!l) return; const w = new Set(l.personas || []); w.has(p) ? w.delete(p) : w.add(p); l.personas = split.personas.filter(x => w.has(x)); splitSave(); return renderView(); }
+  if (ds.sppdel != null) { const p = ds.sppdel; if (p === YO) return; split.personas = split.personas.filter(x => x !== p); for (const l of split.lineas) l.personas = (l.personas || []).filter(x => x !== p); if (split.pagador === p) split.pagador = YO; splitSave(); return renderView(); }
+  if (ds.sppadd || t.id === "sp-newp-go") {
+    const n = (ds.sppadd || ($("#sp-newp") || {}).value || "").trim().slice(0, 30);
+    if (n && !split.personas.some(x => norm(x) === norm(n))) { split.personas.push(norm(n) === norm(YO) ? YO : cap(n)); splitSave(); }
+    return renderView();
+  }
+  if (t.id === "sp-save") return splitApuntar();
+  if (t.id === "sp-share") {
+    const txt = splitShareText();
+    try { if (navigator.share) { await navigator.share({ text: txt }); return; } } catch (err) { if (err && err.name === "AbortError") return; }
+    try { await navigator.clipboard.writeText(txt); toast("Copiado: pégalo en WhatsApp"); } catch { toast("No he podido copiarlo"); }
+  }
+});
+document.addEventListener("keydown", e => { if (e.target.id === "sp-newp" && e.key === "Enter") { e.preventDefault(); const b = $("#sp-newp-go"); if (b) b.click(); } });
+document.addEventListener("input", e => {
+  const el = e.target; if (!el.closest || !el.closest("#v-medias") || !split) return;
+  if (el.id === "sp-dict") { split.dictado = el.value; splitSave(); return; }
+  if (el.dataset.sli != null) { const l = split.lineas[+el.dataset.sli]; if (l) l[el.dataset.slk] = el.value; }
+  else if (el.id === "sp-total") split.total = el.value;
+  else if (el.id === "sp-propina") split.propina = el.value;
+  else return;
+  splitSave(); repaintSplitTotals();
+});
+document.addEventListener("change", async e => {
+  const el = e.target; if (!el.closest || !el.closest("#v-medias") || !split) return;
+  if (el.id === "sp-file") {
+    const f = el.files && el.files[0]; el.value = ""; if (!f) return;
+    splitImg = await shrink(f); if (splitImgUrl) URL.revokeObjectURL(splitImgUrl); splitImgUrl = URL.createObjectURL(splitImg);
+    return renderView();
+  }
+  const k = { "sp-pagador": "pagador", "sp-cuenta": "cuenta", "sp-fecha": "fecha", "sp-cat": "cat" }[el.id];
+  if (k) { split[k] = el.value; splitSave(); return renderView(); }
+});
+
 /* ===== 99-boot.js ===== */
 /* ================= navegación ================= */
-const TABS = ["anio", "movs", "apuntar", "analisis", "prevision", "dinero"];
+const TABS = ["anio", "movs", "apuntar", "analisis", "prevision", "medias", "dinero"];
 function renderHeader(){
   $("#y-lab").textContent = Y;
   $("#y-prev").disabled = Y <= CUR_Y - 15; $("#y-next").disabled = Y >= MAX_Y;
@@ -2326,7 +2583,7 @@ function renderView(){
   const a = document.activeElement;
   const keep = a && a.id && $("#main").contains(a) ? { id: a.id, s: (() => { try { return [a.selectionStart, a.selectionEnd]; } catch { return null; } })() } : null;
   stale = false;
-  ({ anio: renderAnio, movs: renderMovs, apuntar: renderApuntar, analisis: renderAnalisis, prevision: renderPrevision, dinero: renderDinero }[tab] || renderAnio)();
+  ({ anio: renderAnio, movs: renderMovs, apuntar: renderApuntar, analisis: renderAnalisis, prevision: renderPrevision, medias: renderMedias, dinero: renderDinero }[tab] || renderAnio)();
   if (keep) { const n = document.getElementById(keep.id); if (n && n !== document.activeElement) { n.focus({ preventScroll: true }); try { if (keep.s && keep.s[0] != null) n.setSelectionRange(keep.s[0], keep.s[1]); } catch {} } }
 }
 function renderAll(){ renderHeader(); renderView(); }
@@ -2429,7 +2686,7 @@ document.addEventListener("click", async e => {
   }
   if (ds.cuotacancel) { cuotaForm = null; return renderView(); }
   if (t.id === "lend-new") { lendForm = { nombre: "", importe: "", desde: "", fecha: toISO(NOW) }; lendMov = null; renderView(); const n = $("#lf-nombre"); if (n) { n.scrollIntoView({ block: "center" }); n.focus(); } return; }
-  if (ds.lendedit) { const c = cuenta(ds.lendedit); if (c) { lendForm = { ...c, importe: String(teDebe(c, toISO(NOW))) }; lendMov = null; renderView(); const n = $("#lf-nombre"); if (n) n.scrollIntoView({ block: "center" }); } return; }
+  if (ds.lendedit) { const c = cuenta(ds.lendedit); if (c) { lendForm = { ...c, importe: String(saldo(c, toISO(NOW))) }; lendMov = null; renderView(); const n = $("#lf-nombre"); if (n) n.scrollIntoView({ block: "center" }); } return; }
   if (t.id === "lf-save") return saveLendForm();
   if (t.id === "lf-cancel") { lendForm = null; return renderView(); }
   if (t.id === "lf-perdido") { if (!lendForm.confirmPerdido) { readLendForm(); lendForm.confirmPerdido = true; return renderView(); } t.disabled = true; return lendPerdido(); }
@@ -2441,7 +2698,7 @@ document.addEventListener("click", async e => {
   }
   if (ds.lenddev || ds.lendmore) {
     const c = cuenta(ds.lenddev || ds.lendmore); if (!c) return;
-    lendMov = { id: c.id, tipo: ds.lenddev ? "devuelve" : "presta", fecha: toISO(NOW), importe: ds.lenddev ? teDebe(c, toISO(NOW)) : "", cuenta: defaultAccount() }; lendForm = null;
+    lendMov = { id: c.id, tipo: ds.lenddev ? "devuelve" : "presta", fecha: toISO(NOW), importe: ds.lenddev ? teDebe(c, toISO(NOW)) : leDebes(c, toISO(NOW)) || "", cuenta: defaultAccount() }; lendForm = null;
     renderView(); const i = $("#lm-imp"); if (i) { i.focus(); i.select(); } return;
   }
   if (ds.lmcancel) { lendMov = null; return renderView(); }

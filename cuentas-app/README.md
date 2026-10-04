@@ -12,12 +12,16 @@ Abajo hay cinco botones, y uno redondo (＋) para apuntar:
 - **En qué se va**: gastos e ingresos por grupos y categorías, presupuesto y la curva del año.
 - **Previsión**: cómo acabarás el año, la previsión de gastos y de ingresos por categorías, lo que viene
   los próximos seis meses, hasta 2040, y los fijos y el presupuesto de cada ejercicio.
+- **A medias**: dividir la cuenta en el bar. Foto del ticket + dictar qué ha tomado cada uno → cuánto paga
+  cada uno (lo compartido a partes iguales; el descuadre con el total y la propina, en proporción). Se puede
+  mandar por WhatsApp y apuntar: tu parte es un gasto y lo de los demás va a «Lo que te deben».
 - **Dinero**: cuentas, deudas, lo que te deben, objetivos, categorías y copia de seguridad.
 
 **Lo que te deben** (Dinero → Cuentas): cada deudor es una cuenta de tipo `prestado` con saldo a tu favor.
 Prestar es un traspaso de tu banco a su cuenta y que te devuelva es el traspaso al revés; «Darlo por perdido»
 apunta lo que queda como gasto en «Dinero prestado que no vuelve». Lo que te deben no cuenta en «Dinero hoy»
-ni en la previsión hasta que vuelve, pero sí en «lo tuyo de verdad».
+ni en la previsión hasta que vuelve, pero sí en «lo tuyo de verdad». El saldo va en los dos sentidos: si una
+persona paga algo por ti (p. ej. la cuenta del bar), queda en negativo y aparece como «Le debes».
 
 ## Dos versiones, mismo código
 

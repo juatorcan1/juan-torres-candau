@@ -13,6 +13,7 @@ const liquidNow = () => sum(cuentas().filter(c => LIQUID(c.tipo)).map(c => saldo
 const totalAt = iso => sum(cuentas().filter(c => !DEBT(c.tipo) && !LENT(c.tipo)).map(c => saldo(c, iso)));
 const deudaAt = iso => sum(cuentas().filter(c => DEBT(c.tipo)).map(c => debe(c, iso)));
 const teDebenAt = iso => sum(cuentas().filter(c => LENT(c.tipo)).map(c => teDebe(c, iso)));
+const debesGenteAt = iso => sum(cuentas().filter(c => LENT(c.tipo)).map(c => leDebes(c, iso)));
 
 function renderAnio(){
   const el = $("#v-anio");
@@ -31,7 +32,7 @@ function renderAnio(){
   const gastoMes = mesesPasados > 0.5 ? st.G / mesesPasados : 0;
   const colchon = gastoMes > 0 && phase !== "futuro" ? liquidNow() / gastoMes : null;
   const ah = st.I - st.G;
-  const deuda = phase === "futuro" ? 0 : deudaAt(refIso);
+  const deuda = phase === "futuro" ? 0 : deudaAt(refIso) + debesGenteAt(refIso);
   const teDeben = phase === "futuro" ? 0 : teDebenAt(refIso);
   h += `<div class="tiles">
     <div class="tile"><span class="l"><span class="sw" style="background:var(--ing)"></span>Ha entrado</span><span class="v">${eur(st.I)}</span><span class="s">${phase === "pasado" ? "en todo el año" : "a fin de año: " + eur(f.I)}</span></div>
@@ -126,7 +127,7 @@ function resumenParaIA(){
     presupuesto_anual_por_grupo: Object.fromEntries(Object.entries(anio(Y).presupuesto).map(([g, v]) => [groupName("gasto", g), v])),
     cuentas: cuentas().filter(c => !DEBT(c.tipo) && !LENT(c.tipo)).map(c => ({ nombre: c.nombre, tipo: ACC_TYPES[c.tipo] || c.tipo, saldo_hoy: c.ancla ? saldo(c, toISO(NOW)) : "sin saldo apuntado", tae: c.tae || undefined, vence: c.vence || undefined })),
     deudas: cuentas().filter(c => DEBT(c.tipo)).map(c => ({ nombre: c.nombre, tipo: ACC_TYPES[c.tipo], debe_hoy: c.ancla ? debe(c, toISO(NOW)) : "sin apuntar", cuota_mes: num(c.cuota) || undefined, tin: num(c.tin) || undefined, termina: c.termina || undefined })),
-    me_deben: cuentas().filter(c => LENT(c.tipo)).map(c => ({ quien: c.nombre, debe_hoy: c.ancla ? teDebe(c, toISO(NOW)) : "sin apuntar", por: c.nota || undefined, dijo_que_devolvia: c.vence || undefined })),
+    me_deben: cuentas().filter(c => LENT(c.tipo)).map(c => ({ quien: c.nombre, te_debe_hoy: c.ancla ? saldo(c, toISO(NOW)) : "sin apuntar" /* en negativo: le debe Juan */, por: c.nota || undefined, dijo_que_devolvia: c.vence || undefined })),
     objetivos: anio(Y).objetivos.map(o => ({ nombre: o.nombre, para: o.tipo, importe: o.importe, fecha: o.fecha, apartado: goalSaved(o) }))
   };
 }

@@ -51,7 +51,7 @@ const DEF_CATS = {
     { id: "otrosi", nombre: "Otros ingresos", cats: [["hacienda","Devolución de Hacienda"],["ventas","Venta de cosas"],["regalos","Regalos recibidos"],["reembolsos","Reembolsos y devoluciones"],["varios","Varios"]] }
   ]
 };
-const ACC_TYPES = { banco: "Cuenta de banco", efectivo: "Efectivo", deposito: "Depósito a plazo", inversion: "Inversión", ahorro: "Cuenta de ahorro", prestamo: "Préstamo o hipoteca", credito: "Tarjeta de crédito", prestado: "Dinero que te deben" };
+const ACC_TYPES = { banco: "Cuenta de banco", efectivo: "Efectivo", deposito: "Depósito a plazo", inversion: "Inversión", ahorro: "Cuenta de ahorro", prestamo: "Préstamo o hipoteca", credito: "Tarjeta de crédito", prestado: "Cuenta con una persona (lo que te debe o le debes)" };
 const DEBT = t => t === "prestamo" || t === "credito";
 // Deudores: cada persona que te debe dinero es una "cuenta" con saldo a tu favor. Prestar es pasar
 // dinero de tu banco a esa cuenta, y que te devuelva es pasarlo de vuelta. No cuenta como dinero tuyo
@@ -193,8 +193,9 @@ function saldo(c, iso){
 const LIQUID = t => t === "banco" || t === "efectivo" || t === "ahorro";
 // Lo que debes hoy (en positivo) en una deuda, y si la cuota de un mes ya está apuntada
 const debe = (c, iso) => Math.max(0, -saldo(c, iso));
-// Lo que te debe hoy un deudor
+// Lo que te debe hoy una persona, o lo que le debes tú (si pagó ella por ti)
 const teDebe = (c, iso) => Math.max(0, saldo(c, iso));
+const leDebes = (c, iso) => Math.max(0, -saldo(c, iso));
 const cuotaPagada = (c, y, mo) => MOVS.some(m => m.tipo === "traspaso" && m.destino === c.id && m.fecha.startsWith(y + "-" + pad(mo + 1)));
 // Reparto de una cuota: intereses del mes sobre lo que queda, y el resto a devolver
 function repartoCuota(c, total, iso){

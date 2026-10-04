@@ -1,5 +1,5 @@
 /* ================= navegación ================= */
-const TABS = ["anio", "movs", "apuntar", "analisis", "prevision", "dinero"];
+const TABS = ["anio", "movs", "apuntar", "analisis", "prevision", "medias", "dinero"];
 function renderHeader(){
   $("#y-lab").textContent = Y;
   $("#y-prev").disabled = Y <= CUR_Y - 15; $("#y-next").disabled = Y >= MAX_Y;
@@ -11,7 +11,7 @@ function renderView(){
   const a = document.activeElement;
   const keep = a && a.id && $("#main").contains(a) ? { id: a.id, s: (() => { try { return [a.selectionStart, a.selectionEnd]; } catch { return null; } })() } : null;
   stale = false;
-  ({ anio: renderAnio, movs: renderMovs, apuntar: renderApuntar, analisis: renderAnalisis, prevision: renderPrevision, dinero: renderDinero }[tab] || renderAnio)();
+  ({ anio: renderAnio, movs: renderMovs, apuntar: renderApuntar, analisis: renderAnalisis, prevision: renderPrevision, medias: renderMedias, dinero: renderDinero }[tab] || renderAnio)();
   if (keep) { const n = document.getElementById(keep.id); if (n && n !== document.activeElement) { n.focus({ preventScroll: true }); try { if (keep.s && keep.s[0] != null) n.setSelectionRange(keep.s[0], keep.s[1]); } catch {} } }
 }
 function renderAll(){ renderHeader(); renderView(); }
@@ -114,7 +114,7 @@ document.addEventListener("click", async e => {
   }
   if (ds.cuotacancel) { cuotaForm = null; return renderView(); }
   if (t.id === "lend-new") { lendForm = { nombre: "", importe: "", desde: "", fecha: toISO(NOW) }; lendMov = null; renderView(); const n = $("#lf-nombre"); if (n) { n.scrollIntoView({ block: "center" }); n.focus(); } return; }
-  if (ds.lendedit) { const c = cuenta(ds.lendedit); if (c) { lendForm = { ...c, importe: String(teDebe(c, toISO(NOW))) }; lendMov = null; renderView(); const n = $("#lf-nombre"); if (n) n.scrollIntoView({ block: "center" }); } return; }
+  if (ds.lendedit) { const c = cuenta(ds.lendedit); if (c) { lendForm = { ...c, importe: String(saldo(c, toISO(NOW))) }; lendMov = null; renderView(); const n = $("#lf-nombre"); if (n) n.scrollIntoView({ block: "center" }); } return; }
   if (t.id === "lf-save") return saveLendForm();
   if (t.id === "lf-cancel") { lendForm = null; return renderView(); }
   if (t.id === "lf-perdido") { if (!lendForm.confirmPerdido) { readLendForm(); lendForm.confirmPerdido = true; return renderView(); } t.disabled = true; return lendPerdido(); }
@@ -126,7 +126,7 @@ document.addEventListener("click", async e => {
   }
   if (ds.lenddev || ds.lendmore) {
     const c = cuenta(ds.lenddev || ds.lendmore); if (!c) return;
-    lendMov = { id: c.id, tipo: ds.lenddev ? "devuelve" : "presta", fecha: toISO(NOW), importe: ds.lenddev ? teDebe(c, toISO(NOW)) : "", cuenta: defaultAccount() }; lendForm = null;
+    lendMov = { id: c.id, tipo: ds.lenddev ? "devuelve" : "presta", fecha: toISO(NOW), importe: ds.lenddev ? teDebe(c, toISO(NOW)) : leDebes(c, toISO(NOW)) || "", cuenta: defaultAccount() }; lendForm = null;
     renderView(); const i = $("#lm-imp"); if (i) { i.focus(); i.select(); } return;
   }
   if (ds.lmcancel) { lendMov = null; return renderView(); }

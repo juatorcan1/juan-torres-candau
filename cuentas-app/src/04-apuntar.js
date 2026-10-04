@@ -9,6 +9,17 @@ function defaultAccount(){
   const b = cuentas().find(c => c.tipo === "banco"); return (b || cuentas()[0] || {}).id || "";
 }
 function cashAccount(){ const c = cuentas().find(c => c.tipo === "efectivo"); return c ? c.id : ""; }
+// ¿Este ticket ya está apuntado? Mismo número de factura o ticket, o mismo día, mismo importe y mismo sitio.
+const numNorm = v => String(v || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+function repetido(d){
+  if (d.tipo === "traspaso") return null;
+  const tot = r2(Math.abs(num(d.total))), n = numNorm(d.factura && d.factura.numero);
+  const sitio = norm(d.comercio).split(" ")[0] || "";
+  return MOVS.find(m => m.id !== d.id && m.tipo === d.tipo && (
+    (n.length >= 4 && numNorm(m.factura && m.factura.numero) === n) ||
+    (m.fecha === d.fecha && tot > 0 && Math.abs(num(m.total) - tot) < 0.01 && (!sitio || !m.comercio || norm(m.comercio).split(" ")[0] === sitio))
+  )) || null;
+}
 function linesSum(d){ return r2(sum((d.lineas || []).map(l => num(l.importe)))); }
 function editorHTML(key){
   const d = DRAFTS[key]; if (!d) return "";
@@ -16,6 +27,8 @@ function editorHTML(key){
   const img = d.ticketUrl || (d.ticket ? ticketSrc(d.ticket, () => repaintEditor(key)) : "");
   let h = `<div class="ed" data-ed="${key}">`;
   if (d.iaNote) h += `<div class="ia-note">${esc(d.iaNote)}</div>`;
+  const rep = d.id ? null : repetido(d);
+  if (rep) h += `<div class="ia-note" style="background:var(--warn-bg);color:var(--ink)"><b>Ojo: parece que este ticket ya está apuntado</b> — ${esc(rep.comercio || "sin sitio")}, ${shortDate(rep.fecha)}${parseISO(rep.fecha).getFullYear() !== CUR_Y ? " de " + parseISO(rep.fecha).getFullYear() : ""}, ${eur(rep.total)}${rep.drive ? ", ya en Drive" : ""}. Si es el mismo, descártalo. Si es otro distinto, guárdalo.</div>`;
   h += `<div class="${img ? "ed-top" : ""}">${img ? `<button type="button" class="thumb" data-zoom="${esc(img)}" aria-label="Ver el ticket en grande"><img src="${esc(img)}" alt="Ticket"></button>` : ""}
     <div class="fgrid">
       <div class="f wide"><span class="lab">Qué es</span><div class="seg" role="group"><button type="button" data-edtipo="gasto" aria-pressed="${t === "gasto"}">Gasto</button><button type="button" data-edtipo="ingreso" aria-pressed="${t === "ingreso"}">Ingreso</button><button type="button" data-edtipo="traspaso" aria-pressed="${t === "traspaso"}">Paso entre mis cuentas</button></div></div>
@@ -127,6 +140,8 @@ async function saveDraft(key){
   const errBox = document.getElementById(key + "-err");
   const r = draftToMov(d);
   if (r.err) { if (errBox) errBox.textContent = r.err; return; }
+  // repetido: el primer «Guardar» sólo avisa; si se vuelve a pulsar, es que es otro ticket y se guarda
+  if (!d.id && repetido(d) && !d.repOk) { d.repOk = true; if (errBox) errBox.textContent = "Parece repetido (mira el aviso de arriba). Si es otro ticket, dale otra vez a Guardar."; return; }
   const btn = document.querySelector(`[data-edsave="${key}"]`); if (btn) { btn.disabled = true; btn.textContent = "Guardando…"; }
   try {
     const m = r.mov;
@@ -453,7 +468,7 @@ async function saveAllReady(){
   let ok = 0, bad = 0;
   for (const j of ready) {
     const d = DRAFTS[j.key]; const r = draftToMov(d);
-    if (r.err) { bad++; continue; }
+    if (r.err || (repetido(d) && !d.repOk)) { bad++; continue; }   // los que parecen repetidos se quedan para mirarlos uno a uno
     try {
       if (d.blob && assets) { try { const up = await assets.upload(d.blob); r.mov.ticket = up.id; } catch {} }
       await saveMovs([r.mov]); if (r.mov.ticket || d.pdf) driveUp(r.mov, d.pdf); removeJob(j.key); ok++;

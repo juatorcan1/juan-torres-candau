@@ -6,8 +6,8 @@
 //   marca entre paréntesis en los que se conocen), importe a la española con €, y el número si lo hay.
 // - El año y el trimestre salen de la fecha del ticket. Se usan las carpetas que ya existen
 //   («1er TRIMESTRE», «2º TRIMESTRE»…) y sólo se crea una si falta, como «3º TRIMESTRE».
-// - Las fotos se pasan a PDF (como _img_a_pdf de Senda). Si ya hay un fichero con ese nombre en la
-//   carpeta, no se sube otra vez. Si se corrige un gasto ya subido (fecha, importe, proveedor), se le
+// - Las fotos se pasan a PDF (como _img_a_pdf de Senda). Si ya hay en la carpeta un fichero con ese
+//   nombre, o con el mismo número de ticket, no se sube otra vez. Si se corrige un gasto ya subido (fecha, importe, proveedor), se le
 //   cambia el nombre y, si toca, la carpeta, pero sólo si el fichero está dentro de «01 Tickets».
 // - Escribe con el permiso OAuth de la cuenta de Google de Juan, el mismo que usa la Tía Senda:
 //   secretos GOOGLE_OAUTH_CLIENT_ID, GOOGLE_OAUTH_CLIENT_SECRET y GOOGLE_OAUTH_REFRESH_TOKEN.
@@ -264,9 +264,13 @@ Deno.serve(async (req: Request) => {
       const fecha = /^\d{4}-\d{2}-\d{2}$/.test(String(it?.fecha || "")) ? String(it.fecha) : "";
       const nombre = nombreFichero({ fecha, proveedor: String(it?.proveedor || ""), cif: String(it?.cif || ""), total: it?.total, numero: String(it?.numero || "") }, ext);
       const { destino, ruta } = await destinoDe(token, fecha, carpetas);
-      const ya = (await hijos(token, destino, ` and name = '${qs(nombre)}'`))[0];
+      // ¿Ya está? Mismo nombre, o (si el ticket tiene número) cualquier fichero de la carpeta con ese número,
+      // aunque el proveedor se leyera distinto: así un ticket no se sube dos veces.
+      const numN = String(it?.numero || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+      const ya = (await hijos(token, destino)).find((x) => x.mimeType !== FOLDER &&
+        (x.name === nombre || (numN.length >= 6 && String(x.name).toUpperCase().replace(/[^A-Z0-9]/g, "").includes(numN))));
       const f = ya || await subir(token, destino, nombre, pdf ? "application/pdf" : (mime || "image/jpeg"), datos);
-      out.push({ id, ok: true, fileId: f.id, enlace: f.webViewLink || "", nombre, ruta, yaEstaba: !!ya });
+      out.push({ id, ok: true, fileId: f.id, enlace: f.webViewLink || "", nombre: ya ? ya.name : nombre, ruta, yaEstaba: !!ya });
     } catch (e) {
       out.push({ id, ok: false, error: String((e as Error)?.message || e).slice(0, 300) });
     }

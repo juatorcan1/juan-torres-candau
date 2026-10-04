@@ -46,6 +46,9 @@ persona paga algo por ti (p. ej. la cuenta del bar), queda en negativo y aparece
   `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET` y `GOOGLE_OAUTH_REFRESH_TOKEN` en las Edge Functions de
   Supabase. En Dinero → «Tickets en Drive» se ve cuántos están subidos y se suben los que falten. Si corriges
   un gasto ya subido (fecha, importe o dónde), el PDF de Drive cambia de nombre y, si toca, de carpeta.
+  **Sin repetidos**: al guardar un ticket que parece ya apuntado (mismo número, o mismo día, importe y sitio) la
+  web avisa y sólo lo guarda si se confirma; en Drive no se sube un fichero si en la carpeta ya hay uno con ese
+  nombre o con ese número de ticket. Los que no llegaron a subir se suben solos al abrir la web.
   **No se mezcla con Senda**: la función sólo escribe dentro de «01 Tickets» (id fijo en el código) y antes de
   subir comprueba que esa carpeta sigue en 02 - JUAN / 04 - FACTURAS; si no, no sube nada. La carpeta no está
   compartida con la cuenta de servicio de Senda, así que la Tía Senda tampoco la lee.

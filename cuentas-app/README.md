@@ -9,6 +9,8 @@ Abajo hay cinco botones, y uno redondo (＋) para apuntar:
 - **El año**: lo que ha entrado, salido y ahorrado; mes a mes; cómo acabarás el año; hasta 2040.
 - **Movimientos**: todo lo apuntado, por días, con filtros.
 - **＋** (el redondo): foto del ticket (o factura en PDF), contárselo con palabras, a mano o el extracto del banco.
+  Si del ticket sólo es tuya una parte, pon «Mi parte» (o toca cuál de los pagos fue el tuyo, si se pagó en varias
+  veces): el gasto es tu parte, cada línea en proporción, y el ticket entero se archiva igual.
 - **En qué se va**: gastos e ingresos por grupos y categorías, presupuesto y la curva del año. La caza va en su
   propio grupo (cartuchos, licencias, coto y monterías, armero, ropa y equipo, perros, viajes), y las bodas a las
   que vas también (regalo o sobre, traje y complementos, viaje y alojamiento, despedidas, peluquería).

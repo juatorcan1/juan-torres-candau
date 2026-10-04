@@ -162,7 +162,7 @@ function cleanMov(m){
     comercio: String(m.comercio || "").slice(0, 80), nota: String(m.nota || "").slice(0, 400),
     total: r2(Math.abs(num(m.total))), lineas, origen: m.origen || "mano", ticket: m.ticket || null,
     revisar: !!m.revisar, creado: m.creado || Date.now(), banco: m.banco || null, deuda: m.deuda || null,
-    factura: m.factura || null, drive: m.drive || null
+    factura: m.factura || null, drive: m.drive || null, ticketTotal: m.ticketTotal ? r2(num(m.ticketTotal)) : null
   };
 }
 function rebuild(){

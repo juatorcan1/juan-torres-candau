@@ -534,7 +534,7 @@ function cleanMov(m){
     comercio: String(m.comercio || "").slice(0, 80), nota: String(m.nota || "").slice(0, 400),
     total: r2(Math.abs(num(m.total))), lineas, origen: m.origen || "mano", ticket: m.ticket || null,
     revisar: !!m.revisar, creado: m.creado || Date.now(), banco: m.banco || null, deuda: m.deuda || null,
-    factura: m.factura || null, drive: m.drive || null
+    factura: m.factura || null, drive: m.drive || null, ticketTotal: m.ticketTotal ? r2(num(m.ticketTotal)) : null
   };
 }
 function rebuild(){
@@ -1191,7 +1191,7 @@ function repetido(d){
   const sitio = norm(d.comercio).split(" ")[0] || "";
   return MOVS.find(m => m.id !== d.id && m.tipo === d.tipo && (
     (n.length >= 4 && numNorm(m.factura && m.factura.numero) === n) ||
-    (m.fecha === d.fecha && tot > 0 && Math.abs(num(m.total) - tot) < 0.01 && (!sitio || !m.comercio || norm(m.comercio).split(" ")[0] === sitio))
+    (m.fecha === d.fecha && tot > 0 && Math.abs(num(m.ticketTotal || m.total) - tot) < 0.01 && (!sitio || !m.comercio || norm(m.comercio).split(" ")[0] === sitio))
   )) || null;
 }
 function linesSum(d){ return r2(sum((d.lineas || []).map(l => num(l.importe)))); }
@@ -1222,6 +1222,13 @@ function editorHTML(key){
     });
     h += `</div><div class="row"><button type="button" class="btn sm" data-liadd="1">+ Otra categoría</button></div><div class="sumcheck" id="${key}-sum"></div>`;
   }
+  if (t !== "traspaso" && !d.id) {
+    const tot = r2(Math.abs(num(d.total))), parte = r2(Math.abs(num(d.parte)));
+    h += `<div class="f parte"><label for="${key}-parte">Mi parte (€) <small>(si sólo pagaste o tomaste una parte del ticket)</small></label><input id="${key}-parte" data-k="parte" inputmode="decimal" value="${esc(d.parte === "" || d.parte == null ? "" : typeof d.parte === "number" ? NF2.format(d.parte) : d.parte)}" placeholder="todo">`;
+    if (d.pagos && d.pagos.length > 1) h += `<div class="small" style="margin-top:6px">Se pagó en varias veces. ¿Cuál fue lo tuyo?</div><div class="chips sm" style="margin-top:4px">${d.pagos.map(p => `<button type="button" data-parte="${p.importe}" aria-pressed="${Math.abs(parte - p.importe) < 0.005}">${esc(cap(p.forma || "pago"))} ${esc(NF2.format(p.importe))} €</button>`).join("")}</div>`;
+    if (parte > 0 && tot > 0 && parte < tot - 0.005) h += `<div class="small muted" style="margin-top:6px">Guardo ${eur(parte)} como gasto tuyo (cada línea en proporción, el ${pct(parte / tot * 100)}). El ticket entero se archiva igual.</div>`;
+    h += `</div>`;
+  } else if (d.ticketTotal) h += `<p class="small muted" style="margin:0">Es tu parte de un ticket de ${eur(d.ticketTotal)}.</p>`;
   h += `<div class="f"><label for="${key}-nota">Nota <small>(opcional)</small></label><input id="${key}-nota" data-k="nota" value="${esc(d.nota)}"></div>`;
   h += `<div class="ed-foot"><button type="button" class="btn primary" data-edsave="${key}">${d.id ? "Guardar cambios" : "Guardar"}</button>${d.id ? `<span class="sp"></span><button type="button" class="btn danger" data-eddel="${key}">${d.confirmDel ? "Sí, bórralo" : "Borrar"}</button>` : `<button type="button" class="btn ghost" data-eddrop="${key}">Descartar</button>`}<span class="err" id="${key}-err"></span></div>`;
   return h + `</div>`;
@@ -1278,6 +1285,17 @@ function draftToMov(d){
       m.lineas.push({ concepto: diff > 0 ? "Resto del ticket" : "Ajuste", cat: big ? big.cat : "", importe: diff });
     }
     m.revisar = m.lineas.some(l => !l.cat) || !m.lineas.length || !!d.pregunta;
+    // sólo una parte es tuya: el gasto es tu parte (cada línea en proporción) y se guarda el total del papel
+    const parte = r2(Math.abs(num(d.parte)));
+    if (!d.id && parte > 0 && parte < m.total - 0.005) {
+      const f = parte / m.total;
+      m.lineas = m.lineas.map(l => ({ ...l, importe: r2(l.importe * f) }));
+      const res = r2(parte - linesSum(m));
+      if (Math.abs(res) >= 0.005 && m.lineas.length) { const big = m.lineas.slice().sort((a, b) => b.importe - a.importe)[0]; big.importe = r2(big.importe + res); }
+      m.ticketTotal = m.total; m.total = parte;
+      const aviso = `Mi parte de un ticket de ${eur(m.ticketTotal)}`;
+      m.nota = (m.nota ? m.nota + " · " : "") + aviso;
+    }
   } else m.revisar = false;
   return { mov: m };
 }
@@ -1357,7 +1375,7 @@ function driveUp(m, pdf, quiet, renombrar){
   const p = driveCola.then(async () => {
     try {
       const f = m.factura || {};
-      const it = { id: m.id, fecha: m.fecha, proveedor: f.proveedor || m.comercio, cif: f.cif || "", numero: f.numero || "", total: m.total };
+      const it = { id: m.id, fecha: m.fecha, proveedor: f.proveedor || m.comercio, cif: f.cif || "", numero: f.numero || "", total: m.ticketTotal || m.total };
       if (renombrar && m.drive && m.drive.fileId) it.fileId = m.drive.fileId;
       else if (pdf && pdf.size < 10e6) { it.data = await toB64(pdf); it.mime = "application/pdf"; } else if (m.ticket) it.ticket = m.ticket; else return false;
       const [r] = await driveApi.subir([it]);
@@ -1516,7 +1534,8 @@ function iaToDraft(o, origen){
     factura: o.razon_social || o.numero || o.cif ? { proveedor: String(o.razon_social || "").slice(0, 120), cif: String(o.cif || "").slice(0, 20), numero: String(o.numero || "").slice(0, 40) } : null,
     lineas: lineas.length ? lineas : [{ concepto: "", cat: "", importe: "" }],
     iaNote: notes.length ? notes.join(" ") : (conf && conf < 0.6 ? "La IA no lo ha tenido del todo claro: repásalo." : ""),
-    pregunta: preguntaDe(o.pregunta, tipo, lineas.length)
+    pregunta: preguntaDe(o.pregunta, tipo, lineas.length),
+    pagos: (Array.isArray(o.pagos) ? o.pagos : []).map(p => ({ forma: String(p && p.forma || "").slice(0, 20), importe: r2(Math.abs(num(p && p.importe))) })).filter(p => p.importe > 0).slice(0, 8)
   });
 }
 
@@ -1562,7 +1581,7 @@ async function shrink(file){
 }
 function ticketPrompt(extraText){
   return `Eres el contable personal de Juan (España). Te paso ${extraText ? "el texto de una factura o ticket" : "la foto de un ticket o factura"} de sus cuentas PERSONALES. Léelo y devuelve SOLO un objeto JSON, sin nada más:
-{"tipo":"gasto"|"ingreso","comercio":texto o null,"razon_social":texto o null,"cif":texto o null,"numero":texto o null,"fecha":"AAAA-MM-DD" o null,"total":número o null,"pago":"tarjeta"|"efectivo"|"bizum"|"transferencia"|"domiciliado"|null,"tarjeta_final":"4 cifras" o null,"lineas":[{"concepto":texto,"cat":id,"importe":número}],"confianza":número de 0 a 1,"dudas":texto o null,"manuscrito":texto o null,"pregunta":null o {"linea":número de línea empezando en 0,"texto":texto,"opciones":[{"etiqueta":texto,"cat":id}]}}
+{"tipo":"gasto"|"ingreso","comercio":texto o null,"razon_social":texto o null,"cif":texto o null,"numero":texto o null,"fecha":"AAAA-MM-DD" o null,"total":número o null,"pago":"tarjeta"|"efectivo"|"bizum"|"transferencia"|"domiciliado"|null,"tarjeta_final":"4 cifras" o null,"lineas":[{"concepto":texto,"cat":id,"importe":número}],"confianza":número de 0 a 1,"dudas":texto o null,"manuscrito":texto o null,"pagos":[{"forma":"tarjeta"|"efectivo"|"bizum"|"otro","importe":número}],"pregunta":null o {"linea":número de línea empezando en 0,"texto":texto,"opciones":[{"etiqueta":texto,"cat":id}]}}
 
 Reglas:
 - No inventes. Lo que no se lea, null. Si no es un ticket ni una factura, pon confianza 0 y explícalo en "dudas".
@@ -1582,6 +1601,7 @@ ${learnedForIA()}
 - El total es lo que cuesta la compra. «Efectivo», «Entregado» o «Pagado» es lo que dio el cliente, y «Cambio» o «Devolución efectivo» es la vuelta: no son el total ni otro gasto. Si pone «Efectivo», el pago es "efectivo".
 - "tarjeta_final" SÓLO si se pagó con tarjeta bancaria. La tarjeta de socio, de puntos o de fidelización de la tienda (Decathlon, Carrefour Club, Mercadona…) no es la forma de pago: no la pongas.
 - "manuscrito": todo lo que esté ESCRITO A MANO en el papel (con bolígrafo, lápiz o rotulador, no lo impreso), copiado tal cual y en el orden en que aparece: para qué fue, con quién, una obra, un nombre, «pagado», una cuenta hecha a mano… Si es difícil de leer, pon lo que se entienda y marca lo dudoso con «(?)». Si no hay nada escrito a mano, null. Si a mano se ha añadido una propina, súmala al total en una línea aparte «Propina» con la categoría del resto y dilo en "dudas".
+- "pagos": cada pago que sale al pie del ticket, por separado (si se pagó con varias tarjetas y efectivo, uno por cada uno). Al efectivo réstale el cambio: «Efectivo 20,00 / Cambio 1,30» es un pago de 18,70 en efectivo. Si sólo hay un pago o no se ve, [].
 - En una «factura simplificada» el "numero" es su número (p. ej. V2026036400100040626).
 - Fechas de España: 03/09/26 es el 3 de septiembre de 2026; 21/8/2026 es el 21 de agosto. Hoy es ${toISO(NOW)}.${extraText ? "\n\nTexto del papel:\n" + extraText.slice(0, 40000) : ""}`;
 }
@@ -2934,6 +2954,7 @@ document.addEventListener("click", async e => {
   if (k && DRAFTS[k]) {
     const d = DRAFTS[k];
     if (ds.edtipo) { if (d.tipo !== ds.edtipo) { d.tipo = ds.edtipo; d.lineas = d.lineas.map(l => ({ ...l, cat: CATIDX[l.cat] && CATIDX[l.cat].tipo === d.tipo ? l.cat : "" })); if (d.tipo === "traspaso" && !d.destino) d.destino = cuentas().find(c => c.id !== d.cuenta) ? cuentas().find(c => c.id !== d.cuenta).id : ""; repaintEditor(k); } return; }
+    if (ds.parte != null && !ds.edsave) { d.parte = num(d.parte) === num(ds.parte) ? "" : num(ds.parte); return repaintEditor(k); }
     if (ds.pregcat && d.pregunta) { const l = d.lineas[d.pregunta.linea]; if (l) l.cat = ds.pregcat; d.pregunta = null; return repaintEditor(k); }
     if (ds.liadd) { d.lineas.push({ concepto: "", cat: "", importe: "" }); repaintEditor(k); const ins = document.querySelectorAll(`.ed[data-ed="${k}"] [data-lk="concepto"]`); if (ins.length) ins[ins.length - 1].focus(); return; }
     if (ds.lidel != null) { d.lineas.splice(+ds.lidel, 1); if (!d.lineas.length) d.lineas.push({ concepto: "", cat: "", importe: "" }); return repaintEditor(k); }

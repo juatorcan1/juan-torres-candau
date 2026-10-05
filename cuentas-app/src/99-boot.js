@@ -63,7 +63,8 @@ document.addEventListener("click", async e => {
 
   // apuntar
   if (ds.way) { way = ds.way; store.set("cj.way", way); return renderView(); }
-  if (t.id === "drop") return $("#f-ticket").click();
+  if (t.id === "drop") return $("#f-camara").click();          // la cámara de atrás, directamente
+  if (t.id === "drop-galeria") return $("#f-ticket").click();   // galería o PDF, varias a la vez
   if (t.id === "drop-ext") return $("#f-extracto").click();
   if (t.id === "dict-go") return dictGo();
   if (t.id === "save-all") { t.disabled = true; return saveAllReady(); }
@@ -213,7 +214,7 @@ document.addEventListener("change", e => {
   const el = e.target;
   const k = edKey(el);
   if (k && DRAFTS[k]) { readEd(k, el); paintSum(k); return; }
-  if (el.id === "f-ticket") { const f = el.files; onTicketFiles(f); el.value = ""; return; }
+  if (el.id === "f-ticket" || el.id === "f-camara") { const f = el.files; onTicketFiles(f); el.value = ""; return; }
   if (el.id === "f-extracto") { const f = el.files && el.files[0]; if (f) onExtractFile(f); el.value = ""; return; }
   if (/^mf-(mes|tipo|grupo|cuenta)$/.test(el.id)) { mf[el.id.slice(3)] = el.value; mf.limit = 200; return renderView(); }
   if (el.id === "mf-rev") { mf.rev = el.checked; return renderView(); }

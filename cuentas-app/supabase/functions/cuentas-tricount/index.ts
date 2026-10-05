@@ -161,7 +161,10 @@ Deno.serve(async (req: Request) => {
       let reg;
       try { reg = await fetchRegistry(await sesion(), key); }
       catch (e) { if (!(e instanceof TcError && e.reauth)) throw e; reg = await fetchRegistry(await sesion(true), key); }
-      out.push(normalise(reg, key));
+      const t = normalise(reg, key);
+      out.push(t);
+      // una copia de lo leído, para revisarlo y para pasar gastos a las cuentas sin volver a pedirlo
+      await admin.from("cuentas_docs").upsert({ owner: user.id, collection: "tricount", id: "datos-" + key, data: { ...t, leido: new Date().toISOString() }, updated_at: new Date().toISOString() }, { onConflict: "owner,collection,id" });
     } catch (e) {
       const te = e instanceof TcError ? e : new TcError("upstream_error", "No se ha podido leer: " + String((e as Error)?.message ?? e).slice(0, 200));
       out.push({ key: key || link, ok: false, code: te.code, error: te.message });

@@ -1,12 +1,15 @@
 /* ---------- the duel score, day by day ----------
    Sport: +1 for a day with a session, −1 for a training day of the plan that passed without one.
    Food: +1 if the day went well, 0 if regular, −1 if badly (the dietitian's verdict of the day, or the
-   average of the meals ticked). Alcohol: −1 for a day of binge drinking (BINGE UBE or more). */
+   average of the meals ticked, only those of the meals a day the person makes). Alcohol: −1 for a day
+   of binge drinking (BINGE UBE or more). */
 const GRADE_PTS = { bien: 1, regular: 0, mal: -1 };
 function dayDiet(who, date){
   const doc = mealDoc(who, date); if (!doc) return null;
   if (doc.dia && GRADE_PTS[doc.dia.v] != null) return doc.dia.v;
-  const vals = Object.values(doc.m || {}).map(v => v.s === "si" ? 1 : v.s === "otro" ? (v.an ? GRADE_PTS[v.an.v] ?? 0 : 0) : null).filter(v => v != null);
+  // only the meals that person makes: a snack logged with 3 meals a day does not count
+  const keys = FREQS[FREQS[doc.comidas] ? doc.comidas : freqOf(who)].keys;
+  const vals = Object.entries(doc.m || {}).filter(([k]) => keys.includes(k)).map(([, v]) => v).map(v => v.s === "si" ? 1 : v.s === "otro" ? (v.an ? GRADE_PTS[v.an.v] ?? 0 : 0) : null).filter(v => v != null);
   if (!vals.length) return null;
   const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
   return avg >= 0.5 ? "bien" : avg <= -0.5 ? "mal" : "regular";

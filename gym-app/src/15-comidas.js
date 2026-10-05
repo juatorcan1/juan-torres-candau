@@ -20,7 +20,7 @@ async function saveMealDay(date, mutate){
   const id = `${me}_${date}`, before = mealDoc(me, date);
   const doc = { athlete: me, date, circ: (before && before.circ) || dCirc, m: {}, ...(before ? JSON.parse(JSON.stringify(before)) : {}) };
   delete doc.id;
-  mutate(doc); doc.updatedAt = Date.now();
+  mutate(doc); doc.comidas = freqOf(me); doc.updatedAt = Date.now();
   mealLog = [...mealLog.filter(r => !(r.athlete === me && r.date === date)), { id, ...doc }];
   rerender();
   try { await db.doc(`comidas/${id}`).set(doc); return true; }

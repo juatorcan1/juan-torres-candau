@@ -33,6 +33,9 @@ function toast(msg){ const t = $("#toast"); t.textContent = msg; t.hidden = fals
 // La caza, aparte: cartuchos, licencias, coto, armero… (se añade también a las categorías ya guardadas)
 // Las bodas a las que va Juan, todas juntas: el regalo, la ropa, el viaje, las despedidas…
 const BODAS = [["regalo","Regalo o sobre a los novios"],["ropa","Traje, vestido y complementos"],["viaje","Viaje y alojamiento"],["despedidas","Despedidas de soltero"],["estetica","Peluquería y estética"]];
+// El trabajo de arquitecto por su cuenta (autónomo) y los perros, cada uno con lo suyo
+const ARQ = [["asesor","Asesor fiscal"],["colegio","Colegio de arquitectos"],["seguro","Seguro de responsabilidad civil"],["software","Programas y soporte online"],["formacion","Formación"],["cuota","Cuota de autónomo"],["iva","IVA"],["otros","Otros gastos del trabajo"]];
+const PERROS = [["compra","Compra de perros"],["viajes","Gasolina y desplazamientos"],["vete","Veterinario y farmacia"],["movil","Móvil"],["instalaciones","Instalaciones"],["otros","Otros gastos de los perros"]];
 const CAZA = [["cartuchos","Cartuchos y munición"],["licencias","Licencias, permisos y seguro"],["coto","Coto, cuotas y monterías"],["armas","Armas, armero y revisiones"],["equipo","Ropa y equipo de caza"],["perros","Perros de caza"],["viajes","Viajes y comidas de caza"]];
 const DEF_CATS = {
   gasto: [
@@ -43,6 +46,8 @@ const DEF_CATS = {
     { id: "salud", nombre: "Salud y deporte", cats: [["medico","Médico y dentista"],["farmacia","Farmacia"],["deporte","Gimnasio y deporte"],["seguro","Seguro médico"]] },
     { id: "caza", nombre: "Caza", cats: CAZA },
     { id: "bodas", nombre: "Bodas", cats: BODAS },
+    { id: "arq", nombre: "Arquitectura (trabajo)", cats: ARQ },
+    { id: "perros", nombre: "Perros", cats: PERROS },
     { id: "personal", nombre: "Ropa y cuidado", cats: [["ropa","Ropa y calzado"],["peluqueria","Peluquería y cuidado"]] },
     { id: "familia", nombre: "Familia", cats: [["colegio","Colegio y formación"],["actividades","Actividades de los niños"],["mascotas","Mascotas"],["ayudas","Ayudas a la familia"]] },
     { id: "compras", nombre: "Compras", cats: [["tecnologia","Tecnología"],["regalos","Regalos"],["internet","Compras por internet"],["otras","Otras compras"]] },
@@ -106,6 +111,7 @@ function cats(){
     // la caza, si las categorías se guardaron antes de que existiera
     if (!c.gasto.some(g => g.id === "caza")) { const i = c.gasto.findIndex(g => g.id === "personal"); c.gasto.splice(i >= 0 ? i : c.gasto.length, 0, { id: "caza", nombre: "Caza", cats: CAZA.map(x => x.slice()) }); }
     if (!c.gasto.some(g => g.id === "bodas")) { const i = c.gasto.findIndex(g => g.id === "personal"); c.gasto.splice(i >= 0 ? i : c.gasto.length, 0, { id: "bodas", nombre: "Bodas", cats: BODAS.map(x => x.slice()) }); }
+    for (const [gid, nombre, lst] of [["arq", "Arquitectura (trabajo)", ARQ], ["perros", "Perros", PERROS]]) if (!c.gasto.some(g => g.id === gid)) { const i = c.gasto.findIndex(g => g.id === "personal"); c.gasto.splice(i >= 0 ? i : c.gasto.length, 0, { id: gid, nombre, cats: lst.map(x => x.slice()) }); }
     // las multas, si las categorías se guardaron antes de que existieran
     const co = c.gasto.find(g => g.id === "coche");
     if (co && !co.cats.some(x => x[0] === "multas")) co.cats.push(["multas", "Multas (tráfico y zona azul)"]);

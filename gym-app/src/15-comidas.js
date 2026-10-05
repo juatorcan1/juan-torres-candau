@@ -53,7 +53,7 @@ function verdictOf(o){
 }
 function dietIntro(){
   const { t } = targetsFor(me), pr = profileOf(me);
-  return `Eres el dietista de ${ATH[me]} (hombre, ${pr.age} años, ${pr.height} cm, objetivo: ${GOALS[pr.goal].l.toLowerCase()}). Objetivo diario: ${t.kcal} kcal y ${t.prot} g de proteína. Hablas en español de España, de tú, directo y sin sermones, sin emojis.`;
+  return `Eres el dietista de ${ATH[me]} (hombre, ${pr.age} años, ${pr.height} cm, objetivo: ${GOALS[pr.goal].l.toLowerCase()}). Objetivo diario: ${t.kcal} kcal y ${t.prot} g de proteína. Hace ${freqText(me)}. Hablas en español de España, de tú, directo y sin sermones, sin emojis.`;
 }
 const VERDICT_JSON = `Responde SOLO con JSON: {"kcal": n, "proteina_g": n, "veredicto": "bien"|"regular"|"mal", "comentario": str}`;
 async function askVerdict(key, prompt){
@@ -80,12 +80,13 @@ ${VERDICT_JSON}
 const daySig = m => JSON.stringify(MEALS.map(([k]) => m[k] ? [m[k].s, m[k].t || ""] : 0));
 async function dayVerdict(date){
   const m = mealsOf(me, date), al = alcoholIn(drk(), me, date, date);
-  const lines = MEALS.map(([k, l]) => { const e = m[k];
+  const lines = mealsFor(me).map(([k, l]) => { const e = m[k];
     return `- ${l}: ${!e ? "sin apuntar" : e.s === "si" ? `según el menú (${(e.menu || []).join("; ")})` : e.s === "no" ? "no lo comió" : `otra cosa: "${e.t || "sin detallar"}"`}`; });
   const out = await askVerdict(`${date}:dia`, `${dietIntro()}
 Esto es lo que ha apuntado que comió el ${DIA[parseISO(date).getDay()]} ${date}${date === todayISO() ? " (el día todavía no ha terminado)" : ""}:
 ${lines.join("\n")}
 Alcohol ese día: ${fmt(al.ube, 1)} UBE (${fmt(al.kcal)} kcal).
+Saltarse una comida que no está entre las que hace no es un fallo.
 Estima el total del día y da tu veredicto.
 ${VERDICT_JSON}
 "comentario": como mucho 50 palabras: qué tal ha ido${date === todayISO() ? " y qué comer en lo que queda de día para cuadrarlo" : " y qué cambiar mañana"}.`);
@@ -119,7 +120,7 @@ function mealSummaryHTML(who, date){
   const week = Array.from({ length: 7 }, (_, i) => weekDate(i)).filter(x => x <= todayISO());
   const a = mealCount(who, week), b = mealCount(OTHER[who], week);
   const part = c => [c.si ? `${c.si} según el menú` : "", c.otro ? `${c.otro} otra cosa` : "", c.no ? `${c.no} sin comer` : ""].filter(Boolean).join(", ") || "nada apuntado";
-  return `<div class="meal-sum"><div><b>${date === todayISO() ? "Hoy" : DAYS_LONG[(parseISO(date).getDay() + 6) % 7]}:</b> ${esc(part(d))}${n < MEALS.length && who === me ? ` · <span class="muted">${MEALS.length - n} sin apuntar</span>` : ""}</div>
+  return `<div class="meal-sum"><div><b>${date === todayISO() ? "Hoy" : DAYS_LONG[(parseISO(date).getDay() + 6) % 7]}:</b> ${esc(part(d))}${n < mealsFor(who).length && who === me ? ` · <span class="muted">${mealsFor(who).length - n} sin apuntar</span>` : ""}</div>
     <div class="muted">Esta semana según el menú: <i class="dot ${who}"></i> ${ATH[who]} ${a.si} · <i class="dot ${OTHER[who]}"></i> ${ATH[OTHER[who]]} ${b.si}</div>
     ${dayVerdictHTML(who, date, n)}</div>`;
 }

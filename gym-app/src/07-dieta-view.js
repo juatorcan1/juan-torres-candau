@@ -17,13 +17,15 @@ function renderDieta(){
   if (!dWho) dWho = me || "juan";
   const v = $("#view-dieta"), other = OTHER[dWho];
   const { t, w } = targetsFor(dWho), o = targetsFor(other).t, pr = profileOf(dWho), saved = !!(profiles[dWho] && profiles[dWho].height);
-  const factor = Math.min(1.45, Math.max(0.7, t.kcal / 2400));
+  const factor = menuFactor(t.kcal), freq = freqOf(dWho), FR = FREQS[freq], shown = mealsFor(dWho);
   const dp = me === dWho ? dietPlan() : dietPlan(dWho), pdd = dp && dp.dias.find(d => (parseISO(d.fecha).getDay() + 6) % 7 === dDay);
-  const menu = pdd ? planMenu(pdd, dCirc) : dayMenu(dDay, dCirc, factor), logDate = weekDate(dDay);
+  const menu = pdd ? planMenu(pdd, dCirc) : dayMenu(dDay, dCirc, factor, freq), logDate = weekDate(dDay);
+  // a dietitian plan made for another number of meals a day
+  const planFreq = dp && FREQS[dp.comidas] ? +dp.comidas : 5, freqOff = !!pdd && planFreq !== freq;
   shownMenu = menu;
   // plans made before the three versions of every meal: say so instead of looking broken
   const oneVersion = k => !!pdd && Array.isArray(pdd[k]);
-  const oldPlan = pdd && CIRC_MEALS.some(oneVersion);
+  const oldPlan = pdd && !freqOff && CIRC_MEALS.filter(k => FR.keys.includes(k)).some(oneVersion);
   const wk = periodRange("semana"), al = alcoholIn(drk(), dWho, ...wk);
   const editable = me === dWho && dbState === "ready";
   const tile = (l, val, unit, ov) => `<div class="tg"><div class="l">${l}</div><div class="v">${fmt(val)}<small> ${unit}</small></div><div class="o"><i class="dot ${other}"></i> ${ATH[other]}: ${fmt(ov)} ${unit}</div></div>`;
@@ -49,6 +51,7 @@ function renderDieta(){
             <div class="f"><label for="p-age">Edad</label><input id="p-age" type="number" inputmode="numeric" min="16" max="90" value="${esc(pr.age)}" ${editable ? "" : "disabled"}></div>
             <div class="f"><label for="p-goal">Objetivo</label><select id="p-goal" ${editable ? "" : "disabled"}>${Object.entries(GOALS).map(([k, g]) => `<option value="${k}" ${pr.goal === k ? "selected" : ""}>${g.l}</option>`).join("")}</select></div>
             <div class="f"><label for="p-work">Trabajo</label><select id="p-work" ${editable ? "" : "disabled"}>${Object.entries(WORK).map(([k, g]) => `<option value="${k}" ${pr.work === k ? "selected" : ""}>${g.l}</option>`).join("")}</select></div>
+            <div class="f"><label for="p-meals">Comidas al día</label><select id="p-meals" ${editable ? "" : "disabled"}>${Object.entries(FREQS).map(([k, f]) => `<option value="${k}" ${freq === +k ? "selected" : ""}>${f.l}: ${f.s}</option>`).join("")}</select></div>
             <div class="f"><label for="p-alc">Objetivo de alcohol <small>UBE/semana</small></label><input id="p-alc" type="number" inputmode="numeric" min="0" max="40" value="${esc(pr.alcoholGoal)}" ${editable ? "" : "disabled"}></div>
           </div>
           ${editable ? `<div class="row-btns"><button type="submit" class="btn primary">Guardar mis datos</button></div>` : `<p class="note" style="margin:0">${me === dWho ? "Conectando…" : `Solo ${ATH[dWho]} puede cambiar sus datos.`}</p>`}
@@ -63,11 +66,13 @@ function renderDieta(){
       <div style="display:grid;gap:12px">
         <div class="days" role="group" aria-label="Día de la semana">${DAYS_SHORT.map((d, i) => `<button type="button" data-dday="${i}" aria-pressed="${dDay === i}" class="${i === (today().getDay() + 6) % 7 ? "today" : ""}" aria-label="${DAYS_LONG[i]}">${d}</button>`).join("")}</div>
         <div class="circs" role="group" aria-label="Dónde comes hoy">${Object.entries(CIRCS).map(([k, c]) => `<button type="button" data-circ="${k}" aria-pressed="${dCirc === k}"><b>${c.l}</b><span>${c.s}</span></button>`).join("")}</div>
+        ${freqOff ? `<div class="banner">Este menú del dietista es de ${planFreq} comidas al día y ahora ${me === dWho ? "haces" : "hace"} ${freq}. ${me === dWho ? `<button type="button" class="linkbtn" data-say="nutri" data-text="${esc(`Rehazme el menú de la semana para ${freqText(dWho)}`)}" data-go="nutri">Rehacerlo con ${freq} comidas</button>` : ""}</div>` : ""}
+        ${freq < 5 ? `<p class="note" style="margin:0">${FR.l} al día: las mismas ${fmt(t.kcal)} kcal en menos comidas, así que cada una es más grande. Reparte la proteína: unos <b>${fmt(Math.round(t.prot / freq / 5) * 5)} g en cada comida</b>.</p>` : ""}
         ${oldPlan ? `<div class="banner">Este menú del dietista es de antes: solo trae una versión del desayuno, la media mañana y la merienda, por eso no cambian. <button type="button" class="linkbtn" data-say="nutri" data-text="Rehazme el menú de la semana con las tres versiones (obra, bar y oficina) de desayuno, media mañana, comida y merienda" data-go="nutri">Rehacerlo con las tres versiones</button></div>` : ""}
         ${mealSummaryHTML(dWho, logDate)}
       </div>
       <div class="meals" style="margin-top:10px">
-        ${MEALS.map(([k, l]) => `<div class="meal ${k === "comida" ? "main" : ""} ${mealClass(k, logDate, dWho)}"><div class="when">${l}<small>${!CIRC_MEALS.includes(k) ? "En casa, igual en los tres" : oneVersion(k) ? "Igual en los tres" : esc(CIRCS[dCirc].l)}</small></div>
+        ${shown.map(([k, l]) => `<div class="meal ${k === "comida" ? "main" : ""} ${mealClass(k, logDate, dWho)}"><div class="when">${l}<small>${!CIRC_MEALS.includes(k) ? "En casa, igual en los tres" : oneVersion(k) ? "Igual en los tres" : esc(CIRCS[dCirc].l)}</small></div>
           <div class="meal-body"><ul>${menu[k].map(x => `<li>${esc(x)}</li>`).join("")}</ul>${mealControls(k, logDate, dWho)}</div></div>`).join("")}
       </div>
       <div style="margin-top:12px"><div class="eyebrow" style="margin-bottom:6px">Trucos para ${esc(CIRCS[dCirc].l.toLowerCase())}</div><ul class="tips">${TIPS[dCirc].map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>
@@ -92,9 +97,10 @@ async function askMenu(){
   aiBusy = true; aiText = ""; aiErr = ""; aiCtl = new AbortController(); renderDieta();
   const prompt = `Propón el menú de un ${DAYS_LONG[dDay].toLowerCase()} para ${ATH[dWho]} (hombre, ${pr.age} años, ${pr.height} cm, objetivo: ${GOALS[pr.goal].l.toLowerCase()}).
 Objetivo diario: ${t.kcal} kcal, ${t.prot} g de proteína, ${t.carbs} g de hidratos, ${t.fat} g de grasa.
-Situación del día (desayuno, media mañana, comida y merienda; la cena es en casa): ${CIRCS[dCirc].l} (${CIRCS[dCirc].s}). ${dCirc === "bocadillo" ? "No tiene cocina: solo cosas que se lleven en la mochila (bocadillos, tortitas de maíz, táper frío)." : dCirc === "bar" ? "Di qué pedir en un menú del día o de tapas típico de España y qué evitar." : "Tiene microondas y nevera en la oficina."}
+Hace ${freqText(dWho)}: reparte las kcal y la proteína solo entre esas.
+Situación del día (para lo que come fuera; la cena es en casa): ${CIRCS[dCirc].l} (${CIRCS[dCirc].s}). ${dCirc === "bocadillo" ? "No tiene cocina: solo cosas que se lleven en la mochila (bocadillos, tortitas de maíz, táper frío)." : dCirc === "bar" ? "Di qué pedir en un menú del día o de tapas típico de España y qué evitar." : "Tiene microondas y nevera en la oficina."}
 ${keep("d-pref") ? "Preferencias: " + String(keep("d-pref")).slice(0, 300) : ""}
-Formato: cinco apartados (Desayuno, Media mañana, Comida, Merienda, Cena), cada uno con 1 a 3 líneas y cantidades en gramos, y al final una línea con el total aproximado de kcal y proteína. Comida española normal, fácil y barata. Sin emojis ni tablas.`;
+Formato: un apartado por comida (${mealsFor(dWho).map(([, l]) => l).join(", ")}), cada uno con 1 a 3 líneas y cantidades en gramos, y al final una línea con el total aproximado de kcal y proteína. Comida española normal, fácil y barata. Sin emojis ni tablas.`;
   try {
     await sample(prompt, { signal: aiCtl.signal, cache: false, onText: ({ text }) => { aiText = text; const el = $("#ai-out"); if (el) el.textContent = text; else renderDieta(); } });
   } catch (e) {
@@ -106,7 +112,7 @@ Formato: cinco apartados (Desayuno, Media mañana, Comida, Merienda, Cena), cada
 }
 async function saveProfile(){
   if (dbState !== "ready" || me !== dWho) return;
-  const p = { height: num($("#p-height").value), age: num($("#p-age").value), goal: $("#p-goal").value, work: $("#p-work").value, alcoholGoal: num($("#p-alc").value) };
+  const p = { height: num($("#p-height").value), age: num($("#p-age").value), goal: $("#p-goal").value, work: $("#p-work").value, alcoholGoal: num($("#p-alc").value), comidas: FREQS[$("#p-meals").value] ? +$("#p-meals").value : 5 };
   if (p.height < 140 || p.height > 220 || p.age < 16 || p.age > 90) { toast("Revisa la altura y la edad"); return; }
   try { await db.doc("perfiles/" + me).set({ ...profileDoc(me), ...p, updatedAt: Date.now() }); toast("Datos guardados"); }
   catch { toast("No se han podido guardar tus datos"); }

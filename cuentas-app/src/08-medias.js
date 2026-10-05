@@ -305,7 +305,10 @@ document.addEventListener("click", async e => {
     try { await saveCfg("tricount", { items: tcItems().filter(x => x.key !== ds.tcdel).map(({ confirmDel, ...x }) => x) }); delete TC[ds.tcdel]; store.set("cj.tc", TC); toast("Quitado"); } catch (err) { toast(saveErr(err)); }
     return;
   }
-  if (t.id === "sp-img") return $("#sp-file").click();
+  if (t.id === "sp-img") {
+    if (camPuede()) { abrirCamara(async f => { splitImg = await shrink(f); if (splitImgUrl) URL.revokeObjectURL(splitImgUrl); splitImgUrl = URL.createObjectURL(splitImg); renderView(); }); return; }
+    return $("#sp-file").click();
+  }
   if (t.id === "sp-img-del") { splitImg = null; if (splitImgUrl) URL.revokeObjectURL(splitImgUrl); splitImgUrl = ""; return renderView(); }
   if (t.id === "sp-go") return splitGo();
   if (t.id === "sp-manual") { split.dictado = ($("#sp-dict") || {}).value || ""; split.lineas = [{ concepto: "", importe: "", personas: [] }]; splitSave(); return renderView(); }

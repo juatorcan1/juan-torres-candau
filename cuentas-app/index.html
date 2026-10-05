@@ -329,6 +329,16 @@ tr.subrow td:first-child{padding-left:22px}
 .mes-band + .day{margin-top:6px}
 .ia-ask{font-size:14px;color:var(--ink);background:var(--acc-wash);border:1px solid var(--acc);border-radius:10px;padding:10px 12px}
 .ia-ask .chips button small{font-weight:500}
+/* cámara propia */
+.cam{position:fixed;inset:0;z-index:90;background:#000;display:grid;grid-template-rows:1fr auto}
+.cam video{width:100%;height:100%;object-fit:cover;min-height:0}
+.cam-msg{position:absolute;top:calc(14px + env(safe-area-inset-top,0px));left:0;right:0;text-align:center;color:#fff;font-weight:600;text-shadow:0 1px 4px rgba(0,0,0,.6)}
+.cam-bar{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px;padding:16px 18px calc(18px + env(safe-area-inset-bottom,0px));background:#000}
+.cam-btn{background:none;border:0;color:#fff;font:inherit;font-weight:600;font-size:15px;padding:10px;cursor:pointer}
+.cam-btn[data-cam="luz"]{justify-self:end}.cam-btn[data-cam="x"]{justify-self:start}
+.cam-btn[aria-pressed="true"]{color:#ffd54a}
+.cam-shot{width:74px;height:74px;border-radius:50%;border:5px solid #fff;background:#fff;box-shadow:inset 0 0 0 3px #000;cursor:pointer}
+.cam-shot:disabled{opacity:.5}
 </style>
 <div class="wrap">
   <div class="strip">
@@ -1444,7 +1454,7 @@ function renderApuntar(){
   h += `<div class="panel">`;
   if (way === "ticket") {
     if (!sample) h += `<div class="banner">${WEB ? "La IA no está disponible ahora mismo. Apúntalo a mano y prueba luego." : "Para leer tickets hace falta la IA, y aquí no está disponible. Abre la página desde tu cuenta de Claude, o apúntalo a mano."}</div>`;
-    else h += `<div class="drop" id="drop" tabindex="0" role="button" aria-label="Hacer la foto del ticket">${ICON.camara.replace("<svg", '<svg style="width:40px;height:40px;fill:none;stroke:var(--acc);stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round"')}<b>Hacer la foto</b><span class="small muted">Se abre la cámara de atrás.</span>${canImg ? "" : `<span class="small" style="color:var(--warn)">Este aparato no deja mandar fotos a la IA: sólo podré leer facturas en PDF.</span>`}</div>
+    else h += `<div class="drop" id="drop" tabindex="0" role="button" aria-label="Hacer la foto del ticket">${ICON.camara.replace("<svg", '<svg style="width:40px;height:40px;fill:none;stroke:var(--acc);stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round"')}<b>Hacer la foto</b><span class="small muted">Se abre la cámara de atrás aquí mismo (la primera vez te pedirá permiso).</span>${canImg ? "" : `<span class="small" style="color:var(--warn)">Este aparato no deja mandar fotos a la IA: sólo podré leer facturas en PDF.</span>`}</div>
       <div class="row" style="margin-top:10px;align-items:center"><button type="button" class="btn" id="drop-galeria">Elegir de la galería o un PDF</button><label class="small" style="display:inline-flex;gap:6px;align-items:center"><input type="checkbox" id="same-ticket"> Son del mismo ticket</label></div>
       <p class="small muted" style="margin:6px 0 0">De la galería puedes elegir varias a la vez: cada una es un ticket. Si un ticket es muy largo, hazle dos fotos y elígelas juntas con «Son del mismo ticket».</p>`;
   } else if (way === "texto") {
@@ -1694,6 +1704,76 @@ async function saveAllReady(){
   toast(bad ? `Guardados ${ok}. ${bad} necesitan que los mires.` : `Guardados ${ok}.`);
   renderView();
 }
+
+/* ===== 04-camara.js ===== */
+/* ================= cámara propia: la de atrás, dentro de la página ================= */
+// Con <input capture="environment"> el móvil abre su app de Cámara, y la de Samsung ignora esa preferencia
+// y se abre con la última cámara usada (la de delante). Aquí se abre la cámara desde la propia web, se pide
+// la de atrás y, si el móvil da otra, se busca la de atrás por su nombre. Si no se puede (sin permiso o un
+// navegador sin cámara), se cae al <input> de siempre.
+let camAbierta = null;   // {stream, root}
+const camPuede = () => !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.isSecureContext);
+function camCerrar(){
+  if (!camAbierta) return;
+  for (const t of camAbierta.stream ? camAbierta.stream.getTracks() : []) t.stop();
+  camAbierta.root.remove(); camAbierta = null; document.body.style.overflow = "";
+}
+async function camStream(deviceId){
+  const video = deviceId ? { deviceId: { exact: deviceId } } : { facingMode: { ideal: "environment" } };
+  return navigator.mediaDevices.getUserMedia({ audio: false, video: { ...video, width: { ideal: 3840 }, height: { ideal: 2160 } } });
+}
+// Abre la cámara; cuando se hace la foto, llama a onFoto(file). Devuelve false si no se ha podido abrir.
+async function abrirCamara(onFoto){
+  if (!camPuede() || camAbierta) return false;
+  const root = document.createElement("div");
+  root.className = "cam";
+  root.innerHTML = `<video playsinline autoplay muted></video>
+    <div class="cam-msg">Encuadra el ticket entero</div>
+    <div class="cam-bar"><button type="button" class="cam-btn" data-cam="x">Cancelar</button><button type="button" class="cam-shot" data-cam="foto" aria-label="Hacer la foto"></button><button type="button" class="cam-btn" data-cam="luz" hidden>Linterna</button></div>`;
+  document.body.appendChild(root); document.body.style.overflow = "hidden";
+  camAbierta = { root, stream: null };
+  let stream;
+  try {
+    stream = await camStream();
+    // si el móvil ha dado la de delante, se busca la de atrás por su nombre
+    const s = stream.getVideoTracks()[0].getSettings ? stream.getVideoTracks()[0].getSettings() : {};
+    if (s.facingMode && s.facingMode !== "environment") {
+      const atras = (await navigator.mediaDevices.enumerateDevices()).find(d => d.kind === "videoinput" && /back|rear|trasera|environment|0, facing back/i.test(d.label));
+      if (atras) { for (const t of stream.getTracks()) t.stop(); stream = await camStream(atras.deviceId); }
+    }
+  } catch (e) {
+    camCerrar();
+    toast(e && e.name === "NotAllowedError" ? "Sin permiso para la cámara: dale permiso en el navegador o elige la foto de la galería." : "No he podido abrir la cámara: elige la foto de la galería.");
+    return true;   // ya se ha avisado: no abrir además el selector
+  }
+  if (!camAbierta) { for (const t of stream.getTracks()) t.stop(); return true; }
+  camAbierta.stream = stream;
+  const video = root.querySelector("video"); video.srcObject = stream;
+  const track = stream.getVideoTracks()[0];
+  const caps = track.getCapabilities ? track.getCapabilities() : {};
+  let luz = false;
+  const bLuz = root.querySelector('[data-cam="luz"]');
+  if (caps.torch) bLuz.hidden = false;
+  root.addEventListener("click", async e => {
+    const b = e.target.closest("[data-cam]"); if (!b) return;
+    if (b.dataset.cam === "x") return camCerrar();
+    if (b.dataset.cam === "luz") { luz = !luz; try { await track.applyConstraints({ advanced: [{ torch: luz }] }); b.setAttribute("aria-pressed", luz); } catch {} return; }
+    if (b.dataset.cam === "foto") {
+      b.disabled = true;
+      let blob = null;
+      try { if (window.ImageCapture) blob = await new ImageCapture(track).takePhoto(); } catch { blob = null; }   // la foto a resolución completa
+      if (!blob) {
+        const c = document.createElement("canvas"); c.width = video.videoWidth; c.height = video.videoHeight;
+        c.getContext("2d").drawImage(video, 0, 0);
+        blob = await new Promise(r => c.toBlob(r, "image/jpeg", 0.92));
+      }
+      camCerrar();
+      if (blob) onFoto(new File([blob], "ticket-" + Date.now() + ".jpg", { type: blob.type || "image/jpeg" }));
+    }
+  });
+  return true;
+}
+document.addEventListener("keydown", e => { if (e.key === "Escape" && camAbierta) camCerrar(); });
 
 /* ===== 05-extracto.js ===== */
 /* ================= extracto del banco ================= */
@@ -2828,7 +2908,10 @@ document.addEventListener("click", async e => {
     try { await saveCfg("tricount", { items: tcItems().filter(x => x.key !== ds.tcdel).map(({ confirmDel, ...x }) => x) }); delete TC[ds.tcdel]; store.set("cj.tc", TC); toast("Quitado"); } catch (err) { toast(saveErr(err)); }
     return;
   }
-  if (t.id === "sp-img") return $("#sp-file").click();
+  if (t.id === "sp-img") {
+    if (camPuede()) { abrirCamara(async f => { splitImg = await shrink(f); if (splitImgUrl) URL.revokeObjectURL(splitImgUrl); splitImgUrl = URL.createObjectURL(splitImg); renderView(); }); return; }
+    return $("#sp-file").click();
+  }
   if (t.id === "sp-img-del") { splitImg = null; if (splitImgUrl) URL.revokeObjectURL(splitImgUrl); splitImgUrl = ""; return renderView(); }
   if (t.id === "sp-go") return splitGo();
   if (t.id === "sp-manual") { split.dictado = ($("#sp-dict") || {}).value || ""; split.lineas = [{ concepto: "", importe: "", personas: [] }]; splitSave(); return renderView(); }
@@ -2944,7 +3027,7 @@ document.addEventListener("click", async e => {
 
   // apuntar
   if (ds.way) { way = ds.way; store.set("cj.way", way); return renderView(); }
-  if (t.id === "drop") return $("#f-camara").click();          // la cámara de atrás, directamente
+  if (t.id === "drop") { if (camPuede()) { abrirCamara(f => onTicketFiles([f])); return; } return $("#f-camara").click(); }   // la cámara de atrás, en la propia web
   if (t.id === "drop-galeria") return $("#f-ticket").click();   // galería o PDF, varias a la vez
   if (t.id === "drop-ext") return $("#f-extracto").click();
   if (t.id === "dict-go") return dictGo();

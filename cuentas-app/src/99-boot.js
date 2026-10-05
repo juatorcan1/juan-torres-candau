@@ -63,7 +63,7 @@ document.addEventListener("click", async e => {
 
   // apuntar
   if (ds.way) { way = ds.way; store.set("cj.way", way); return renderView(); }
-  if (t.id === "drop") return $("#f-camara").click();          // la cámara de atrás, directamente
+  if (t.id === "drop") { if (camPuede()) { abrirCamara(f => onTicketFiles([f])); return; } return $("#f-camara").click(); }   // la cámara de atrás, en la propia web
   if (t.id === "drop-galeria") return $("#f-ticket").click();   // galería o PDF, varias a la vez
   if (t.id === "drop-ext") return $("#f-extracto").click();
   if (t.id === "dict-go") return dictGo();

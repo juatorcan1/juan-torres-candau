@@ -339,6 +339,8 @@ tr.subrow td:first-child{padding-left:22px}
 .cam-btn[aria-pressed="true"]{color:#ffd54a}
 .cam-shot{width:74px;height:74px;border-radius:50%;border:5px solid #fff;background:#fff;box-shadow:inset 0 0 0 3px #000;cursor:pointer}
 .cam-shot:disabled{opacity:.5}
+.day h3.dia{justify-content:flex-start}
+.dia-tot{font-family:var(--mono);letter-spacing:0;text-transform:none;color:var(--ink-2);margin-left:4px}
 </style>
 <div class="wrap">
   <div class="strip">
@@ -1099,7 +1101,8 @@ function renderMovs(){
     const porMes = {};
     for (const m of list) { const k = m.fecha.slice(0, 7), t = porMes[k] ||= { g: 0, i: 0 }; if (m.tipo === "gasto") t.g += num(m.total); else if (m.tipo === "ingreso") t.i += num(m.total); }
     let day = "", dayTot = 0, buf = "", mes = "";
-    const flush = () => { if (day) h += `<div class="day"><h3><span>${longDate(day)}</span><span class="num">${dayTot ? (dayTot < 0 ? "−" : "+") + eur(Math.abs(dayTot)) : ""}</span></h3>${buf}</div>`; };
+    // el total del día va pegado a la fecha, no en la columna de los importes (para no confundirlo con un gasto)
+    const flush = () => { if (day) h += `<div class="day"><h3 class="dia"><span>${longDate(day)}${dayTot ? ` <span class="dia-tot num">· ${dayTot < 0 ? "−" : "+"}${eur(Math.abs(dayTot))}</span>` : ""}</span></h3>${buf}</div>`; };
     for (const m of list.slice(0, mf.limit)) {
       if (m.fecha.slice(0, 7) !== mes) {
         flush(); day = "";

@@ -83,7 +83,37 @@ async function fetchRegistry(s: Session, key: string) {
   const regs = (body.Response ?? []).map((i: Any) => i.Registry).filter(Boolean);
   const reg = regs.find((r: Any) => r.public_identifier_token === key) ?? (regs.length === 1 ? regs[0] : null);
   if (!reg) throw new TcError("not_found", "No encuentro ese tricount: revisa el enlace");
+  reg.__paginacion = body.Pagination ?? null;
   return reg;
+}
+
+// El registro trae sólo los últimos movimientos. Los anteriores se piden por tandas, como en el resto de la
+// API de bunq: «los 200 anteriores a este id». Se prueba sin y con la clave del enlace, y se anota qué contesta
+// Tricount en cada intento (para poder revisarlo si algo no sale).
+async function entradasAnteriores(s: Session, reg: Any, key: string) {
+  const diag: Any[] = [];
+  const ids = new Set((reg.all_registry_entry ?? []).map((w: Any) => (w.RegistryEntry ?? unwrap(w))?.id).filter(Boolean));
+  const mas: Any[] = [];
+  let older = Math.min(...[...ids].map(Number));
+  if (!isFinite(older)) return { mas, diag };
+  const variantes = ["", `&public_identifier_token=${encodeURIComponent(key)}`];
+  let v = 0;
+  for (let pag = 0; pag < 40; pag++) {
+    const url = `${BASE}/v1/user/${s.userId}/registry/${reg.id}/registry-entry?count=200&older_id=${older}${variantes[v]}`;
+    const res = await fetch(url, { headers: headers(s.appId, s.token) });
+    if (!res.ok) {
+      diag.push({ pag, v, status: res.status, txt: (await res.text()).slice(0, 200) });
+      if (v + 1 < variantes.length && pag === 0) { v++; pag--; continue; }
+      break;
+    }
+    const body = await res.json();
+    const nuevas = (body.Response ?? []).map((i: Any) => i.RegistryEntry ?? unwrap(i)).filter((e: Any) => e && e.id && !ids.has(e.id));
+    diag.push({ pag, v, status: res.status, n: nuevas.length, older: body.Pagination?.older_url ?? null });
+    if (!nuevas.length) break;
+    for (const e of nuevas) { ids.add(e.id); mas.push({ RegistryEntry: e }); }
+    older = Math.min(...nuevas.map((e: Any) => Number(e.id)));
+  }
+  return { mas, diag };
 }
 
 // Lo que necesita la web: miembros, gastos y saldos (+ = le deben). Importes en euros (o la moneda del tricount).
@@ -161,10 +191,17 @@ Deno.serve(async (req: Request) => {
       let reg;
       try { reg = await fetchRegistry(await sesion(), key); }
       catch (e) { if (!(e instanceof TcError && e.reauth)) throw e; reg = await fetchRegistry(await sesion(true), key); }
+      let diag: Any = null;
+      try {
+        const r = await entradasAnteriores(ses!, reg, key);
+        if (r.mas.length) reg.all_registry_entry = [...(reg.all_registry_entry ?? []), ...r.mas];
+        diag = { paginacion: reg.__paginacion, anteriores: r.mas.length, intentos: r.diag };
+      } catch (e) { diag = { paginacion: reg.__paginacion, error: String((e as Error)?.message ?? e).slice(0, 200) }; }
       const t = normalise(reg, key);
       out.push(t);
       // una copia de lo leído, para revisarlo y para pasar gastos a las cuentas sin volver a pedirlo
-      await admin.from("cuentas_docs").upsert({ owner: user.id, collection: "tricount", id: "datos-" + key, data: { ...t, leido: new Date().toISOString() }, updated_at: new Date().toISOString() }, { onConflict: "owner,collection,id" });
+      const { error: eg } = await admin.from("cuentas_docs").upsert({ owner: user.id, collection: "tricount", id: "datos-" + key, data: { ...t, leido: new Date().toISOString(), diag }, updated_at: new Date().toISOString() }, { onConflict: "owner,collection,id" });
+      if (eg) console.log("[tricount] no se ha guardado la copia:", eg.message);
     } catch (e) {
       const te = e instanceof TcError ? e : new TcError("upstream_error", "No se ha podido leer: " + String((e as Error)?.message ?? e).slice(0, 200));
       out.push({ key: key || link, ok: false, code: te.code, error: te.message });

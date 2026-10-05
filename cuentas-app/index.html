@@ -364,6 +364,7 @@ tr.subrow td:first-child{padding-left:22px}
 <div id="sheet-root"></div>
 <div class="toast" id="toast" role="status" hidden></div>
 <input type="file" id="f-ticket" accept="image/*,application/pdf" multiple hidden>
+<input type="file" id="f-camara" accept="image/*" capture="environment" hidden>
 <input type="file" id="f-extracto" accept=".csv,.xls,.xlsx,.txt,.n43,.q43,text/csv,text/plain,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
 <script>
 (function(){
@@ -1443,8 +1444,9 @@ function renderApuntar(){
   h += `<div class="panel">`;
   if (way === "ticket") {
     if (!sample) h += `<div class="banner">${WEB ? "La IA no está disponible ahora mismo. Apúntalo a mano y prueba luego." : "Para leer tickets hace falta la IA, y aquí no está disponible. Abre la página desde tu cuenta de Claude, o apúntalo a mano."}</div>`;
-    else h += `<div class="drop" id="drop" tabindex="0" role="button" aria-label="Elegir fotos de tickets">${ICON.camara.replace("<svg", '<svg style="width:40px;height:40px;fill:none;stroke:var(--acc);stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round"')}<b>Haz la foto o elige las fotos</b><span class="small muted">Puedes elegir varias a la vez: cada una es un ticket. Si un ticket es muy largo, hazle dos fotos y márcalas juntas con «Son del mismo ticket».</span>${canImg ? "" : `<span class="small" style="color:var(--warn)">Este aparato no deja mandar fotos a la IA: sólo podré leer facturas en PDF.</span>`}</div>
-      <label class="small" style="display:inline-flex;gap:6px;align-items:center;margin-top:10px"><input type="checkbox" id="same-ticket"> Son del mismo ticket</label>`;
+    else h += `<div class="drop" id="drop" tabindex="0" role="button" aria-label="Hacer la foto del ticket">${ICON.camara.replace("<svg", '<svg style="width:40px;height:40px;fill:none;stroke:var(--acc);stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round"')}<b>Hacer la foto</b><span class="small muted">Se abre la cámara de atrás.</span>${canImg ? "" : `<span class="small" style="color:var(--warn)">Este aparato no deja mandar fotos a la IA: sólo podré leer facturas en PDF.</span>`}</div>
+      <div class="row" style="margin-top:10px;align-items:center"><button type="button" class="btn" id="drop-galeria">Elegir de la galería o un PDF</button><label class="small" style="display:inline-flex;gap:6px;align-items:center"><input type="checkbox" id="same-ticket"> Son del mismo ticket</label></div>
+      <p class="small muted" style="margin:6px 0 0">De la galería puedes elegir varias a la vez: cada una es un ticket. Si un ticket es muy largo, hazle dos fotos y elígelas juntas con «Son del mismo ticket».</p>`;
   } else if (way === "texto") {
     h += sample ? `<div class="f"><label for="dict">Cuéntalo como lo dirías <small>(puedes poner varias cosas, una por línea; en el móvil, usa el micrófono del teclado)</small></label><textarea id="dict" class="inp area" rows="4" placeholder="Ayer 45 € de gasolina en Repsol con la tarjeta del Santander&#10;Hoy he sacado 100 € del cajero&#10;Me ha llegado la nómina, 2.850 €"></textarea></div><div class="row" style="margin-top:10px"><button class="btn primary" id="dict-go">Que lo apunte la IA</button></div>`
       : `<div class="banner">Para esto hace falta la IA, y aquí no está disponible. Usa «A mano».</div>`;
@@ -2942,7 +2944,8 @@ document.addEventListener("click", async e => {
 
   // apuntar
   if (ds.way) { way = ds.way; store.set("cj.way", way); return renderView(); }
-  if (t.id === "drop") return $("#f-ticket").click();
+  if (t.id === "drop") return $("#f-camara").click();          // la cámara de atrás, directamente
+  if (t.id === "drop-galeria") return $("#f-ticket").click();   // galería o PDF, varias a la vez
   if (t.id === "drop-ext") return $("#f-extracto").click();
   if (t.id === "dict-go") return dictGo();
   if (t.id === "save-all") { t.disabled = true; return saveAllReady(); }
@@ -3092,7 +3095,7 @@ document.addEventListener("change", e => {
   const el = e.target;
   const k = edKey(el);
   if (k && DRAFTS[k]) { readEd(k, el); paintSum(k); return; }
-  if (el.id === "f-ticket") { const f = el.files; onTicketFiles(f); el.value = ""; return; }
+  if (el.id === "f-ticket" || el.id === "f-camara") { const f = el.files; onTicketFiles(f); el.value = ""; return; }
   if (el.id === "f-extracto") { const f = el.files && el.files[0]; if (f) onExtractFile(f); el.value = ""; return; }
   if (/^mf-(mes|tipo|grupo|cuenta)$/.test(el.id)) { mf[el.id.slice(3)] = el.value; mf.limit = 200; return renderView(); }
   if (el.id === "mf-rev") { mf.rev = el.checked; return renderView(); }

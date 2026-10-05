@@ -60,7 +60,6 @@ persona paga algo por ti (p. ej. la cuenta del bar), queda en negativo y aparece
   nunca se une a él ni escribe. bunq la puede cambiar o cerrar. Los enlaces se guardan en `config/tricount`;
   la sesión de Tricount, en `tricount/sesion`, y una copia de lo último leído, en `tricount/datos-<clave>`
   (todo en `cuentas_docs`; la colección `tricount` la admite la migración de `supabase/migrations/`).
-  Tricount sólo da de golpe los gastos recientes: los anteriores se piden por tandas hacia atrás.
 - **Como una aplicación en el móvil**: la web lleva su ficha (`src/web/manifest.json`) y sus iconos
   (`src/web/icons/`), así que Chrome la instala con su icono y sin la barra del navegador.
 - **Copia de seguridad**: en Dinero → Cuentas, «Descargar en Excel» y «Descargar la copia completa».

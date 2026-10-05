@@ -197,7 +197,7 @@ const tcKeyOf = link => { const s = String(link || "").trim(); const m = s.match
 const tcMoney = (v, cur) => cur && cur !== "EUR" ? NF2.format(r2(v)) + " " + cur : eur(v);
 function tcYo(it, d){
   if (it.yo && d.miembros.some(m => m.uuid === it.yo)) return it.yo;
-  const j = d.miembros.filter(m => /^(juan|yo)\b/.test(norm(m.nombre)));
+  const j = d.miembros.filter(m => /^(juan|yo\b)/.test(norm(m.nombre)));   // «Juan», «Juanito», «Juan T.», «Yo»
   return j.length === 1 ? j[0].uuid : null;
 }
 // Para quedar en paz: el que más debe paga al que más le deben, y así hasta acabar

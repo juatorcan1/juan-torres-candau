@@ -426,7 +426,7 @@ const DEF_CATS = {
     { id: "casa", nombre: "Casa", cats: [["hipoteca","Hipoteca o alquiler"],["comunidad","Comunidad"],["ibi","IBI y basuras"],["luz","Luz"],["agua","Agua"],["gas","Gas"],["internet","Internet y móvil"],["seguro","Seguro de hogar"],["arreglos","Arreglos y mantenimiento"],["hogar","Muebles y cosas de casa"],["limpieza","Limpieza y droguería"]] },
     { id: "comida", nombre: "Comida", cats: [["super","Supermercado"],["mercado","Fruta, carne y pescado"],["panaderia","Panadería y cafés"]] },
     { id: "fuera", nombre: "Comer fuera y ocio", cats: [["restaurantes","Restaurantes"],["bares","Bares y copas"],["ocio","Ocio y espectáculos"],["viajes","Viajes y vacaciones"]] },
-    { id: "coche", nombre: "Coche y transporte", cats: [["gasolina","Gasolina"],["taller","Taller e ITV"],["seguro","Seguro del coche"],["parking","Parking y peajes"],["impuesto","Impuesto de circulación"],["transporte","Taxi, tren y avión"]] },
+    { id: "coche", nombre: "Coche y transporte", cats: [["gasolina","Gasolina"],["taller","Taller e ITV"],["seguro","Seguro del coche"],["parking","Parking y peajes"],["impuesto","Impuesto de circulación"],["multas","Multas (tráfico y zona azul)"],["transporte","Taxi, tren y avión"]] },
     { id: "salud", nombre: "Salud y deporte", cats: [["medico","Médico y dentista"],["farmacia","Farmacia"],["deporte","Gimnasio y deporte"],["seguro","Seguro médico"]] },
     { id: "caza", nombre: "Caza", cats: CAZA },
     { id: "bodas", nombre: "Bodas", cats: BODAS },
@@ -493,6 +493,9 @@ function cats(){
     // la caza, si las categorías se guardaron antes de que existiera
     if (!c.gasto.some(g => g.id === "caza")) { const i = c.gasto.findIndex(g => g.id === "personal"); c.gasto.splice(i >= 0 ? i : c.gasto.length, 0, { id: "caza", nombre: "Caza", cats: CAZA.map(x => x.slice()) }); }
     if (!c.gasto.some(g => g.id === "bodas")) { const i = c.gasto.findIndex(g => g.id === "personal"); c.gasto.splice(i >= 0 ? i : c.gasto.length, 0, { id: "bodas", nombre: "Bodas", cats: BODAS.map(x => x.slice()) }); }
+    // las multas, si las categorías se guardaron antes de que existieran
+    const co = c.gasto.find(g => g.id === "coche");
+    if (co && !co.cats.some(x => x[0] === "multas")) co.cats.push(["multas", "Multas (tráfico y zona azul)"]);
     // y la de lo prestado que no vuelve, para cuando un deudor no paga
     const o = c.gasto.find(g => g.id === "otros");
     if (!o) c.gasto.push({ id: "otros", nombre: "Otros gastos", cats: [["perdido", "Dinero prestado que no vuelve"]] });

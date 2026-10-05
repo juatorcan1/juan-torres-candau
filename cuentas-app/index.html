@@ -341,6 +341,8 @@ tr.subrow td:first-child{padding-left:22px}
 .cam-shot:disabled{opacity:.5}
 .day h3.dia{justify-content:flex-start}
 .dia-tot{font-family:var(--mono);letter-spacing:0;text-transform:none;color:var(--ink-2);margin-left:4px}
+.tc-pasar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:16px 0 4px;padding:12px 14px;border-radius:10px;background:var(--acc-wash)}
+.tc-pasar > div{display:grid;gap:2px;min-width:0}
 </style>
 <div class="wrap">
   <div class="strip">
@@ -2837,6 +2839,7 @@ async function tcRefresh(extra){
     got = await tcApi.leer(links);
     for (const d of got) TC[d.key] = { ...d, at: Date.now() };
     store.set("cj.tc", TC);
+    tcSyncSaldos();
   } catch (e) {
     tcErr = e && e.code === "session_expired" ? "Tu sesión ha caducado: vuelve a entrar." : e && e.code === "rate_limited" ? "Tricount pide esperar un poco. Prueba en un rato." : "No he podido hablar con Tricount ahora mismo. Prueba en un rato.";
   }
@@ -2883,6 +2886,14 @@ function tcCardHTML(it){
   h += `<div class="tc-bal">${d.miembros.filter(m => m.activo || Math.abs(d.saldos[m.uuid] || 0) > 0.005).sort((a, b) => (d.saldos[b.uuid] || 0) - (d.saldos[a.uuid] || 0)).map(m => { const v = d.saldos[m.uuid] || 0; return `<div class="tc-row"><span class="nm">${esc(m.nombre)}${m.uuid === yo ? " <small class='muted'>(tú)</small>" : ""}</span><span class="am num" style="color:${v > 0.005 ? "var(--ok)" : v < -0.005 ? "var(--over)" : "var(--muted)"}">${v > 0.005 ? "+" : v < -0.005 ? "−" : ""}${tcMoney(Math.abs(v), cur)}</span><span class="bar"><i style="width:${(Math.abs(v) / mx * 100).toFixed(1)}%;background:${v >= 0 ? "var(--ok)" : "var(--over)"}"></i></span></div>`; }).join("")}</div>`;
   const pagos = tcSaldar(d.saldos);
   if (pagos.length) h += `<h3 class="eyebrow" style="margin:16px 0 6px">Para quedar en paz</h3>${pagos.map(p => `<div class="rec" style="grid-template-columns:minmax(0,1fr) auto"><div class="n"${p.de === yo || p.a === yo ? "" : ' style="font-weight:500;color:var(--ink-2)"'}>${p.de === yo ? "Tú le pagas a " + esc(nom(p.a)) : p.a === yo ? esc(nom(p.de)) + " te paga a ti" : esc(nom(p.de)) + " le paga a " + esc(nom(p.a))}</div><span class="a">${tcMoney(p.v, cur)}</span></div>`).join("")}`;
+  // pasar tu parte de los gastos a tus cuentas
+  if (yo && TCP && TCP.key === it.key) return h + tcPasarHTML(it, d) + `</div>`;
+  if (yo) {
+    const pend = tcPendientes(it, d, yo), fuera = new Set((it.fuera || []).map(String));
+    const van = pend.filter(g => !fuera.has(String(g.id)));
+    const tot = r2(van.reduce((a, g) => a + (g.reparto[yo] || 0), 0));
+    h += `<div class="tc-pasar"><div><b>${van.length ? `${van.length} gastos tuyos por pasar a tus cuentas` : "Tus gastos ya están en tus cuentas"}</b><span class="small muted">${van.length ? `Tu parte suma ${tcMoney(tot, cur)}.` : "Cuando apuntéis algo nuevo en Tricount, aparecerá aquí."}${pend.length > van.length ? ` ${pend.length - van.length} se quedan fuera (no son gastos tuyos o ya los tenías).` : ""}</span></div>${van.length || pend.length ? `<button class="btn sm${van.length ? " primary" : ""}" data-tcpasar="${esc(it.key)}"${sample && db ? "" : " disabled"}>${van.length ? "Pasar a mis cuentas" : "Revisar"}</button>` : ""}</div>`;
+  }
   // movimientos
   const open = tcOpen === it.key;
   const lista = open ? d.gastos : d.gastos.slice(0, 8);
@@ -2905,6 +2916,131 @@ function tcCardHTML(it){
   return h + `</div>`;
 }
 
+/* ---------- pasar los gastos de un tricount a las cuentas ---------- */
+// De cada gasto entra SOLO tu parte, como gasto tuyo, contra una cuenta «Tricount: …» (de las de personas), cuyo
+// saldo es lo que dice Tricount que te deben o debes. Lo que pagaste por los demás no es gasto tuyo: está en ese saldo.
+// Cada gasto entra una vez (su id es «tc-» + el de Tricount) y lo que no debe entrar se recuerda en config/tricount
+// (fuera); lo ya pasado, en «pasados», para que no vuelva aunque borres el movimiento.
+let TCP = null;   // {key, rows: [{id, fecha, concepto, parte, total, pago, cat, sel, aviso, low}], busy, msg, err}
+const tcAccId = key => "tricount-" + key;
+function tcPendientes(it, d, yo){
+  const hechos = new Set((it.pasados || []).map(String));
+  for (const m of MOVS) if (String(m.id).startsWith("tc-")) hechos.add(String(m.id).slice(3));
+  return d.gastos.filter(g => g.tipo === "gasto" && /^\d{4}-\d{2}-\d{2}$/.test(g.fecha || "") && (g.reparto[yo] || 0) > 0.005 && !hechos.has(String(g.id)));
+}
+function tcPasarPrompt(it, d, rows){
+  const nom = u => (d.miembros.find(m => m.uuid === u) || {}).nombre || "¿?";
+  return `Eres el contable personal de Juan (España). Estos gastos son de un tricount que comparte con otras personas («${d.titulo}»: ${d.miembros.map(m => m.nombre).join(", ")}). De cada uno, a Juan le toca la «parte». Dime en qué categoría va la parte de Juan. Devuelve SOLO JSON:
+{"g":[{"id":id tal cual,"cat":id de categoría o null,"no_gasto":true|false,"confianza":0-1}]}
+Reglas:
+- "no_gasto": true si NO es un gasto de verdad sino dinero que se mueve entre ellos: un préstamo, una deuda, un adelanto, un aporte, un ajuste o cuadre de cuentas, una devolución. Si no, false.
+- Desayunos, cafés, cervezas, copas y churros = bares; comidas y cenas = restaurantes; compras del súper = supermercado; gasolina, peajes, viajes, caza, bodas… en lo suyo.
+- "cat", uno de estos ids exactamente:
+${catListForIA("gasto")}
+- Así ha clasificado Juan otras veces (manda sobre tu criterio):
+${learnedForIA()}
+- Evita compras.otras: si no lo tienes claro, pon la que creas más probable con "confianza" baja.
+
+Gastos (id | fecha | concepto | total | parte de Juan | pagó):
+${rows.map(r => `${r.id} | ${r.fecha} | ${r.concepto} | ${r.total} | ${r.parte} | ${nom(r.pago)}`).join("\n")}`;
+}
+async function tcPasarStart(key){
+  const it = tcItems().find(x => x.key === key), d = TC[key];
+  if (!it || !d || !d.ok) return;
+  const yo = tcYo(it, d); if (!yo) return;
+  const fuera = new Set((it.fuera || []).map(String));
+  const rows = tcPendientes(it, d, yo).map(g => ({ id: String(g.id), fecha: g.fecha, concepto: String(g.concepto || "Gasto").slice(0, 120), parte: r2(g.reparto[yo]), total: g.total, pago: g.pago, cat: "", sel: !fuera.has(String(g.id)), aviso: fuera.has(String(g.id)) ? "Fuera: no es un gasto tuyo." : "", low: false }));
+  // ¿ya lo tenías apuntado (un ticket, el banco o a mano)? Mismo importe (el total o tu parte) y fecha cercana
+  const dd = (a, b) => Math.abs((parseISO(a) - parseISO(b)) / 864e5), used = new Set();
+  for (const r of rows) {
+    if (!r.sel) continue;
+    const m = MOVS.find(m => m.tipo === "gasto" && m.origen !== "tricount" && !used.has(m.id) && dd(m.fecha, r.fecha) <= 2 && (Math.abs(num(m.total) - r.total) < 0.01 || Math.abs(num(m.total) - r.parte) < 0.01));
+    if (m) { used.add(m.id); r.sel = false; r.aviso = `¿Ya lo tenías? ${movTitle(m)} del ${shortDate(m.fecha)}, ${eur(m.total)}. Lo dejo sin marcar.`; }
+  }
+  TCP = { key, rows, busy: true, msg: "", err: "" };
+  renderView();
+  const N = 80, trozos = Math.ceil(rows.length / N);
+  for (let i = 0; i < trozos; i++) {
+    TCP.msg = trozos > 1 ? `La IA está poniendo las categorías: ${i + 1} de ${trozos}…` : "La IA está poniendo las categorías…"; renderView();
+    const parte = rows.slice(i * N, (i + 1) * N);
+    try {
+      const o = await sample.json(tcPasarPrompt(it, d, parte), { cache: false });
+      for (const x of (o && o.g) || []) {
+        const r = parte.find(r => r.id === String(x && x.id)); if (!r) continue;
+        if (x.cat && CATIDX[x.cat] && CATIDX[x.cat].tipo === "gasto") r.cat = x.cat;
+        r.low = !r.cat || num(x.confianza) < 0.6;
+        if (x.no_gasto && r.sel) { r.sel = false; r.aviso = "Parece un préstamo o un ajuste entre vosotros, no un gasto: lo dejo sin marcar."; }
+      }
+    } catch (e) {
+      TCP.err = e && e.code === "rate_limited" ? "La IA está saturada: algunos gastos se han quedado sin categoría. Pónsela tú o vuelve a probar en un minuto." : "La IA no ha podido con algunos gastos: se han quedado sin categoría. Pónsela tú.";
+    }
+    if (!TCP || TCP.key !== key) return;   // cancelado
+  }
+  TCP.busy = false; renderView();
+}
+function tcPasarHTML(it, d){
+  const P = TCP, cur = d.moneda, nom = u => (d.miembros.find(m => m.uuid === u) || {}).nombre || "¿?";
+  let h = `<h3 class="eyebrow" style="margin:18px 0 6px">Pasar a mis cuentas</h3>`;
+  if (P.busy) return h + `<div class="thinking"><span class="spin"></span>${esc(P.msg || "Preparando…")}</div><div class="row" style="margin-top:10px"><button class="btn sm ghost" data-tcpcancel="1">Cancelar</button></div>`;
+  const sel = P.rows.filter(r => r.sel), tot = r2(sel.reduce((a, r) => a + r.parte, 0)), sinCat = sel.filter(r => !r.cat).length;
+  h += `<p class="small" style="margin:0 0 8px">De cada gasto entra <b>sólo tu parte</b>, en su categoría, como pagado desde la cuenta «Tricount: ${esc(d.titulo)}» (está en Dinero → Lo que te deben, con lo que dice Tricount). Lo que no marques se queda fuera, y lo recuerdo para la próxima vez. Marcados: <b>${sel.length}</b> · suman <b class="num">${tcMoney(tot, cur)}</b>.</p>`;
+  if (P.err) h += `<p class="err">${esc(P.err)}</p>`;
+  h += `<div class="ext">`;
+  let mes = "";
+  for (const r of P.rows) {
+    if (r.fecha.slice(0, 7) !== mes) { mes = r.fecha.slice(0, 7); const d0 = parseISO(r.fecha); h += `<div class="mes-band" style="margin:14px 0 4px"><b>${cap(MESL[d0.getMonth()])} ${d0.getFullYear()}</b></div>`; }
+    h += `<div class="ext-row${r.sel ? "" : " off"}"><input type="checkbox" data-tcpsel="${esc(r.id)}"${r.sel ? " checked" : ""} aria-label="Pasar este"><span class="small">${shortDate(r.fecha)}</span><span style="min-width:0;overflow-wrap:anywhere">${esc(r.concepto)}${r.low && r.sel ? ` <span class="flag" title="La IA no lo tiene claro: revisa la categoría">●</span>` : ""}<br><span class="small muted">pagó ${r.pago === tcYo(it, d) ? "tú" : esc(nom(r.pago))}${Math.abs(r.total - r.parte) >= 0.01 ? ` · total ${tcMoney(r.total, cur)}` : ""}</span></span><span class="c"><select data-tcpcat="${esc(r.id)}" aria-label="Categoría">${catOptions("gasto", r.cat)}</select></span><span class="a">−${tcMoney(r.parte, cur)}</span>${r.aviso ? `<span class="dup">${esc(r.aviso)}</span>` : ""}</div>`;
+  }
+  h += `</div>`;
+  h += `<div class="row" style="margin-top:14px"><button class="btn primary" data-tcpsave="1"${sel.length || P.rows.length ? "" : " disabled"}>${sel.length ? `Pasar ${sel.length} gastos` : "Guardar lo que queda fuera"}</button><button class="btn ghost" data-tcpcancel="1">Cancelar</button><span class="err" id="tcp-err">${sinCat ? `${sinCat} marcados no tienen categoría: entrarán como «Sin categoría».` : ""}</span></div>`;
+  return h;
+}
+// La cuenta «Tricount: …» con el saldo que dice Tricount hoy (sólo si cambia)
+function tcCuentaAlDia(list, it, d, yo){
+  const id = tcAccId(it.key), v = r2(d.saldos[yo] || 0), hoy = toISO(NOW);
+  let a = list.find(x => x.id === id);
+  if (!a) { a = { id, nombre: "Tricount: " + d.titulo, tipo: "prestado", nota: "Lo que dice Tricount que te deben (o debes) en «" + d.titulo + "»", vence: null, fecha: hoy, ancla: null }; list.push(a); }
+  else if (a.borrada) a.borrada = false;
+  else if (a.ancla && Math.abs(saldo(a, hoy) - v) < 0.005) return false;
+  // el ancla va al final del día de hoy: todo lo apuntado con fecha de hoy o antes ya está en ese saldo
+  a.ancla = { fecha: hoy, saldo: v, ts: Date.now() + 1e12 };
+  return true;
+}
+async function tcPasarSave(){
+  const P = TCP; if (!P || P.busy) return;
+  const it = tcItems().find(x => x.key === P.key), d = TC[P.key];
+  if (!it || !d || !d.ok) return;
+  const yo = tcYo(it, d), err = $("#tcp-err"), btn = $("[data-tcpsave]");
+  if (btn) { btn.disabled = true; btn.textContent = "Guardando…"; }
+  const nom = u => (d.miembros.find(m => m.uuid === u) || {}).nombre || "¿?";
+  const acc = tcAccId(it.key), sel = P.rows.filter(r => r.sel);
+  const movs = sel.map(r => cleanMov({ id: "tc-" + r.id, fecha: r.fecha, tipo: "gasto", cuenta: acc, comercio: r.concepto.slice(0, 80),
+    nota: `Tricount «${d.titulo}» · pagó ${r.pago === yo ? "tú" : nom(r.pago)}${Math.abs(r.total - r.parte) >= 0.01 ? ` · tu parte de ${eur(r.total)}` : ""}`,
+    total: r.parte, lineas: [{ concepto: r.concepto, cat: r.cat, importe: r.parte }], origen: "tricount", revisar: !r.cat }));
+  try {
+    const list = (cfg.cuentas && cfg.cuentas.length ? cfg.cuentas : cuentas()).map(x => ({ ...x }));
+    if (tcCuentaAlDia(list, it, d, yo)) await saveCfg("cuentas", { items: list });
+    if (movs.length) await saveMovs(movs);
+    const fuera = new Set((it.fuera || []).map(String)), pasados = new Set((it.pasados || []).map(String));
+    for (const r of P.rows) { if (r.sel) { fuera.delete(r.id); pasados.add(r.id); } else fuera.add(r.id); }
+    const items = tcItems().map(({ confirmDel, ...x }) => x.key === it.key ? { ...x, yo, fuera: [...fuera], pasados: [...pasados] } : x);
+    await saveCfg("tricount", { items }); cfg.tricount = items;
+    TCP = null; toast(movs.length ? `Pasados ${movs.length} gastos a tus cuentas` : "Guardado"); renderView();
+  } catch (e) { if (err) err.textContent = saveErr(e); if (btn) { btn.disabled = false; btn.textContent = `Pasar ${sel.length} gastos`; } }
+}
+// Al leer Tricount, la cuenta «Tricount: …» (si ya la hay) se pone con el saldo de Tricount
+async function tcSyncSaldos(){
+  if (!db || !cfg.cuentas) return;
+  const list = cfg.cuentas.map(x => ({ ...x }));
+  let cambia = false;
+  for (const it of tcItems()) {
+    const d = TC[it.key], a = list.find(x => x.id === tcAccId(it.key));
+    if (!a || a.borrada || !d || !d.ok) continue;
+    const yo = tcYo(it, d); if (yo && tcCuentaAlDia(list, it, d, yo)) cambia = true;
+  }
+  if (cambia) try { await saveCfg("cuentas", { items: list }); } catch { /* ya se pondrá al día la próxima vez */ }
+}
+
 /* ---------- clics y escritura ---------- */
 document.addEventListener("click", async e => {
   const t = e.target.closest("button"); if (!t || !t.closest("#v-medias")) return;
@@ -2912,6 +3048,9 @@ document.addEventListener("click", async e => {
   if (ds.msub) { mSub = ds.msub; store.set("cj.msub", mSub); tcErr = ""; return renderView(); }
   if (t.id === "tc-add") return tcAdd();
   if (t.id === "tc-refresh") return tcRefresh();
+  if (ds.tcpasar) { tcOpen = null; return tcPasarStart(ds.tcpasar); }
+  if (ds.tcpcancel) { TCP = null; return renderView(); }
+  if (ds.tcpsave) return tcPasarSave();
   if (ds.tcmore) { tcOpen = tcOpen === ds.tcmore ? null : ds.tcmore; return renderView(); }
   if (ds.tcdel) {
     const it = tcItems().find(x => x.key === ds.tcdel); if (!it) return;
@@ -2957,7 +3096,13 @@ document.addEventListener("input", e => {
   splitSave(); repaintSplitTotals();
 });
 document.addEventListener("change", async e => {
-  const el = e.target; if (!el.closest || !el.closest("#v-medias") || !split) return;
+  const el = e.target; if (!el.closest || !el.closest("#v-medias")) return;
+  if (TCP && (el.dataset.tcpsel || el.dataset.tcpcat)) {
+    const r = TCP.rows.find(r => r.id === (el.dataset.tcpsel || el.dataset.tcpcat)); if (!r) return;
+    if (el.dataset.tcpsel) r.sel = el.checked; else { r.cat = el.value; r.low = false; }
+    const y = window.scrollY; renderView(); window.scrollTo(0, y); return;
+  }
+  if (!split) return;
   if (el.id === "sp-file") {
     const f = el.files && el.files[0]; el.value = ""; if (!f) return;
     splitImg = await shrink(f); if (splitImgUrl) URL.revokeObjectURL(splitImgUrl); splitImgUrl = URL.createObjectURL(splitImg);

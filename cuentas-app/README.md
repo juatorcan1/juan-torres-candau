@@ -21,6 +21,10 @@ Abajo hay cinco botones, y uno redondo (＋) para apuntar:
   mandar por WhatsApp y apuntar: tu parte es un gasto y lo de los demás va a «Lo que te deben».
   En la pestaña **Tricount** se ven tus tricounts (sólo leer): saldos, quién paga a quién para quedar en
   paz y los últimos movimientos, con tu parte de cada uno.
+  **Pasar a mis cuentas** mete tu parte de cada gasto como gasto tuyo (la IA pone la categoría y deja sin
+  marcar los préstamos y ajustes, y lo que ya tenías apuntado), contra la cuenta «Tricount: …» de Lo que te
+  deben, que lleva el saldo que dice Tricount. Cada gasto entra una sola vez (id `tc-<id>`); lo que se queda
+  fuera y lo ya pasado se recuerda en `config/tricount` (`fuera`, `pasados`).
 - **Dinero**: cuentas, deudas, lo que te deben, objetivos, categorías y copia de seguridad.
 
 **Lo que te deben** (Dinero → Cuentas): cada deudor es una cuenta de tipo `prestado` con saldo a tu favor.

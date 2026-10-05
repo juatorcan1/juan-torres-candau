@@ -212,7 +212,8 @@ function renderMovs(){
     const porMes = {};
     for (const m of list) { const k = m.fecha.slice(0, 7), t = porMes[k] ||= { g: 0, i: 0 }; if (m.tipo === "gasto") t.g += num(m.total); else if (m.tipo === "ingreso") t.i += num(m.total); }
     let day = "", dayTot = 0, buf = "", mes = "";
-    const flush = () => { if (day) h += `<div class="day"><h3><span>${longDate(day)}</span><span class="num">${dayTot ? (dayTot < 0 ? "−" : "+") + eur(Math.abs(dayTot)) : ""}</span></h3>${buf}</div>`; };
+    // el total del día va pegado a la fecha, no en la columna de los importes (para no confundirlo con un gasto)
+    const flush = () => { if (day) h += `<div class="day"><h3 class="dia"><span>${longDate(day)}${dayTot ? ` <span class="dia-tot num">· ${dayTot < 0 ? "−" : "+"}${eur(Math.abs(dayTot))}</span>` : ""}</span></h3>${buf}</div>`; };
     for (const m of list.slice(0, mf.limit)) {
       if (m.fecha.slice(0, 7) !== mes) {
         flush(); day = "";

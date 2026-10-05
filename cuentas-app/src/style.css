@@ -333,3 +333,5 @@ tr.subrow td:first-child{padding-left:22px}
 .cam-btn[aria-pressed="true"]{color:#ffd54a}
 .cam-shot{width:74px;height:74px;border-radius:50%;border:5px solid #fff;background:#fff;box-shadow:inset 0 0 0 3px #000;cursor:pointer}
 .cam-shot:disabled{opacity:.5}
+.day h3.dia{justify-content:flex-start}
+.dia-tot{font-family:var(--mono);letter-spacing:0;text-transform:none;color:var(--ink-2);margin-left:4px}

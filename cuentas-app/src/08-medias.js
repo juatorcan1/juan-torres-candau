@@ -279,9 +279,17 @@ function tcCardHTML(it){
   if (pagos.length) h += `<h3 class="eyebrow" style="margin:16px 0 6px">Para quedar en paz</h3>${pagos.map(p => `<div class="rec" style="grid-template-columns:minmax(0,1fr) auto"><div class="n"${p.de === yo || p.a === yo ? "" : ' style="font-weight:500;color:var(--ink-2)"'}>${p.de === yo ? "Tú le pagas a " + esc(nom(p.a)) : p.a === yo ? esc(nom(p.de)) + " te paga a ti" : esc(nom(p.de)) + " le paga a " + esc(nom(p.a))}</div><span class="a">${tcMoney(p.v, cur)}</span></div>`).join("")}`;
   // movimientos
   const open = tcOpen === it.key;
-  const lista = d.gastos.slice(0, open ? 200 : 8);
-  h += `<h3 class="eyebrow" style="margin:16px 0 6px">Últimos movimientos</h3>`;
+  const lista = open ? d.gastos : d.gastos.slice(0, 8);
+  h += `<h3 class="eyebrow" style="margin:16px 0 6px">${open ? "Todos los movimientos" : "Últimos movimientos"}</h3>`;
+  let mesAnt = "";
   for (const g of lista) {
+    // abierto: una franja por mes, con lo que te tocó pagar a ti ese mes
+    if (open && g.fecha && g.fecha.slice(0, 7) !== mesAnt) {
+      mesAnt = g.fecha.slice(0, 7);
+      const d0 = parseISO(g.fecha);
+      const tuyo = yo ? r2(d.gastos.filter(x => x.tipo === "gasto" && x.fecha && x.fecha.slice(0, 7) === mesAnt).reduce((a, x) => a + (x.reparto[yo] || 0), 0)) : 0;
+      h += `<div class="mes-band" style="margin-left:0;margin-right:0"><b>${cap(MESL[d0.getMonth()])}${d0.getFullYear() !== CUR_Y ? " " + d0.getFullYear() : ""}</b><span class="num">${tuyo ? "tu parte " + tcMoney(tuyo, cur) : ""}</span></div>`;
+    }
     const parte = yo ? g.reparto[yo] || 0 : 0;
     const pagoYo = g.pago === yo;
     const qui = g.tipo === "reembolso" ? `${esc(nom(g.pago))} → ${esc(Object.keys(g.reparto).filter(u => g.reparto[u] > 0).map(nom).join(", "))}` : `pagó ${pagoYo ? "tú" : esc(nom(g.pago))}`;

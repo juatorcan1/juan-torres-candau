@@ -40,7 +40,7 @@ function athleteContext(who){
     pr.prefEntreno ? `Lo que le gusta y quiere: ${String(pr.prefEntreno).slice(0, 400)}` : "",
     notesText(who) ? `Sus notas de ejercicios (respétalas): ${notesText(who).slice(0, 800)}` : "",
     gripsText(who) ? `Agarres que usa: ${gripsText(who)}` : "",
-    `Objetivo de dieta: ${t.kcal} kcal, ${t.prot} g proteína, ${t.carbs} g hidratos, ${t.fat} g grasa.`,
+    `Objetivo de dieta: ${t.kcal} kcal, ${t.prot} g proteína, ${t.carbs} g hidratos, ${t.fat} g grasa. Hace ${freqText(who)}.`,
     `Mejores series: ${Object.entries(best).map(([k, b]) => `${k} ${b.kg ? fmt(b.kg, 1) + " kg × " : ""}${b.reps}`).join("; ") || "sin datos"}.`,
     `Últimas sesiones:\n${lines.join("\n") || "ninguna"}`
   ].filter(Boolean).join("\n");
@@ -75,7 +75,8 @@ ${WORKOUT_SCHEMA.replace("${RIVAL}", ATH[other])}
 ${TRAIN_PLAN_SCHEMA}`
     : `Responde SOLO con JSON: {"respuesta": str, "plan": PLAN_DIETA|null}
 Pon "plan" solo si pide el menú de varios días o de la semana; para un día o una comida, contesta en "respuesta".
-${DIET_PLAN_SCHEMA}`;
+${DIET_PLAN_SCHEMA}
+Hace ${freqText(me)}: rellena solo esas comidas y deja las otras como listas vacías. Las mismas kcal del día repartidas entre ellas, con raciones más grandes, y la proteína repartida a partes iguales (unos ${Math.round(targetsFor(me).t.prot / freqOf(me))} g por comida).`;
   return `${role}
 Hablas en español de España, de tú. "respuesta": como mucho 120 palabras, sin markdown ni emojis, con saltos de línea si ayudan.
 Hoy es ${DIA[today().getDay()]} ${todayISO()}.
@@ -177,7 +178,7 @@ async function sendChat(agent, text, opts = {}){
       if (p) { msg.plan = p; await db?.doc(`planes/${me}_entreno`).set({ athlete: me, clase: "entreno", ...p, penalizaDesde: todayISO(), creado: Date.now() }); }
     } else {
       const p = normalizeDietPlan(o && o.plan);
-      if (p) { msg.plan = p; await db?.doc(`planes/${me}_dieta`).set({ athlete: me, clase: "dieta", ...p, creado: Date.now() }); }
+      if (p) { msg.plan = p; await db?.doc(`planes/${me}_dieta`).set({ athlete: me, clase: "dieta", ...p, comidas: freqOf(me), creado: Date.now() }); }
     }
     const all = [...pending, msg];
     chats[chatId(agent)] = { ...(chats[chatId(agent)] || {}), mensajes: all };

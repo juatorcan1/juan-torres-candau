@@ -1274,13 +1274,26 @@ document.addEventListener("keydown", e => { const el = e.target.closest && e.tar
    Menus are written for 2.400 kcal; quantities in {braces} scale with the person's target. */
 const GOALS = { perder: { l: "Perder grasa", adj: -450, prot: 2.0 }, mantener: { l: "Mantener", adj: 0, prot: 1.8 }, ganar: { l: "Ganar músculo", adj: 250, prot: 1.8 } };
 const WORK = { oficina: { l: "Oficina", f: 0 }, mixto: { l: "Mixto (oficina y obra)", f: 0.07 }, obra: { l: "Obra / trabajo físico", f: 0.15 } };
-const PROFILE_DEFAULT = { height: 178, age: 35, goal: "perder", work: "mixto", alcoholGoal: 7 };
+const PROFILE_DEFAULT = { height: 178, age: 35, goal: "perder", work: "mixto", alcoholGoal: 7, comidas: 5 };
 const CIRCS = {
   bocadillo: { l: "Obra: bocadillo o tortitas", s: "Sin cocina: todo va en la mochila" },
   bar: { l: "Bar o restaurante", s: "Menú del día o de tapas" },
   oficina: { l: "Oficina con cocina", s: "Táper y microondas" }
 };
 const MEALS = [["desayuno", "Desayuno"], ["media", "Media mañana"], ["comida", "Comida"], ["merienda", "Merienda"], ["cena", "Cena"]];
+/* How many meals a day. The calories of the day stay the same: with fewer meals each one is bigger
+   (boost scales the quantities) and the proteins of the meals you skip move into the ones you keep. */
+const FREQS = {
+  5: { l: "5 comidas", s: "desayuno, media mañana, comida, merienda y cena", keys: ["desayuno", "media", "comida", "merienda", "cena"], boost: 1 },
+  3: { l: "3 comidas", s: "desayuno, comida y cena", keys: ["desayuno", "comida", "cena"], boost: 1.2,
+    add: { desayuno: ["Y 1 fruta o 1 yogur natural: lo que antes era la media mañana"], comida: ["Y un puñado de frutos secos ({20} g) o 1 fruta más: lo que antes era la merienda"] } },
+  2: { l: "2 comidas", s: "comida y cena", keys: ["comida", "cena"], boost: 1.4,
+    pre: { comida: ["Para empezar, que es tu primera comida del día: un café con leche y {20} g de frutos secos"] },
+    add: { comida: ["Ración grande de proteína: es la mitad de la proteína del día"], cena: ["1 yogur natural o queso fresco batido: con 2 comidas cuesta llegar a la proteína"] } }
+};
+const freqOf = who => { const n = +profileOf(who).comidas; return FREQS[n] ? n : 5; };
+const mealsFor = who => MEALS.filter(([k]) => FREQS[freqOf(who)].keys.includes(k));
+const freqText = who => { const n = freqOf(who); return `${n} comidas al día (${FREQS[n].s})`; };
 
 function dietTargets(profile, weightKg, weeklyMin){
   const p = { ...PROFILE_DEFAULT, ...(profile || {}) };
@@ -1388,16 +1401,20 @@ const CIRC_MEALS = ["desayuno", "media", "comida", "merienda"];
 // A dietitian plan day stores each meal as a list, or as one list per circumstance.
 const mealFor = (d, k, circ) => { const v = d[k]; return Array.isArray(v) ? v : (v && Array.isArray(v[circ]) ? v[circ] : []); };
 const planMenu = (d, circ) => Object.fromEntries(MEALS.map(([k]) => [k, mealFor(d, k, circ)]));
-function dayMenu(dayIdx, circ, factor){
-  const pick = (arr, i) => arr[i % arr.length].map(t => scaleText(t, factor));
-  return {
-    desayuno: pick(MENU.desayuno[circ], dayIdx),
-    media: pick(MENU.media[circ], dayIdx),
-    comida: pick(MENU.comida[circ], dayIdx),
-    merienda: pick(MENU.merienda[circ], dayIdx),
-    cena: pick(MENU.cena, dayIdx)
+function dayMenu(dayIdx, circ, factor, freq = 5){
+  const F = FREQS[freq] || FREQS[5], f = Math.min(1.9, factor * F.boost);
+  const pick = (k, arr, i) => [...((F.pre || {})[k] || []), ...arr[i % arr.length], ...((F.add || {})[k] || [])].map(t => scaleText(t, f));
+  const all = {
+    desayuno: pick("desayuno", MENU.desayuno[circ], dayIdx),
+    media: pick("media", MENU.media[circ], dayIdx),
+    comida: pick("comida", MENU.comida[circ], dayIdx),
+    merienda: pick("merienda", MENU.merienda[circ], dayIdx),
+    cena: pick("cena", MENU.cena, dayIdx)
   };
+  return Object.fromEntries(MEALS.map(([k]) => [k, F.keys.includes(k) ? all[k] : []]));
 }
+// the base menu is written for 2.400 kcal
+const menuFactor = kcal => Math.min(1.45, Math.max(0.7, kcal / 2400));
 
 /* ===== 04-app.js ===== */
 /* ---------- state ---------- */
@@ -2615,13 +2632,15 @@ function renderDieta(){
   if (!dWho) dWho = me || "juan";
   const v = $("#view-dieta"), other = OTHER[dWho];
   const { t, w } = targetsFor(dWho), o = targetsFor(other).t, pr = profileOf(dWho), saved = !!(profiles[dWho] && profiles[dWho].height);
-  const factor = Math.min(1.45, Math.max(0.7, t.kcal / 2400));
+  const factor = menuFactor(t.kcal), freq = freqOf(dWho), FR = FREQS[freq], shown = mealsFor(dWho);
   const dp = me === dWho ? dietPlan() : dietPlan(dWho), pdd = dp && dp.dias.find(d => (parseISO(d.fecha).getDay() + 6) % 7 === dDay);
-  const menu = pdd ? planMenu(pdd, dCirc) : dayMenu(dDay, dCirc, factor), logDate = weekDate(dDay);
+  const menu = pdd ? planMenu(pdd, dCirc) : dayMenu(dDay, dCirc, factor, freq), logDate = weekDate(dDay);
+  // a dietitian plan made for another number of meals a day
+  const planFreq = dp && FREQS[dp.comidas] ? +dp.comidas : 5, freqOff = !!pdd && planFreq !== freq;
   shownMenu = menu;
   // plans made before the three versions of every meal: say so instead of looking broken
   const oneVersion = k => !!pdd && Array.isArray(pdd[k]);
-  const oldPlan = pdd && CIRC_MEALS.some(oneVersion);
+  const oldPlan = pdd && !freqOff && CIRC_MEALS.filter(k => FR.keys.includes(k)).some(oneVersion);
   const wk = periodRange("semana"), al = alcoholIn(drk(), dWho, ...wk);
   const editable = me === dWho && dbState === "ready";
   const tile = (l, val, unit, ov) => `<div class="tg"><div class="l">${l}</div><div class="v">${fmt(val)}<small> ${unit}</small></div><div class="o"><i class="dot ${other}"></i> ${ATH[other]}: ${fmt(ov)} ${unit}</div></div>`;
@@ -2647,6 +2666,7 @@ function renderDieta(){
             <div class="f"><label for="p-age">Edad</label><input id="p-age" type="number" inputmode="numeric" min="16" max="90" value="${esc(pr.age)}" ${editable ? "" : "disabled"}></div>
             <div class="f"><label for="p-goal">Objetivo</label><select id="p-goal" ${editable ? "" : "disabled"}>${Object.entries(GOALS).map(([k, g]) => `<option value="${k}" ${pr.goal === k ? "selected" : ""}>${g.l}</option>`).join("")}</select></div>
             <div class="f"><label for="p-work">Trabajo</label><select id="p-work" ${editable ? "" : "disabled"}>${Object.entries(WORK).map(([k, g]) => `<option value="${k}" ${pr.work === k ? "selected" : ""}>${g.l}</option>`).join("")}</select></div>
+            <div class="f"><label for="p-meals">Comidas al día</label><select id="p-meals" ${editable ? "" : "disabled"}>${Object.entries(FREQS).map(([k, f]) => `<option value="${k}" ${freq === +k ? "selected" : ""}>${f.l}: ${f.s}</option>`).join("")}</select></div>
             <div class="f"><label for="p-alc">Objetivo de alcohol <small>UBE/semana</small></label><input id="p-alc" type="number" inputmode="numeric" min="0" max="40" value="${esc(pr.alcoholGoal)}" ${editable ? "" : "disabled"}></div>
           </div>
           ${editable ? `<div class="row-btns"><button type="submit" class="btn primary">Guardar mis datos</button></div>` : `<p class="note" style="margin:0">${me === dWho ? "Conectando…" : `Solo ${ATH[dWho]} puede cambiar sus datos.`}</p>`}
@@ -2661,11 +2681,13 @@ function renderDieta(){
       <div style="display:grid;gap:12px">
         <div class="days" role="group" aria-label="Día de la semana">${DAYS_SHORT.map((d, i) => `<button type="button" data-dday="${i}" aria-pressed="${dDay === i}" class="${i === (today().getDay() + 6) % 7 ? "today" : ""}" aria-label="${DAYS_LONG[i]}">${d}</button>`).join("")}</div>
         <div class="circs" role="group" aria-label="Dónde comes hoy">${Object.entries(CIRCS).map(([k, c]) => `<button type="button" data-circ="${k}" aria-pressed="${dCirc === k}"><b>${c.l}</b><span>${c.s}</span></button>`).join("")}</div>
+        ${freqOff ? `<div class="banner">Este menú del dietista es de ${planFreq} comidas al día y ahora ${me === dWho ? "haces" : "hace"} ${freq}. ${me === dWho ? `<button type="button" class="linkbtn" data-say="nutri" data-text="${esc(`Rehazme el menú de la semana para ${freqText(dWho)}`)}" data-go="nutri">Rehacerlo con ${freq} comidas</button>` : ""}</div>` : ""}
+        ${freq < 5 ? `<p class="note" style="margin:0">${FR.l} al día: las mismas ${fmt(t.kcal)} kcal en menos comidas, así que cada una es más grande. Reparte la proteína: unos <b>${fmt(Math.round(t.prot / freq / 5) * 5)} g en cada comida</b>.</p>` : ""}
         ${oldPlan ? `<div class="banner">Este menú del dietista es de antes: solo trae una versión del desayuno, la media mañana y la merienda, por eso no cambian. <button type="button" class="linkbtn" data-say="nutri" data-text="Rehazme el menú de la semana con las tres versiones (obra, bar y oficina) de desayuno, media mañana, comida y merienda" data-go="nutri">Rehacerlo con las tres versiones</button></div>` : ""}
         ${mealSummaryHTML(dWho, logDate)}
       </div>
       <div class="meals" style="margin-top:10px">
-        ${MEALS.map(([k, l]) => `<div class="meal ${k === "comida" ? "main" : ""} ${mealClass(k, logDate, dWho)}"><div class="when">${l}<small>${!CIRC_MEALS.includes(k) ? "En casa, igual en los tres" : oneVersion(k) ? "Igual en los tres" : esc(CIRCS[dCirc].l)}</small></div>
+        ${shown.map(([k, l]) => `<div class="meal ${k === "comida" ? "main" : ""} ${mealClass(k, logDate, dWho)}"><div class="when">${l}<small>${!CIRC_MEALS.includes(k) ? "En casa, igual en los tres" : oneVersion(k) ? "Igual en los tres" : esc(CIRCS[dCirc].l)}</small></div>
           <div class="meal-body"><ul>${menu[k].map(x => `<li>${esc(x)}</li>`).join("")}</ul>${mealControls(k, logDate, dWho)}</div></div>`).join("")}
       </div>
       <div style="margin-top:12px"><div class="eyebrow" style="margin-bottom:6px">Trucos para ${esc(CIRCS[dCirc].l.toLowerCase())}</div><ul class="tips">${TIPS[dCirc].map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>
@@ -2690,9 +2712,10 @@ async function askMenu(){
   aiBusy = true; aiText = ""; aiErr = ""; aiCtl = new AbortController(); renderDieta();
   const prompt = `Propón el menú de un ${DAYS_LONG[dDay].toLowerCase()} para ${ATH[dWho]} (hombre, ${pr.age} años, ${pr.height} cm, objetivo: ${GOALS[pr.goal].l.toLowerCase()}).
 Objetivo diario: ${t.kcal} kcal, ${t.prot} g de proteína, ${t.carbs} g de hidratos, ${t.fat} g de grasa.
-Situación del día (desayuno, media mañana, comida y merienda; la cena es en casa): ${CIRCS[dCirc].l} (${CIRCS[dCirc].s}). ${dCirc === "bocadillo" ? "No tiene cocina: solo cosas que se lleven en la mochila (bocadillos, tortitas de maíz, táper frío)." : dCirc === "bar" ? "Di qué pedir en un menú del día o de tapas típico de España y qué evitar." : "Tiene microondas y nevera en la oficina."}
+Hace ${freqText(dWho)}: reparte las kcal y la proteína solo entre esas.
+Situación del día (para lo que come fuera; la cena es en casa): ${CIRCS[dCirc].l} (${CIRCS[dCirc].s}). ${dCirc === "bocadillo" ? "No tiene cocina: solo cosas que se lleven en la mochila (bocadillos, tortitas de maíz, táper frío)." : dCirc === "bar" ? "Di qué pedir en un menú del día o de tapas típico de España y qué evitar." : "Tiene microondas y nevera en la oficina."}
 ${keep("d-pref") ? "Preferencias: " + String(keep("d-pref")).slice(0, 300) : ""}
-Formato: cinco apartados (Desayuno, Media mañana, Comida, Merienda, Cena), cada uno con 1 a 3 líneas y cantidades en gramos, y al final una línea con el total aproximado de kcal y proteína. Comida española normal, fácil y barata. Sin emojis ni tablas.`;
+Formato: un apartado por comida (${mealsFor(dWho).map(([, l]) => l).join(", ")}), cada uno con 1 a 3 líneas y cantidades en gramos, y al final una línea con el total aproximado de kcal y proteína. Comida española normal, fácil y barata. Sin emojis ni tablas.`;
   try {
     await sample(prompt, { signal: aiCtl.signal, cache: false, onText: ({ text }) => { aiText = text; const el = $("#ai-out"); if (el) el.textContent = text; else renderDieta(); } });
   } catch (e) {
@@ -2704,7 +2727,7 @@ Formato: cinco apartados (Desayuno, Media mañana, Comida, Merienda, Cena), cada
 }
 async function saveProfile(){
   if (dbState !== "ready" || me !== dWho) return;
-  const p = { height: num($("#p-height").value), age: num($("#p-age").value), goal: $("#p-goal").value, work: $("#p-work").value, alcoholGoal: num($("#p-alc").value) };
+  const p = { height: num($("#p-height").value), age: num($("#p-age").value), goal: $("#p-goal").value, work: $("#p-work").value, alcoholGoal: num($("#p-alc").value), comidas: FREQS[$("#p-meals").value] ? +$("#p-meals").value : 5 };
   if (p.height < 140 || p.height > 220 || p.age < 16 || p.age > 90) { toast("Revisa la altura y la edad"); return; }
   try { await db.doc("perfiles/" + me).set({ ...profileDoc(me), ...p, updatedAt: Date.now() }); toast("Datos guardados"); }
   catch { toast("No se han podido guardar tus datos"); }
@@ -2820,7 +2843,7 @@ function athleteContext(who){
     pr.prefEntreno ? `Lo que le gusta y quiere: ${String(pr.prefEntreno).slice(0, 400)}` : "",
     notesText(who) ? `Sus notas de ejercicios (respétalas): ${notesText(who).slice(0, 800)}` : "",
     gripsText(who) ? `Agarres que usa: ${gripsText(who)}` : "",
-    `Objetivo de dieta: ${t.kcal} kcal, ${t.prot} g proteína, ${t.carbs} g hidratos, ${t.fat} g grasa.`,
+    `Objetivo de dieta: ${t.kcal} kcal, ${t.prot} g proteína, ${t.carbs} g hidratos, ${t.fat} g grasa. Hace ${freqText(who)}.`,
     `Mejores series: ${Object.entries(best).map(([k, b]) => `${k} ${b.kg ? fmt(b.kg, 1) + " kg × " : ""}${b.reps}`).join("; ") || "sin datos"}.`,
     `Últimas sesiones:\n${lines.join("\n") || "ninguna"}`
   ].filter(Boolean).join("\n");
@@ -2855,7 +2878,8 @@ ${WORKOUT_SCHEMA.replace("${RIVAL}", ATH[other])}
 ${TRAIN_PLAN_SCHEMA}`
     : `Responde SOLO con JSON: {"respuesta": str, "plan": PLAN_DIETA|null}
 Pon "plan" solo si pide el menú de varios días o de la semana; para un día o una comida, contesta en "respuesta".
-${DIET_PLAN_SCHEMA}`;
+${DIET_PLAN_SCHEMA}
+Hace ${freqText(me)}: rellena solo esas comidas y deja las otras como listas vacías. Las mismas kcal del día repartidas entre ellas, con raciones más grandes, y la proteína repartida a partes iguales (unos ${Math.round(targetsFor(me).t.prot / freqOf(me))} g por comida).`;
   return `${role}
 Hablas en español de España, de tú. "respuesta": como mucho 120 palabras, sin markdown ni emojis, con saltos de línea si ayudan.
 Hoy es ${DIA[today().getDay()]} ${todayISO()}.
@@ -2957,7 +2981,7 @@ async function sendChat(agent, text, opts = {}){
       if (p) { msg.plan = p; await db?.doc(`planes/${me}_entreno`).set({ athlete: me, clase: "entreno", ...p, penalizaDesde: todayISO(), creado: Date.now() }); }
     } else {
       const p = normalizeDietPlan(o && o.plan);
-      if (p) { msg.plan = p; await db?.doc(`planes/${me}_dieta`).set({ athlete: me, clase: "dieta", ...p, creado: Date.now() }); }
+      if (p) { msg.plan = p; await db?.doc(`planes/${me}_dieta`).set({ athlete: me, clase: "dieta", ...p, comidas: freqOf(me), creado: Date.now() }); }
     }
     const all = [...pending, msg];
     chats[chatId(agent)] = { ...(chats[chatId(agent)] || {}), mensajes: all };
@@ -3506,8 +3530,8 @@ function greeting(){ const h = new Date().getHours(); return h < 6 ? "Buenas noc
 function todayMenu(){
   const dp = dietPlan(), d = dp && dp.dias.find(x => x.fecha === todayISO());
   if (d) return { src: "plan", ...planMenu(d, dCirc) };
-  const { t } = targetsFor(me), f = Math.min(1.45, Math.max(0.7, t.kcal / 2400));
-  return { src: "base", ...dayMenu((today().getDay() + 6) % 7, dCirc, f) };
+  const { t } = targetsFor(me);
+  return { src: "base", ...dayMenu((today().getDay() + 6) % 7, dCirc, menuFactor(t.kcal), freqOf(me)) };
 }
 function renderHoy(){
   const v = $("#view-hoy");
@@ -3554,7 +3578,7 @@ function renderHoy(){
       <div class="panel-head" style="margin-bottom:10px"><h2>Hoy comes</h2><button type="button" class="btn sm ghost" data-leaf="dieta">Menú completo</button></div>
       <div class="circs mini" role="group" aria-label="Dónde comes hoy">${Object.entries(CIRCS).map(([k, c]) => `<button type="button" data-circ="${k}" aria-pressed="${dCirc === k}"><b>${esc(c.l)}</b></button>`).join("")}</div>
       ${mealSummaryHTML(me, todayISO())}
-      <div class="meals compact">${MEALS.map(([k, l]) => `<div class="meal ${k === "comida" ? "main" : ""} ${mealClass(k, todayISO(), me)}"><div class="when">${l}</div><div class="meal-body"><ul>${(menu[k] || []).slice(0, 3).map(x => `<li>${esc(x)}</li>`).join("")}</ul>${mealControls(k, todayISO(), me)}</div></div>`).join("")}</div>
+      <div class="meals compact">${mealsFor(me).map(([k, l]) => `<div class="meal ${k === "comida" ? "main" : ""} ${mealClass(k, todayISO(), me)}"><div class="when">${l}</div><div class="meal-body"><ul>${(menu[k] || []).slice(0, 3).map(x => `<li>${esc(x)}</li>`).join("")}</ul>${mealControls(k, todayISO(), me)}</div></div>`).join("")}</div>
       ${menu.src === "base" ? `<button type="button" class="linkbtn" data-say="nutri" data-text="Hazme el menú de la semana" data-go="nutri">Pídele a tu dietista un menú semanal a tu medida</button>` : ""}
     </div>
 
@@ -3844,7 +3868,7 @@ function verdictOf(o){
 }
 function dietIntro(){
   const { t } = targetsFor(me), pr = profileOf(me);
-  return `Eres el dietista de ${ATH[me]} (hombre, ${pr.age} años, ${pr.height} cm, objetivo: ${GOALS[pr.goal].l.toLowerCase()}). Objetivo diario: ${t.kcal} kcal y ${t.prot} g de proteína. Hablas en español de España, de tú, directo y sin sermones, sin emojis.`;
+  return `Eres el dietista de ${ATH[me]} (hombre, ${pr.age} años, ${pr.height} cm, objetivo: ${GOALS[pr.goal].l.toLowerCase()}). Objetivo diario: ${t.kcal} kcal y ${t.prot} g de proteína. Hace ${freqText(me)}. Hablas en español de España, de tú, directo y sin sermones, sin emojis.`;
 }
 const VERDICT_JSON = `Responde SOLO con JSON: {"kcal": n, "proteina_g": n, "veredicto": "bien"|"regular"|"mal", "comentario": str}`;
 async function askVerdict(key, prompt){
@@ -3871,12 +3895,13 @@ ${VERDICT_JSON}
 const daySig = m => JSON.stringify(MEALS.map(([k]) => m[k] ? [m[k].s, m[k].t || ""] : 0));
 async function dayVerdict(date){
   const m = mealsOf(me, date), al = alcoholIn(drk(), me, date, date);
-  const lines = MEALS.map(([k, l]) => { const e = m[k];
+  const lines = mealsFor(me).map(([k, l]) => { const e = m[k];
     return `- ${l}: ${!e ? "sin apuntar" : e.s === "si" ? `según el menú (${(e.menu || []).join("; ")})` : e.s === "no" ? "no lo comió" : `otra cosa: "${e.t || "sin detallar"}"`}`; });
   const out = await askVerdict(`${date}:dia`, `${dietIntro()}
 Esto es lo que ha apuntado que comió el ${DIA[parseISO(date).getDay()]} ${date}${date === todayISO() ? " (el día todavía no ha terminado)" : ""}:
 ${lines.join("\n")}
 Alcohol ese día: ${fmt(al.ube, 1)} UBE (${fmt(al.kcal)} kcal).
+Saltarse una comida que no está entre las que hace no es un fallo.
 Estima el total del día y da tu veredicto.
 ${VERDICT_JSON}
 "comentario": como mucho 50 palabras: qué tal ha ido${date === todayISO() ? " y qué comer en lo que queda de día para cuadrarlo" : " y qué cambiar mañana"}.`);
@@ -3910,7 +3935,7 @@ function mealSummaryHTML(who, date){
   const week = Array.from({ length: 7 }, (_, i) => weekDate(i)).filter(x => x <= todayISO());
   const a = mealCount(who, week), b = mealCount(OTHER[who], week);
   const part = c => [c.si ? `${c.si} según el menú` : "", c.otro ? `${c.otro} otra cosa` : "", c.no ? `${c.no} sin comer` : ""].filter(Boolean).join(", ") || "nada apuntado";
-  return `<div class="meal-sum"><div><b>${date === todayISO() ? "Hoy" : DAYS_LONG[(parseISO(date).getDay() + 6) % 7]}:</b> ${esc(part(d))}${n < MEALS.length && who === me ? ` · <span class="muted">${MEALS.length - n} sin apuntar</span>` : ""}</div>
+  return `<div class="meal-sum"><div><b>${date === todayISO() ? "Hoy" : DAYS_LONG[(parseISO(date).getDay() + 6) % 7]}:</b> ${esc(part(d))}${n < mealsFor(who).length && who === me ? ` · <span class="muted">${mealsFor(who).length - n} sin apuntar</span>` : ""}</div>
     <div class="muted">Esta semana según el menú: <i class="dot ${who}"></i> ${ATH[who]} ${a.si} · <i class="dot ${OTHER[who]}"></i> ${ATH[OTHER[who]]} ${b.si}</div>
     ${dayVerdictHTML(who, date, n)}</div>`;
 }

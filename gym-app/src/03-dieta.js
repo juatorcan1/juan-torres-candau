@@ -4,13 +4,26 @@
    Menus are written for 2.400 kcal; quantities in {braces} scale with the person's target. */
 const GOALS = { perder: { l: "Perder grasa", adj: -450, prot: 2.0 }, mantener: { l: "Mantener", adj: 0, prot: 1.8 }, ganar: { l: "Ganar músculo", adj: 250, prot: 1.8 } };
 const WORK = { oficina: { l: "Oficina", f: 0 }, mixto: { l: "Mixto (oficina y obra)", f: 0.07 }, obra: { l: "Obra / trabajo físico", f: 0.15 } };
-const PROFILE_DEFAULT = { height: 178, age: 35, goal: "perder", work: "mixto", alcoholGoal: 7 };
+const PROFILE_DEFAULT = { height: 178, age: 35, goal: "perder", work: "mixto", alcoholGoal: 7, comidas: 5 };
 const CIRCS = {
   bocadillo: { l: "Obra: bocadillo o tortitas", s: "Sin cocina: todo va en la mochila" },
   bar: { l: "Bar o restaurante", s: "Menú del día o de tapas" },
   oficina: { l: "Oficina con cocina", s: "Táper y microondas" }
 };
 const MEALS = [["desayuno", "Desayuno"], ["media", "Media mañana"], ["comida", "Comida"], ["merienda", "Merienda"], ["cena", "Cena"]];
+/* How many meals a day. The calories of the day stay the same: with fewer meals each one is bigger
+   (boost scales the quantities) and the proteins of the meals you skip move into the ones you keep. */
+const FREQS = {
+  5: { l: "5 comidas", s: "desayuno, media mañana, comida, merienda y cena", keys: ["desayuno", "media", "comida", "merienda", "cena"], boost: 1 },
+  3: { l: "3 comidas", s: "desayuno, comida y cena", keys: ["desayuno", "comida", "cena"], boost: 1.2,
+    add: { desayuno: ["Y 1 fruta o 1 yogur natural: lo que antes era la media mañana"], comida: ["Y un puñado de frutos secos ({20} g) o 1 fruta más: lo que antes era la merienda"] } },
+  2: { l: "2 comidas", s: "comida y cena", keys: ["comida", "cena"], boost: 1.4,
+    pre: { comida: ["Para empezar, que es tu primera comida del día: un café con leche y {20} g de frutos secos"] },
+    add: { comida: ["Ración grande de proteína: es la mitad de la proteína del día"], cena: ["1 yogur natural o queso fresco batido: con 2 comidas cuesta llegar a la proteína"] } }
+};
+const freqOf = who => { const n = +profileOf(who).comidas; return FREQS[n] ? n : 5; };
+const mealsFor = who => MEALS.filter(([k]) => FREQS[freqOf(who)].keys.includes(k));
+const freqText = who => { const n = freqOf(who); return `${n} comidas al día (${FREQS[n].s})`; };
 
 function dietTargets(profile, weightKg, weeklyMin){
   const p = { ...PROFILE_DEFAULT, ...(profile || {}) };
@@ -118,13 +131,17 @@ const CIRC_MEALS = ["desayuno", "media", "comida", "merienda"];
 // A dietitian plan day stores each meal as a list, or as one list per circumstance.
 const mealFor = (d, k, circ) => { const v = d[k]; return Array.isArray(v) ? v : (v && Array.isArray(v[circ]) ? v[circ] : []); };
 const planMenu = (d, circ) => Object.fromEntries(MEALS.map(([k]) => [k, mealFor(d, k, circ)]));
-function dayMenu(dayIdx, circ, factor){
-  const pick = (arr, i) => arr[i % arr.length].map(t => scaleText(t, factor));
-  return {
-    desayuno: pick(MENU.desayuno[circ], dayIdx),
-    media: pick(MENU.media[circ], dayIdx),
-    comida: pick(MENU.comida[circ], dayIdx),
-    merienda: pick(MENU.merienda[circ], dayIdx),
-    cena: pick(MENU.cena, dayIdx)
+function dayMenu(dayIdx, circ, factor, freq = 5){
+  const F = FREQS[freq] || FREQS[5], f = Math.min(1.9, factor * F.boost);
+  const pick = (k, arr, i) => [...((F.pre || {})[k] || []), ...arr[i % arr.length], ...((F.add || {})[k] || [])].map(t => scaleText(t, f));
+  const all = {
+    desayuno: pick("desayuno", MENU.desayuno[circ], dayIdx),
+    media: pick("media", MENU.media[circ], dayIdx),
+    comida: pick("comida", MENU.comida[circ], dayIdx),
+    merienda: pick("merienda", MENU.merienda[circ], dayIdx),
+    cena: pick("cena", MENU.cena, dayIdx)
   };
+  return Object.fromEntries(MEALS.map(([k]) => [k, F.keys.includes(k) ? all[k] : []]));
 }
+// the base menu is written for 2.400 kcal
+const menuFactor = kcal => Math.min(1.45, Math.max(0.7, kcal / 2400));

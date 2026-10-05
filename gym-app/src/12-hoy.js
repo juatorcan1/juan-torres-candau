@@ -39,8 +39,8 @@ function greeting(){ const h = new Date().getHours(); return h < 6 ? "Buenas noc
 function todayMenu(){
   const dp = dietPlan(), d = dp && dp.dias.find(x => x.fecha === todayISO());
   if (d) return { src: "plan", ...planMenu(d, dCirc) };
-  const { t } = targetsFor(me), f = Math.min(1.45, Math.max(0.7, t.kcal / 2400));
-  return { src: "base", ...dayMenu((today().getDay() + 6) % 7, dCirc, f) };
+  const { t } = targetsFor(me);
+  return { src: "base", ...dayMenu((today().getDay() + 6) % 7, dCirc, menuFactor(t.kcal), freqOf(me)) };
 }
 function renderHoy(){
   const v = $("#view-hoy");
@@ -87,7 +87,7 @@ function renderHoy(){
       <div class="panel-head" style="margin-bottom:10px"><h2>Hoy comes</h2><button type="button" class="btn sm ghost" data-leaf="dieta">Menú completo</button></div>
       <div class="circs mini" role="group" aria-label="Dónde comes hoy">${Object.entries(CIRCS).map(([k, c]) => `<button type="button" data-circ="${k}" aria-pressed="${dCirc === k}"><b>${esc(c.l)}</b></button>`).join("")}</div>
       ${mealSummaryHTML(me, todayISO())}
-      <div class="meals compact">${MEALS.map(([k, l]) => `<div class="meal ${k === "comida" ? "main" : ""} ${mealClass(k, todayISO(), me)}"><div class="when">${l}</div><div class="meal-body"><ul>${(menu[k] || []).slice(0, 3).map(x => `<li>${esc(x)}</li>`).join("")}</ul>${mealControls(k, todayISO(), me)}</div></div>`).join("")}</div>
+      <div class="meals compact">${mealsFor(me).map(([k, l]) => `<div class="meal ${k === "comida" ? "main" : ""} ${mealClass(k, todayISO(), me)}"><div class="when">${l}</div><div class="meal-body"><ul>${(menu[k] || []).slice(0, 3).map(x => `<li>${esc(x)}</li>`).join("")}</ul>${mealControls(k, todayISO(), me)}</div></div>`).join("")}</div>
       ${menu.src === "base" ? `<button type="button" class="linkbtn" data-say="nutri" data-text="Hazme el menú de la semana" data-go="nutri">Pídele a tu dietista un menú semanal a tu medida</button>` : ""}
     </div>
 

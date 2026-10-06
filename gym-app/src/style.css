@@ -659,3 +659,13 @@ details.pl-edit[open] summary{margin-bottom:6px}
 .grip-tag{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:700;color:var(--ink-2);margin-top:2px}
 .grip-tag .grip-ico{width:40px;height:19px}
 .gcard .grips,.fz-card .grips{justify-items:start;margin-top:8px}
+.missing{border-color:var(--warn)}
+.miss-row{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;justify-content:space-between;padding:8px 0;border-top:1px solid var(--line-2)}
+.miss-row b{text-transform:capitalize}
+.pl-fix{width:100%;margin-top:4px}
+.pl-fix summary{cursor:pointer;font-weight:600;color:var(--ink-2);padding:6px 0}
+.fix-ex{display:grid;gap:6px;padding:8px 0;border-top:1px solid var(--line-2)}
+.fix-sets{display:flex;flex-wrap:wrap;gap:8px}
+.fix-set{display:inline-flex;align-items:center;gap:4px;background:var(--surface);border:1px solid var(--line-2);border-radius:8px;padding:4px 6px}
+.fix-set input{width:3.4em;text-align:center;font:600 15px var(--body);padding:4px 2px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink)}
+.fix-set small{color:var(--muted)}

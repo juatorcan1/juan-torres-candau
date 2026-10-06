@@ -19,12 +19,15 @@ function flatten(w){
 const itemOf = (st) => run.w.bloques[st.bi].items[st.ii];
 const keyOf = (st) => st.bi + "." + st.ii;
 function saveRun(){ store.set("gym.run", run); }
-function openPlayer(w){
+// opts.date: logging a past day you trained but did not record (no rests, saved on that date)
+function openPlayer(w, opts = {}){
   if (!me) { toast("Elige primero quién eres"); return; }
   const { w: ww, swapped } = autoSwap(w);
   const tuned = tuneFromHistory(ww);
-  swap = null;
-  run = { w: ww, steps: flatten(ww), i: 0, phase: "preview", startedAt: null, until: null, log: {}, cur: null, athlete: me, rpe: null, extra: "", swapped, tuned };
+  swap = null; fixOpen = false;
+  const forDate = opts.date && opts.date < todayISO() ? opts.date : null;
+  run = { w: ww, steps: flatten(ww), i: 0, phase: "preview", startedAt: null, until: null, log: {}, cur: null, athlete: me, rpe: null, extra: "", swapped, tuned,
+    ...(forDate ? { forDate, forMin: num(opts.minutes) || null } : {}) };
   saveRun(); showPlayer();
 }
 /* weights start from what you actually lifted last time on that exercise, set by set: each set is
@@ -145,6 +148,7 @@ function renderPlayer(){
       ${w.objetivo ? `<p class="pl-goal">${esc(w.objetivo)}</p>` : ""}
       ${(() => { const all = mainItems(w).map(musclesOf), lv = levelsFor(all); const main = MUSCLE_ORDER.filter(k => lv[k] === 2);
         return main.length ? `<div class="pl-today"><div class="eyebrow">Hoy trabajas</div><div class="mus-title" style="font-size:24px">${esc(musNames(main))}</div>${bodyMap(lv, { cls: "small" })}<div class="mus-legend"><span><i style="background:var(--muscle)"></i>principal</span><span><i style="background:var(--mus-help)"></i>ayuda</span></div></div>` : ""; })()}
+      ${run.forDate ? `<div class="banner">Apuntas el entreno del <b>${esc(DIA[parseISO(run.forDate).getDay()])} ${parseISO(run.forDate).getDate()}</b>. Pon en cada serie lo que hiciste y pulsa «Serie hecha»: sin descansos. Lo que no hiciste, «Saltar ejercicio».</div>` : ""}
       ${run.tuned ? `<p class="note">Pesos según lo que levantaste la última vez en ${run.tuned} ejercicio${run.tuned > 1 ? "s" : ""}.</p>` : ""}
       ${run.swapped && run.swapped.length ? `<p class="note">Cambiado porque no te gusta: ${run.swapped.map(([a, b]) => `${esc(a)} → <b>${esc(b)}</b>`).join(", ")}.</p>` : ""}
       ${w.bloques.map((b, bi) => `<div class="pl-block"><div class="eyebrow">${esc(b.nombre)}</div>${b.items.map((x, ii) => `<div class="pl-item">
@@ -190,7 +194,7 @@ function renderPlayer(){
         : working ? `<button type="button" class="btn ${paused ? "primary" : ""}" data-pl="pause">${paused ? "▶ Seguir" : "❚❚ Pausar"}</button><button type="button" class="btn primary big" data-pl="workdone">Hecho</button>`
         : it.modo === "tiempo" ? `<button type="button" class="btn primary big" data-pl="work">Empezar ${it.segundos} s</button>`
         : `<button type="button" class="btn primary big" data-pl="done">Serie hecha</button>`}
-      <div class="pl-aux">${resting ? `<button type="button" class="linkbtn" data-pl="plus">+30 s</button>` : ""}<button type="button" class="linkbtn" data-pl="skipex">Saltar ejercicio</button>${working ? "" : resting ? (next ? `<button type="button" class="linkbtn" data-swap-item="${next.bi}.${next.ii}">Cambiar el siguiente</button>` : "") : `<button type="button" class="linkbtn" data-swap-item="${st.bi}.${st.ii}">Cambiar ejercicio</button>`}<button type="button" class="linkbtn" data-pl="finish">Terminar y guardar</button></div>
+      <div class="pl-aux">${resting || run.i > 0 ? `<button type="button" class="linkbtn" data-pl="back">◀ Anterior</button>` : ""}${resting ? `<button type="button" class="linkbtn" data-pl="plus">+30 s</button>` : ""}<button type="button" class="linkbtn" data-pl="skipex">Saltar ejercicio</button>${working ? "" : resting ? (next ? `<button type="button" class="linkbtn" data-swap-item="${next.bi}.${next.ii}">Cambiar el siguiente</button>` : "") : `<button type="button" class="linkbtn" data-swap-item="${st.bi}.${st.ii}">Cambiar ejercicio</button>`}<button type="button" class="linkbtn" data-pl="finish">Terminar y guardar</button></div>
     </div>`;
   }
   el.innerHTML = `<div class="pl-wrap">${head}${body}</div>${swapSheetHTML()}`;
@@ -247,7 +251,7 @@ function logSet(){
   const ni = itemOf(next);
   // the next set of the same exercise keeps what you just did, unless it has its own target from last time
   run.nextCur = keyOf(next) === keyOf(st) && !ni.plan ? { reps: num(c.reps), kg: num(c.kg), meters: c.meters } : (({ reps, kg, meters }) => ({ reps, kg, meters }))(planned(ni, next.s));
-  if (it.descanso_s > 0) { run.phase = "rest"; run.until = Date.now() + it.descanso_s * 1000; say(`Descanso. Siguiente: ${spokenStep(next)}`); }
+  if (it.descanso_s > 0 && !run.forDate) { run.phase = "rest"; run.until = Date.now() + it.descanso_s * 1000; say(`Descanso. Siguiente: ${spokenStep(next)}`); }
   else advance();
   saveRun(); renderPlayer(); syncRun();
 }
@@ -278,7 +282,7 @@ async function dropRunDoc(){ const sid = run && run.sid; if (sid && dbState === 
 
 /* summary and saving */
 function runSession(){
-  const w = run.w, ex = [], mins = Math.min(240, Math.max(1, Math.round(((run.endedAt || Date.now()) - (run.startedAt || Date.now())) / 60000)));
+  const w = run.w, ex = [], mins = run.forDate && run.forMin ? run.forMin : Math.min(240, Math.max(1, Math.round(((run.endedAt || Date.now()) - (run.startedAt || Date.now())) / 60000)));
   let meters = 0;
   w.bloques.forEach((b, bi) => b.items.forEach((it, ii) => {
     const l = run.log[bi + "." + ii]; if (!l || !l.length) return;
@@ -287,7 +291,7 @@ function runSession(){
     ex.push(clean({ name: it.ejercicio, group: CATALOG[it.ejercicio] || "", equip: num(l[0].kg) ? "" : "Peso corporal", sets: l.map(x => clean({ reps: x.reps, kg: x.kg, rest: it.descanso_s || null })) }));
   }));
   const sport = w.tipo === "natacion" ? "natacion" : w.tipo === "cinta" || w.tipo === "bici" ? w.tipo : w.tipo === "otro" ? "otro" : "gym";
-  const doc = clean({ athlete: me, date: run.startedAt ? toISO(new Date(run.startedAt)) : todayISO(), time: `${pad(new Date(run.startedAt || Date.now()).getHours())}:${pad(new Date(run.startedAt || Date.now()).getMinutes())}`,
+  const doc = clean({ athlete: me, date: run.forDate || (run.startedAt ? toISO(new Date(run.startedAt)) : todayISO()), time: `${pad(new Date(run.startedAt || Date.now()).getHours())}:${pad(new Date(run.startedAt || Date.now()).getMinutes())}`,
     sport, minutes: mins, rpe: run.rpe, notes: `${w.titulo} (entreno guiado)`, source: "entrenador" });
   if (sport === "gym" && ex.length) doc.exercises = ex;
   if (sport === "gym" && !ex.length) { doc.sport = "otro"; doc.activity = w.titulo; }
@@ -312,6 +316,7 @@ function summaryHTML(){
       ${prs.length ? `<div class="prs">${prs.map(p => `<div>🏆 ${esc(p)}</div>`).join("")}</div>` : ""}
       ${(() => { const done = run.w.bloques.flatMap((b, bi) => b.items.filter((it, ii) => (run.log[bi + "." + ii] || []).length)).map(musclesOf); return done.length ? `<div class="eyebrow">Has trabajado</div>${bodyMap(levelsFor(done), { cls: "small" })}` : ""; })()}
     </div>
+    ${fixSetsHTML()}
     <div class="f"><label>¿Cuánto te ha costado? <small>RPE 1–10</small></label><div class="chips">${[5, 6, 7, 8, 9, 10].map(n => `<button type="button" data-rpe="${n}" aria-pressed="${run.rpe === n}">${n}</button>`).join("")}</div></div>
     ${needKm ? `<div class="f"><label for="pl-km">Distancia total <small>km</small></label><input id="pl-km" type="number" inputmode="decimal" step="0.1" value="${esc(run.extra)}"></div>` : ""}
   </div>
@@ -327,6 +332,32 @@ async function saveRunSession(){
     toast(prs.length ? `Guardado. ¡${prs.length} récord${prs.length > 1 ? "s" : ""}! ${ATH[OTHER[me]]} ya lo ve.` : "Entreno guardado");
   } catch (e) { toast(e && e.code === "invalid_argument" ? "Solo puedes guardar tus propios entrenos" : "No se ha podido guardar. Revisa la conexión."); }
 }
+
+/* one step back: in the rest it undoes the set you just logged, in a set it goes to the previous one;
+   a set that was done comes back with what you logged, ready to correct and log again */
+function goBack(){
+  try { speechSynthesis.cancel(); } catch {}
+  let st = run.steps[run.i];
+  if (run.phase !== "rest") { if (run.i === 0) return; run.i--; st = run.steps[run.i]; }
+  const it = itemOf(st), l = run.log[keyOf(st)] || [], x = l.length >= st.s ? l.pop() : null, def = planned(it, st.s);
+  run.cur = x ? { ...def, reps: x.reps, kg: x.kg, meters: x.meters != null ? x.meters : def.meters } : def;
+  run.phase = "set"; run.until = null; run.pausedLeft = null; run.nextCur = null;
+  saveRun(); renderPlayer(); syncRun();
+  toast(`${it.ejercicio} · serie ${st.s}${x ? ": corrige y pulsa «Serie hecha»" : ""}`);
+}
+// the summary lets you fix any set before saving
+let fixOpen = false;
+function fixSetsHTML(){
+  const rows = run.w.bloques.flatMap((b, bi) => b.items.map((it, ii) => [it, bi + "." + ii])).filter(([it, k]) => it.modo === "reps" && (run.log[k] || []).length);
+  if (!rows.length) return "";
+  return `<details class="pl-fix" ${fixOpen ? "open" : ""}><summary>Revisa y corrige las series</summary>${rows.map(([it, k]) => `<div class="fix-ex"><b>${esc(it.ejercicio)}</b><div class="fix-sets">${run.log[k].map((x, i) => `<span class="fix-set"><small>S${i + 1}</small><input class="stepin" data-fix="${k}:${i}:reps" inputmode="numeric" value="${fmt(num(x.reps))}" aria-label="${esc(it.ejercicio)}, serie ${i + 1}, repeticiones"><small>×</small><input class="stepin" data-fix="${k}:${i}:kg" inputmode="decimal" value="${fmt(num(x.kg), 2)}" aria-label="${esc(it.ejercicio)}, serie ${i + 1}, kilos"><small>kg</small></span>`).join("")}</div></div>`).join("")}</details>`;
+}
+document.addEventListener("change", e => {
+  const f = e.target.dataset && e.target.dataset.fix; if (!f || !run) return;
+  const [k, i, field] = f.split(":"), x = run.log[k] && run.log[k][+i]; if (!x) return;
+  // no re-render here: change also fires on blur, when the next tap may already be on its way
+  x[field] = Math.max(0, num(e.target.value)); e.target.value = fmt(x[field], 2); fixOpen = true; saveRun(); syncRun();
+});
 
 /* controls */
 document.addEventListener("click", e => {
@@ -353,7 +384,8 @@ document.addEventListener("click", e => {
   else if (a === "skipex") { run.nextCur = null; const k = keyOf(run.steps[run.i]); while (run.steps[run.i] && keyOf(run.steps[run.i]) === k) run.i++; run.i--; advance(); saveRun(); renderPlayer(); }
   else if (a === "finish") finishRun();
   else if (a === "save") saveRunSession();
-  else if (a === "discard") closePlayer(true);
+  else if (a === "discard") { if (run.sid && !confirm("¿Descartar este entreno? Se borra también lo que ya se había guardado de él.")) return; dropRunDoc(); closePlayer(true); }
+  else if (a === "back") goBack();
 });
 function advanceFromStart(){ run.i = -1; advance(); }
 document.addEventListener("input", e => {

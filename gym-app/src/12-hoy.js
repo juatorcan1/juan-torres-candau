@@ -60,6 +60,7 @@ function renderHoy(){
   v.innerHTML = `<div style="display:grid;gap:16px">
     ${demoBanner()}
     <div class="hello"><h2>${greeting()}, ${ATH[me]}</h2><p>${esc(pq.main)}</p>${pq.sub ? `<p class="muted">${esc(pq.sub)}</p>` : ""}</div>
+    ${missingHTML()}
 
     <div class="panel today">
       <div class="panel-head" style="margin-bottom:10px"><h2>Entrena hoy</h2>${doneToday.length ? `<span class="pill ok">${doneToday.length} hecho${doneToday.length > 1 ? "s" : ""} hoy</span>` : ""}</div>

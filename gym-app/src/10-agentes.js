@@ -260,7 +260,8 @@ function renderPlan(){
     return `<div class="pday ${isToday ? "today" : ""} ${past ? "past" : ""}">
       <div class="pd-date"><b>${esc(d.dia.slice(0, 3))}</b><span>${parseISO(d.fecha).getDate()}</span></div>
       <div class="pd-body"><div><b>${d.actividad === "descanso" ? "Descanso" : esc(d.foco || SPORTS[d.actividad] || d.actividad)}</b>${d.duracion_min ? ` <span class="muted">· ${d.duracion_min} min</span>` : ""}${done ? ' <span class="pill ok">hecho</span>' : ""}</div><div class="muted" style="font-size:13px">${esc(d.detalle)}</div></div>
-      ${d.actividad === "descanso" || past || (isToday && done) ? "" : d.entreno ? `<button type="button" class="btn sm ${isToday ? "primary" : ""}" data-plan-open="${d.fecha}">${isToday ? "Empezar" : "Ver"}</button>`
+      ${past && !done && d.actividad !== "descanso" ? `<button type="button" class="btn sm" data-log-day="${d.fecha}" data-mode="${d.entreno && (d.actividad === "gym" || d.actividad === "calistenia") ? "guided" : "form"}">Apuntar</button>`
+        : d.actividad === "descanso" || past || (isToday && done) ? "" : d.entreno ? `<button type="button" class="btn sm ${isToday ? "primary" : ""}" data-plan-open="${d.fecha}">${isToday ? "Empezar" : "Ver"}</button>`
         : `<button type="button" class="btn sm ${isToday ? "primary" : ""}" data-plan-day="${d.fecha}">${isToday ? "Empezar" : "Preparar"}</button>`}
     </div>`; };
   v.innerHTML = `<div style="display:grid;gap:18px">

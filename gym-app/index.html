@@ -467,6 +467,17 @@ body.playing{overflow:hidden}
 .pl-bar i{display:block;height:100%;background:var(--me);transition:width .3s}
 .pl-body{display:grid;gap:12px;align-content:start;padding-block:14px}
 .pl-body.center{justify-items:center;text-align:center}
+.pl-prev{display:flex;gap:4px;justify-content:center;max-width:100%;overflow-x:auto;background:var(--surface);border:1px solid var(--line-2);border-radius:10px;padding:8px 10px;font-variant-numeric:tabular-nums}
+.pv-col{display:grid;grid-template-rows:auto auto auto;gap:3px;min-width:52px;padding:2px 4px;border-radius:6px;text-align:center}
+.pv-col.now{background:var(--surface-2);outline:2px solid var(--me)}
+.pv-head{min-width:auto;text-align:left;color:var(--muted);font-size:12px;font-weight:600;text-transform:capitalize}
+.pv-s{font:600 11px/1.2 var(--mono);color:var(--muted)}
+.pv-was{font-size:13px;color:var(--ink-2)}
+.pv-today{font-size:15px;font-weight:700;color:var(--muted)}
+.pv-today.did{color:var(--ink)}
+.pv-today.up{color:var(--good)}
+.pv-today.down{color:var(--bad)}
+.pl-prev small{font-weight:500;font-size:.85em}
 .pl-track{width:100%;display:grid;gap:6px}
 .tk-row{list-style:none;margin:0;padding:2px 2px 4px;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;position:relative;justify-content:safe center}
 .tk-row::-webkit-scrollbar{display:none}
@@ -3190,8 +3201,9 @@ function openPlayer(w){
   run = { w: ww, steps: flatten(ww), i: 0, phase: "preview", startedAt: null, until: null, log: {}, cur: null, athlete: me, rpe: null, extra: "", swapped, tuned };
   saveRun(); showPlayer();
 }
-/* weights start from what you actually lifted last time on that exercise: the same weight if some set
-   fell short of the target reps, a step up if every set reached it */
+/* weights start from what you actually lifted last time on that exercise, set by set: each set is
+   compared with the same set last time. Reached the target reps → a step up in weight; fell short → same
+   weight and one rep more. it.prev keeps last time's sets and it.plan today's target for every set. */
 const BIG_LIFTS = new Set(["Prensa", "Hip thrust", "Sentadilla", "Peso muerto", "Peso muerto rumano", "Sentadilla búlgara"]);
 function tuneFromHistory(w){
   let n = 0;
@@ -3200,11 +3212,15 @@ function tuneFromHistory(w){
     const { last } = bestFor(me, it.ejercicio); if (!last || !last.sets.length) continue;
     const top = Math.max(...last.sets.map(x => num(x.kg)));
     if (!top) continue; // bodyweight: nothing to carry over
-    const reached = last.sets.filter(x => num(x.kg) === top).every(x => num(x.reps) >= num(it.reps));
-    const step = BIG_LIFTS.has(canonicalName(it.ejercicio)) ? 5 : 2.5, kg = reached ? top + step : top;
-    it.reto = `La última vez (${relDay(last.date)}): ${setsLine(last.sets)}. Hoy ${fmt(kg, 2)} kg${reached ? ` (+${fmt(step, 1)}: lo completaste todo)` : ": repite y completa las repeticiones"}.`;
+    const step = BIG_LIFTS.has(canonicalName(it.ejercicio)) ? 5 : 2.5;
+    it.prev = { date: last.date, sets: last.sets.map(x => ({ kg: num(x.kg), reps: num(x.reps) })) };
+    it.plan = Array.from({ length: it.series }, (_, i) => {
+      const p = it.prev.sets[Math.min(i, it.prev.sets.length - 1)];
+      return num(p.reps) >= num(it.reps) ? { kg: p.kg + step, reps: num(it.reps) } : { kg: p.kg, reps: Math.min(num(it.reps), num(p.reps) + 1) };
+    });
+    it.reto = `La última vez (${relDay(last.date)}): ${it.prev.sets.map(x => `${fmt(x.kg, 2)}×${x.reps}`).join(" · ")}. Hoy: ${it.plan.map(x => `${fmt(x.kg, 2)}×${x.reps}`).join(" · ")}.`;
     n++;
-    it.kg = kg;
+    it.kg = it.plan[0].kg;
   }
   return n;
 }
@@ -3243,6 +3259,26 @@ function say(text){
 }
 function buzz(){ try { navigator.vibrate?.([220, 120, 220]); } catch {} }
 const target = it => it.modo === "reps" ? `${it.reps} reps${it.kg ? ` × ${fmt(it.kg, 2)} kg` : ""}` : it.modo === "tiempo" ? `${it.segundos} s` : `${it.metros} m`;
+// what set s (1, 2…) of an item asks for: its own target when the weights come from last time
+const planned = (it, s) => { const p = it.plan && it.plan[s - 1]; return { reps: p ? p.reps : it.reps, kg: p ? p.kg : it.kg, secs: it.segundos, meters: it.metros }; };
+/* last time next to today, set by set: what you did in each set then and what you do (or did) now,
+   with an arrow when you beat it */
+function prevHTML(st, cur){
+  const it = itemOf(st), s = st.s;
+  if (it.modo !== "reps" || !me) return "";
+  const last = it.prev || bestFor(me, it.ejercicio).last; if (!last || !last.sets.length) return "";
+  const done = run.log[keyOf(st)] || [];
+  const n = Math.max(it.series, last.sets.length), d = parseISO(last.date);
+  const cell = x => x ? `${fmt(x.kg, 2)}<small>×${x.reps}</small>` : "–";
+  const cmp = (a, b) => !a || !b ? "" : a.kg > b.kg || (a.kg === b.kg && a.reps > b.reps) ? "up" : a.kg === b.kg && a.reps === b.reps ? "eq" : "down";
+  const cols = Array.from({ length: n }, (_, i) => {
+    const was = last.sets[i], did = done[i] ? { kg: num(done[i].kg), reps: num(done[i].reps) } : null, plan = i < it.series ? planned(it, i + 1) : null;
+    const c = did ? cmp(did, was) : "";
+    return `<div class="pv-col ${i === s - 1 ? "now" : ""}"><span class="pv-s">S${i + 1}</span><span class="pv-was">${cell(was)}</span><span class="pv-today ${did ? "did " + c : ""}">${did ? cell(did) + (c === "up" ? " ▲" : c === "down" ? " ▼" : "") : plan ? cell(plan) : "–"}</span></div>`;
+  }).join("");
+  return `<div class="pl-prev" role="table" aria-label="Series de la última vez y de hoy">
+    <div class="pv-col pv-head"><span class="pv-s"></span><span class="pv-was">${esc(DIA[d.getDay()])} ${d.getDate()}</span><span class="pv-today">Hoy</span></div>${cols}</div>`;
+}
 const mmssS = s => { const t = Math.max(0, Math.ceil(s)); return `${Math.floor(t / 60)}:${pad(t % 60)}`; };
 
 /* rendering */
@@ -3296,7 +3332,7 @@ function renderPlayer(){
     body = summaryHTML();
   } else {
     const next = run.steps[run.i + 1];
-    const cur = run.cur || { reps: it.reps, kg: it.kg, secs: it.segundos, meters: it.metros };
+    const cur = run.cur || planned(it, st.s);
     run.cur = cur;
     const mine = it.modo === "reps" ? bestFor(me, it.ejercicio).b : null, his = it.modo === "reps" ? bestFor(OTHER[me], it.ejercicio).b : null;
     const resting = run.phase === "rest", working = run.phase === "work";
@@ -3310,6 +3346,7 @@ function renderPlayer(){
       <div class="eyebrow">${esc(w.bloques[dSt.bi].nombre)} · ${resting && next ? "a continuación" : "trabajas"}</div>
       <h2 class="mus-title">${esc(musNames(dMu.main) || dIt.ejercicio)}</h2>
       <div class="pl-how">${GUIDE[dIt.ejercicio] ? `<button type="button" class="pl-fig small figbtn" data-figzoom="${esc(dIt.ejercicio)}" aria-label="Ver en grande cómo se hace ${esc(dIt.ejercicio)}">${figMarkup(dIt.ejercicio)}</button>` : ""}<div><div class="muted" style="font-size:12px">cómo</div><b>${esc(dIt.ejercicio)}</b><div class="pl-set">Serie <b>${dSt.s}</b> de ${dIt.series} · <b>${target({ ...dIt, ...(dCur && dIt.modo === "reps" ? { reps: dCur.reps, kg: dCur.kg } : {}) })}</b></div></div></div>
+      ${prevHTML(dSt, dCur)}
       ${gripHTML(dIt.ejercicio)}
       ${noteHTML(dIt.ejercicio)}
       ${resting || working ? `<div class="ring ${resting ? "rest" : "work"}">
@@ -3318,7 +3355,7 @@ function renderPlayer(){
           ${resting ? `<div class="pl-next">${!next ? "Última serie hecha: <b>a terminar</b>" : newEx ? `Acabaste <b>${esc(it.ejercicio)}</b>. Prepara la máquina y pulsa «Estoy listo».` : `Siguiente: <b>serie ${next.s} de ${itemOf(next).series}</b>`}</div>${restEdit(st, next)}` : ""}`
         : `<div class="pl-map">${bodyMap(levelsFor([mu]))}</div>
           ${it.indicacion ? `<div class="pl-cue">${esc(it.indicacion)}</div>` : ""}
-          ${it.reto ? `<div class="reto big">${esc(it.reto)}</div>` : ""}
+          ${it.reto && !it.prev ? `<div class="reto big">${esc(it.reto)}</div>` : ""}
           ${mine || his ? `<div class="pl-best">${mine ? `<span><i class="dot ${me}"></i> Tu mejor: <b>${fmt(mine.kg, 2)} kg × ${mine.reps}</b></span>` : ""}${his ? `<span><i class="dot ${OTHER[me]}"></i> ${ATH[OTHER[me]]}: <b>${fmt(his.kg, 2)} kg × ${his.reps}</b></span>` : ""}</div>` : ""}
           ${steppersFor(it, cur, "cur")}`}
     </div>
@@ -3382,18 +3419,20 @@ function logSet(){
   if (!next) { finishRun(); return; }
   run.pausedLeft = null;
   const ni = itemOf(next);
-  run.nextCur = keyOf(next) === keyOf(st) ? { reps: num(c.reps), kg: num(c.kg), meters: c.meters } : { reps: ni.reps, kg: ni.kg, meters: ni.metros };
+  // the next set of the same exercise keeps what you just did, unless it has its own target from last time
+  run.nextCur = keyOf(next) === keyOf(st) && !ni.plan ? { reps: num(c.reps), kg: num(c.kg), meters: c.meters } : (({ reps, kg, meters }) => ({ reps, kg, meters }))(planned(ni, next.s));
   if (it.descanso_s > 0) { run.phase = "rest"; run.until = Date.now() + it.descanso_s * 1000; say(`Descanso. Siguiente: ${spokenStep(next)}`); }
   else advance();
   saveRun(); renderPlayer();
 }
-function endRest(){ buzz(); beep(); advance(); const st = run.steps[run.i]; if (st) say(`${spokenStep(st)}. ${target(itemOf(st))}`); saveRun(); renderPlayer(); }
+function endRest(){ buzz(); beep(); advance(); const st = run.steps[run.i]; if (st) say(`${spokenStep(st)}. ${target({ ...itemOf(st), ...(run.cur || {}) })}`); saveRun(); renderPlayer(); }
 function advance(){
   const prev = run.steps[run.i]; run.i++; run.until = null; run.pausedLeft = null;
   const st = run.steps[run.i]; if (!st) { finishRun(); return; }
   const it = itemOf(st), same = prev && keyOf(prev) === keyOf(st);
   const last = run.nextCur || (same ? run.cur : null);
-  run.cur = { reps: last ? last.reps : it.reps, kg: last ? last.kg : it.kg, secs: it.segundos, meters: last && last.meters != null ? last.meters : it.metros };
+  const def = planned(it, st.s);
+  run.cur = { reps: last ? last.reps : def.reps, kg: last ? last.kg : def.kg, secs: it.segundos, meters: last && last.meters != null ? last.meters : it.metros };
   run.nextCur = null;
   run.phase = "set";
 }

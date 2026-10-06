@@ -116,7 +116,10 @@ document.addEventListener("click", async e => {
   }
   else if (t.dataset.ckm) { const list = ck[t.dataset.ckm], k = t.dataset.k; const i = list.indexOf(k); if (i >= 0) list.splice(i, 1); else list.push(k); saveCk(); renderHoy(); }
   else if (t.dataset.hoy === "resume") showPlayer();
-  else if (t.dataset.hoy === "drop") { run = null; store.del("gym.run"); renderHoy(); }
+  else if (t.dataset.hoy === "drop") {
+    if (!confirm("¿Descartar este entreno? Se borra también lo que ya se había guardado de él.")) return;
+    dropRunDoc(); run = null; store.del("gym.run"); renderHoy();
+  }
   else if (t.dataset.hoy === "savepart") { showPlayer(); finishRun(); }
   else if (t.dataset.hoy === "last") { const m = chatMsgs("coach").slice().reverse().find(x => x.entreno); if (m) openPlayer(m.entreno); }
   else if (t.dataset.go) setTab(t.dataset.go);

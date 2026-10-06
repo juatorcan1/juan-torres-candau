@@ -440,6 +440,7 @@ function renderRecords(){
   $("#view-records").innerHTML = `
     <div style="display:grid;gap:18px">
       ${demoBanner()}
+      ${evoHTML()}
       <div class="panel">
         <div class="panel-head">
           <div><h2>Récords de fuerza</h2><div class="muted" style="font-size:13px;margin-top:2px">Mejor serie (más kilos), 1RM estimado (fórmula de Epley, series de hasta 12 reps) y máximo de repeticiones. Sin contar calentamiento. ● = va ganando.</div></div>
@@ -454,6 +455,7 @@ function renderRecords(){
         <div class="tscroll"><table><thead><tr><th>Récord</th><th class="n">Juan</th><th class="n">Ignacio</th></tr></thead><tbody>${cardioRows}</tbody></table></div>
       </div>
     </div>`;
+  renderEvoChart();
 }
 
 /* ---------- Registrar ---------- */
@@ -608,7 +610,7 @@ function updateLive(){
 }
 function bestFor(who, name){
   const key = normName(name); let b = null, last = null;
-  for (const s of data()) if (s.athlete === who && s.sport === "gym" && s.id !== draft.id) for (const e of s.exercises || []) {
+  for (const s of data()) if (s.athlete === who && s.sport === "gym" && s.id !== draft.id && !(typeof run !== "undefined" && run && s.id === run.sid)) for (const e of s.exercises || []) {
     if (normName(e.name) !== key) continue;
     const work = (e.sets || []).filter(x => !x.warmup && num(x.reps));
     if (work.length && (!last || s.date > last.date)) last = { date: s.date, sets: work };

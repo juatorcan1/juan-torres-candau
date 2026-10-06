@@ -249,7 +249,7 @@ function logSet(){
   run.nextCur = keyOf(next) === keyOf(st) && !ni.plan ? { reps: num(c.reps), kg: num(c.kg), meters: c.meters } : (({ reps, kg, meters }) => ({ reps, kg, meters }))(planned(ni, next.s));
   if (it.descanso_s > 0) { run.phase = "rest"; run.until = Date.now() + it.descanso_s * 1000; say(`Descanso. Siguiente: ${spokenStep(next)}`); }
   else advance();
-  saveRun(); renderPlayer();
+  saveRun(); renderPlayer(); syncRun();
 }
 function endRest(){ buzz(); beep(); advance(); const st = run.steps[run.i]; if (st) say(`${spokenStep(st)}. ${target({ ...itemOf(st), ...(run.cur || {}) })}`); saveRun(); renderPlayer(); }
 function advance(){
@@ -262,9 +262,19 @@ function advance(){
   run.nextCur = null;
   run.phase = "set";
 }
-function finishRun(){ run.phase = "done"; run.until = null;
+function finishRun(){ run.phase = "done"; run.until = null; setTimeout(syncRun, 0);
   // left half done and saved later: the workout ended with the last set, not now
   run.endedAt = run.lastAt && Date.now() - run.lastAt > 20 * 60000 ? run.lastAt : Date.now(); say("Entreno terminado. ¡Buen trabajo!"); saveRun(); renderPlayer(); }
+
+/* the workout goes to the database set by set (sesiones/<sid>, marked enCurso), so nothing is lost if
+   the phone dies, the page is closed or you forget to press save; saving at the end updates the same one */
+async function syncRun(){
+  if (!run || !me || run.athlete !== me || dbState !== "ready" || !Object.values(run.log).some(l => l.length)) return;
+  if (!run.sid) { run.sid = `run-${me}-${run.startedAt || Date.now()}`; saveRun(); }
+  const doc = runSession(), now = Date.now();
+  try { await db.doc("sesiones/" + run.sid).set({ ...doc, notes: doc.notes + " · sin terminar", enCurso: true, createdAt: run.startedAt || now, updatedAt: now }); } catch {}
+}
+async function dropRunDoc(){ const sid = run && run.sid; if (sid && dbState === "ready") { try { await db.doc("sesiones/" + sid).delete(); } catch {} } }
 
 /* summary and saving */
 function runSession(){
@@ -311,7 +321,7 @@ function summaryHTML(){
 async function saveRunSession(){
   const doc = runSession(); const now = Date.now();
   try {
-    await db.collection("sesiones").doc().set({ ...doc, createdAt: now, updatedAt: now });
+    await (run.sid ? db.doc("sesiones/" + run.sid) : db.collection("sesiones").doc()).set({ ...doc, createdAt: run.startedAt || now, updatedAt: now });
     const prs = prList(doc);
     closePlayer(true);
     toast(prs.length ? `Guardado. ¡${prs.length} récord${prs.length > 1 ? "s" : ""}! ${ATH[OTHER[me]]} ya lo ve.` : "Entreno guardado");
@@ -328,7 +338,7 @@ document.addEventListener("click", e => {
     const o = $(`#pl-${tgt}-${k}`); if (o) o.value = fmt(obj[k], 2); if (tgt === "last") refreshLastSum(); saveRun(); return;
   }
   if (t.dataset.rpe) { run.rpe = +t.dataset.rpe; saveRun(); renderPlayer(); return; }
-  if (a === "close") { if (run.phase === "preview") closePlayer(true); else { closePlayer(false); toast("Entreno en pausa: en Hoy lo continúas o guardas lo hecho"); } }
+  if (a === "close") { if (run.phase === "preview") closePlayer(true); else { syncRun(); closePlayer(false); toast("Entreno en pausa: ya está guardado lo que llevas. En Hoy lo continúas"); } }
   else if (a === "voice") { store.set("gym.voice", !voiceOn()); renderPlayer(); }
   else if (a === "start") { run.startedAt = Date.now(); advanceFromStart(); beep(); say(`Empezamos. ${spokenStep(run.steps[0])}. ${target(itemOf(run.steps[0]))}`); saveRun(); renderPlayer(); }
   else if (a === "done" || a === "workdone") logSet();

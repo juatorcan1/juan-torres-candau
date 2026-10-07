@@ -461,7 +461,14 @@ body.playing{overflow:hidden}
 .pweek{display:grid;gap:6px;margin-top:10px}
 .pday{display:grid;grid-template-columns:44px 1fr auto;gap:10px;align-items:center;padding:8px 10px;border-radius:9px;border:1px solid var(--line-2);background:var(--surface)}
 .pday.today{border:2px solid var(--me)}
-.pday.past{opacity:.6}
+.pday.past{background:var(--surface-2)}
+.pday.past .pd-date{opacity:.7}
+.pd-ses{display:grid;gap:6px;margin-top:8px}
+.pd-s{background:var(--surface);border:1px solid var(--line-2);border-radius:8px;padding:8px 10px}
+.pd-s-h{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;font-size:14px}
+.pd-s .row-btns{justify-content:flex-end;gap:6px;margin-top:6px}
+.pd-s-sum{white-space:pre-line;font-family:var(--mono);font-size:12px;color:var(--ink-2);margin-top:4px;line-height:1.5}
+.pd-ses .linkbtn{justify-self:start;font-size:13.5px}
 .pd-date{display:grid;justify-items:center;line-height:1.1}
 .pd-date b{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
 .pd-date span{font-family:var(--display);font-weight:800;font-size:22px}
@@ -2135,7 +2142,9 @@ async function submit(){
     const wasEdit = !!draft.id;
     draft = newDraft(draft.sport); store.del("gym.draft"); formErr = "";
     toast(wasEdit ? "Cambios guardados" : "Sesión guardada. " + (ATH[OTHER[me]]) + " ya puede verla.");
-    saving = false; setTab(wasEdit ? "historial" : "duelo");
+    // back to where the form was opened from (the plan), or to the history / the duel
+    const back = formReturn; formReturn = null;
+    saving = false; setTab(back || (wasEdit ? "historial" : "duelo"));
     return;
   } catch (e) {
     const c = e && e.code;
@@ -2181,7 +2190,7 @@ document.addEventListener("click", e => {
     if (a === "add-set") { const s = draft.exercises[i].sets; const last = s[s.length - 1]; s.push(last ? { ...last, warmup: false } : emptySet()); renderRegistrar(); setTimeout(() => $(`#s-${i}-${s.length - 1}-reps`)?.focus(), 0); }
     if (a === "del-set") { draft.exercises[i].sets.splice(j, 1); renderRegistrar(); }
     if (a === "reset") { const sp = draft.sport; const id = draft.id; draft = newDraft(sp); draft.id = id; formErr = ""; renderRegistrar(); }
-    if (a === "cancel-edit") { draft = newDraft(draft.sport); formErr = ""; renderRegistrar(); }
+    if (a === "cancel-edit") { draft = newDraft(draft.sport); formErr = ""; const back = formReturn; formReturn = null; if (back) setTab(back); else renderRegistrar(); }
     saveDraft(); return;
   }
   if (t.classList.contains("sess") && !e.target.closest(".sess-detail")) { toggleSess(t.dataset.sid); }
@@ -3095,7 +3104,7 @@ function renderPlan(){
   const dayRow = d => { const isToday = d.fecha === todayISO(), past = d.fecha < todayISO(), done = data().some(s => s.athlete === me && s.date === d.fecha);
     return `<div class="pday ${isToday ? "today" : ""} ${past ? "past" : ""}">
       <div class="pd-date"><b>${esc(d.dia.slice(0, 3))}</b><span>${parseISO(d.fecha).getDate()}</span></div>
-      <div class="pd-body"><div><b>${d.actividad === "descanso" ? "Descanso" : esc(d.foco || SPORTS[d.actividad] || d.actividad)}</b>${d.duracion_min ? ` <span class="muted">· ${d.duracion_min} min</span>` : ""}${done ? ' <span class="pill ok">hecho</span>' : ""}</div><div class="muted" style="font-size:13px">${esc(d.detalle)}</div></div>
+      <div class="pd-body"><div><b>${d.actividad === "descanso" ? "Descanso" : esc(d.foco || SPORTS[d.actividad] || d.actividad)}</b>${d.duracion_min ? ` <span class="muted">· ${d.duracion_min} min</span>` : ""}${done ? ' <span class="pill ok">hecho</span>' : ""}</div><div class="muted" style="font-size:13px">${esc(d.detalle)}</div>${daySessionsHTML(d.fecha)}</div>
       ${past && !done && d.actividad !== "descanso" ? `<button type="button" class="btn sm" data-log-day="${d.fecha}" data-mode="${d.entreno && (d.actividad === "gym" || d.actividad === "calistenia") ? "guided" : "form"}">Apuntar</button>`
         : d.actividad === "descanso" || past || (isToday && done) ? "" : d.entreno ? `<button type="button" class="btn sm ${isToday ? "primary" : ""}" data-plan-open="${d.fecha}">${isToday ? "Empezar" : "Ver"}</button>`
         : `<button type="button" class="btn sm ${isToday ? "primary" : ""}" data-plan-day="${d.fecha}">${isToday ? "Empezar" : "Preparar"}</button>`}
@@ -4379,7 +4388,9 @@ function missingHTML(){
   </div>`;
 }
 function logPastDay(fecha, mode){
-  const d = planDay(trainPlan(), fecha); if (!d || !me) return;
+  if (!me) return;
+  const d = planDay(trainPlan(), fecha) || { fecha, actividad: "gym" };
+  formReturn = tab;
   if (mode === "guided") {
     if (run && run.athlete === me && run.phase !== "preview") { toast("Antes guarda o descarta el entreno que tienes a medias"); return; }
     const w = normalizeWorkout(d.entreno); if (w) { openPlayer(w, { date: fecha, minutes: d.duracion_min }); return; }
@@ -4398,6 +4409,36 @@ function logPastDay(fecha, mode){
   toast(`Apuntas el ${dayName(fecha)}: cambia lo que no cuadre y guarda`);
 }
 document.addEventListener("click", e => { const t = e.target.closest("button[data-log-day]"); if (t) logPastDay(t.dataset.logDay, t.dataset.mode); });
+
+/* ---------- the plan as the place to fix any day ----------
+   Under every day up to today, what you logged that day, set by set, with Editar (the full form:
+   date, sport, minutes, every exercise and set), Borrar and «Añadir otra sesión». Saving or cancelling
+   brings you back to where you were. */
+let formReturn = null;
+function daySesText(s){
+  if (s.sport !== "gym") return sessionSummary(s);
+  return (s.exercises || []).map(e => (e.sets || []).every(x => !num(x.kg) && num(x.reps) <= 1) && e.notes ? `${e.name} ${e.notes}` : `${e.name} ${(e.sets || []).filter(x => !x.warmup && num(x.reps)).map(x => num(x.kg) ? `${fmt(num(x.kg), 2)}×${num(x.reps)}` : `${num(x.reps)}`).join(" · ")}`).join("\n");
+}
+function daySessionsHTML(fecha){
+  if (!me || fecha > todayISO()) return "";
+  const ss = real.filter(s => s.athlete === me && s.date === fecha);
+  if (!ss.length) return "";
+  // the workout still open in the player is continued there, not edited in the form (the player would overwrite it)
+  const live = s => s.enCurso && run && run.athlete === me && run.sid === s.id;
+  return `<div class="pd-ses">${ss.map(s => `<div class="pd-s">
+      <div class="pd-s-h"><b>${esc(SPORTS[s.sport] || s.sport)}</b>${num(s.minutes) ? ` · ${fmt(num(s.minutes))} min` : ""}${s.enCurso ? ` · <span class="muted">sin terminar</span>` : ""}</div>
+      <div class="pd-s-sum">${esc(daySesText(s))}</div>
+      <div class="row-btns">${live(s) ? `<button type="button" class="btn sm primary" data-hoy="resume">Continuar</button>` : `<button type="button" class="btn sm" data-day-edit="${esc(s.id)}">Editar</button>`}<button type="button" class="btn sm ghost" data-day-del="${esc(s.id)}" aria-label="Borrar esta sesión">Borrar</button></div></div>`).join("")}
+    <button type="button" class="linkbtn" data-log-day="${fecha}" data-mode="form">+ Añadir otra sesión</button></div>`;
+}
+document.addEventListener("click", e => {
+  const t = e.target.closest("button[data-day-edit],button[data-day-del]"); if (!t) return;
+  if (t.dataset.dayEdit) { formReturn = tab; loadForEdit(t.dataset.dayEdit); return; }
+  const s = real.find(x => x.id === t.dataset.dayDel); if (!s || s.athlete !== me) return;
+  if (!confirm(`¿Borrar ${SPORTS[s.sport] || "la sesión"} del ${dayName(s.date)}? No se puede deshacer.`)) return;
+  if (run && run.sid === s.id) { run = null; store.del("gym.run"); }
+  db.collection("sesiones").doc(s.id).delete().then(() => toast("Sesión borrada")).catch(() => toast("No se ha podido borrar"));
+});
 
 /* ===== 99-boot.js ===== */
 /* ---------- navigation ---------- */

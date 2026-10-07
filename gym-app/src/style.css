@@ -455,7 +455,14 @@ body.playing{overflow:hidden}
 .pweek{display:grid;gap:6px;margin-top:10px}
 .pday{display:grid;grid-template-columns:44px 1fr auto;gap:10px;align-items:center;padding:8px 10px;border-radius:9px;border:1px solid var(--line-2);background:var(--surface)}
 .pday.today{border:2px solid var(--me)}
-.pday.past{opacity:.6}
+.pday.past{background:var(--surface-2)}
+.pday.past .pd-date{opacity:.7}
+.pd-ses{display:grid;gap:6px;margin-top:8px}
+.pd-s{background:var(--surface);border:1px solid var(--line-2);border-radius:8px;padding:8px 10px}
+.pd-s-h{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;font-size:14px}
+.pd-s .row-btns{justify-content:flex-end;gap:6px;margin-top:6px}
+.pd-s-sum{white-space:pre-line;font-family:var(--mono);font-size:12px;color:var(--ink-2);margin-top:4px;line-height:1.5}
+.pd-ses .linkbtn{justify-self:start;font-size:13.5px}
 .pd-date{display:grid;justify-items:center;line-height:1.1}
 .pd-date b{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
 .pd-date span{font-family:var(--display);font-weight:800;font-size:22px}

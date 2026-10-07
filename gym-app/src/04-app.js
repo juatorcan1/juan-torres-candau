@@ -685,7 +685,9 @@ async function submit(){
     const wasEdit = !!draft.id;
     draft = newDraft(draft.sport); store.del("gym.draft"); formErr = "";
     toast(wasEdit ? "Cambios guardados" : "Sesión guardada. " + (ATH[OTHER[me]]) + " ya puede verla.");
-    saving = false; setTab(wasEdit ? "historial" : "duelo");
+    // back to where the form was opened from (the plan), or to the history / the duel
+    const back = formReturn; formReturn = null;
+    saving = false; setTab(back || (wasEdit ? "historial" : "duelo"));
     return;
   } catch (e) {
     const c = e && e.code;
@@ -731,7 +733,7 @@ document.addEventListener("click", e => {
     if (a === "add-set") { const s = draft.exercises[i].sets; const last = s[s.length - 1]; s.push(last ? { ...last, warmup: false } : emptySet()); renderRegistrar(); setTimeout(() => $(`#s-${i}-${s.length - 1}-reps`)?.focus(), 0); }
     if (a === "del-set") { draft.exercises[i].sets.splice(j, 1); renderRegistrar(); }
     if (a === "reset") { const sp = draft.sport; const id = draft.id; draft = newDraft(sp); draft.id = id; formErr = ""; renderRegistrar(); }
-    if (a === "cancel-edit") { draft = newDraft(draft.sport); formErr = ""; renderRegistrar(); }
+    if (a === "cancel-edit") { draft = newDraft(draft.sport); formErr = ""; const back = formReturn; formReturn = null; if (back) setTab(back); else renderRegistrar(); }
     saveDraft(); return;
   }
   if (t.classList.contains("sess") && !e.target.closest(".sess-detail")) { toggleSess(t.dataset.sid); }

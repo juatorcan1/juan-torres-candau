@@ -21,7 +21,9 @@ function missingHTML(){
   </div>`;
 }
 function logPastDay(fecha, mode){
-  const d = planDay(trainPlan(), fecha); if (!d || !me) return;
+  if (!me) return;
+  const d = planDay(trainPlan(), fecha) || { fecha, actividad: "gym" };
+  formReturn = tab;
   if (mode === "guided") {
     if (run && run.athlete === me && run.phase !== "preview") { toast("Antes guarda o descarta el entreno que tienes a medias"); return; }
     const w = normalizeWorkout(d.entreno); if (w) { openPlayer(w, { date: fecha, minutes: d.duracion_min }); return; }
@@ -40,3 +42,33 @@ function logPastDay(fecha, mode){
   toast(`Apuntas el ${dayName(fecha)}: cambia lo que no cuadre y guarda`);
 }
 document.addEventListener("click", e => { const t = e.target.closest("button[data-log-day]"); if (t) logPastDay(t.dataset.logDay, t.dataset.mode); });
+
+/* ---------- the plan as the place to fix any day ----------
+   Under every day up to today, what you logged that day, set by set, with Editar (the full form:
+   date, sport, minutes, every exercise and set), Borrar and «Añadir otra sesión». Saving or cancelling
+   brings you back to where you were. */
+let formReturn = null;
+function daySesText(s){
+  if (s.sport !== "gym") return sessionSummary(s);
+  return (s.exercises || []).map(e => (e.sets || []).every(x => !num(x.kg) && num(x.reps) <= 1) && e.notes ? `${e.name} ${e.notes}` : `${e.name} ${(e.sets || []).filter(x => !x.warmup && num(x.reps)).map(x => num(x.kg) ? `${fmt(num(x.kg), 2)}×${num(x.reps)}` : `${num(x.reps)}`).join(" · ")}`).join("\n");
+}
+function daySessionsHTML(fecha){
+  if (!me || fecha > todayISO()) return "";
+  const ss = real.filter(s => s.athlete === me && s.date === fecha);
+  if (!ss.length) return "";
+  // the workout still open in the player is continued there, not edited in the form (the player would overwrite it)
+  const live = s => s.enCurso && run && run.athlete === me && run.sid === s.id;
+  return `<div class="pd-ses">${ss.map(s => `<div class="pd-s">
+      <div class="pd-s-h"><b>${esc(SPORTS[s.sport] || s.sport)}</b>${num(s.minutes) ? ` · ${fmt(num(s.minutes))} min` : ""}${s.enCurso ? ` · <span class="muted">sin terminar</span>` : ""}</div>
+      <div class="pd-s-sum">${esc(daySesText(s))}</div>
+      <div class="row-btns">${live(s) ? `<button type="button" class="btn sm primary" data-hoy="resume">Continuar</button>` : `<button type="button" class="btn sm" data-day-edit="${esc(s.id)}">Editar</button>`}<button type="button" class="btn sm ghost" data-day-del="${esc(s.id)}" aria-label="Borrar esta sesión">Borrar</button></div></div>`).join("")}
+    <button type="button" class="linkbtn" data-log-day="${fecha}" data-mode="form">+ Añadir otra sesión</button></div>`;
+}
+document.addEventListener("click", e => {
+  const t = e.target.closest("button[data-day-edit],button[data-day-del]"); if (!t) return;
+  if (t.dataset.dayEdit) { formReturn = tab; loadForEdit(t.dataset.dayEdit); return; }
+  const s = real.find(x => x.id === t.dataset.dayDel); if (!s || s.athlete !== me) return;
+  if (!confirm(`¿Borrar ${SPORTS[s.sport] || "la sesión"} del ${dayName(s.date)}? No se puede deshacer.`)) return;
+  if (run && run.sid === s.id) { run = null; store.del("gym.run"); }
+  db.collection("sesiones").doc(s.id).delete().then(() => toast("Sesión borrada")).catch(() => toast("No se ha podido borrar"));
+});

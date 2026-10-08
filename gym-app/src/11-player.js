@@ -277,7 +277,14 @@ async function syncRun(){
   if (!run || !me || run.athlete !== me || dbState !== "ready" || !Object.values(run.log).some(l => l.length)) return;
   if (!run.sid) { run.sid = `run-${me}-${run.startedAt || Date.now()}`; saveRun(); }
   const doc = runSession(), now = Date.now();
-  try { await db.doc("sesiones/" + run.sid).set({ ...doc, notes: doc.notes + " · sin terminar", enCurso: true, guia: guiaOf(run.w), createdAt: run.startedAt || now, updatedAt: now }); } catch {}
+  try { await db.doc("sesiones/" + run.sid).set({ ...doc, notes: doc.notes + " · sin terminar", enCurso: true, guia: guiaOf(run.w), createdAt: run.startedAt || now, updatedAt: now }); run.syncedAt = now; saveRun(); } catch {}
+}
+/* a workout left open on this phone whose session was finished or edited somewhere else (the form, the
+   plan, another device) is the old copy: drop it instead of writing it over the newer one */
+function dropStaleRun(){
+  if (!run || !run.sid || run.athlete !== me || playerOpen()) return;
+  const s = real.find(x => x.id === run.sid);
+  if (s && !s.enCurso && num(s.updatedAt) > num(run.syncedAt) + 1000) { run = null; store.del("gym.run"); }
 }
 // the workout itself goes with the session, so it can be carried on later (without last time's numbers)
 const guiaOf = w => JSON.parse(JSON.stringify(w, (k, v) => k === "prev" || k === "plan" || k === "reto" ? undefined : v));

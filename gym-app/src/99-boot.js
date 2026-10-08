@@ -67,7 +67,7 @@ resumePlayer();
   if (!db) { dbState = "none"; onData(); return; }
   const fail = () => { dbState = "none"; onData(); };
   const sub = (name, fn) => db.collection(name).onSnapshot(snap => { fn(snap.docs.map(d => ({ id: d.id, ...d.data() }))); const first = dbState !== "ready"; dbState = "ready"; if (first) renderAll(); else onData(); }, fail);
-  sub("sesiones", rows => { real = rows.filter(s => ATH[s.athlete] && s.date); });
+  sub("sesiones", rows => { real = rows.filter(s => ATH[s.athlete] && s.date); dropStaleRun(); });
   sub("pesajes", rows => { weights = rows.filter(w => ATH[w.athlete] && w.date && num(w.kg) > 0); });
   sub("bebidas", rows => { drinks = rows.filter(d => ATH[d.athlete] && d.date && Object.keys(d.counts || {}).length); });
   sub("perfiles", rows => { profiles = {}; for (const r of rows) if (ATH[r.id]) profiles[r.id] = r; });

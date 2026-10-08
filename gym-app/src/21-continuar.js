@@ -44,7 +44,7 @@ function continueSession(id){
   const s = real.find(x => x.id === id); if (!s) return;
   if (run && run.athlete === me && run.phase !== "preview" && run.sid !== id) { toast("Antes guarda o descarta el entreno que tienes a medias"); return; }
   const r = runFromSession(s); if (!r) { toast("Ese entreno ya está completo"); return; }
-  run = r; run.resumedAt = Date.now(); run.lastAt = Date.now();
+  run = r; run.resumedAt = Date.now(); run.lastAt = Date.now(); run.syncedAt = Date.now();
   // weights from your history, without counting this same session as "last time"
   const at = run.steps[run.i], items = run.w.bloques.flatMap(b => b.items);
   const done = new Set(Object.entries(run.log).filter(([, l]) => l.length).map(([k]) => k));

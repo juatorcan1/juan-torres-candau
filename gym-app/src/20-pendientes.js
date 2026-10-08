@@ -72,3 +72,46 @@ document.addEventListener("click", e => {
   if (run && run.sid === s.id) { run = null; store.del("gym.run"); }
   db.collection("sesiones").doc(s.id).delete().then(() => toast("Sesión borrada")).catch(() => toast("No se ha podido borrar"));
 });
+
+/* ---------- "we trained together": copy the other one's gym sessions ----------
+   For whoever did exactly the same workouts as the other: one tap replaces your gym sessions with copies
+   of theirs (every exercise, set, weight and rep, on the same days), and takes their extra sets too.
+   Each copy is your own session (copia-<their id>), so you can edit it afterwards. */
+const isCopyOf = (mine, theirs) => mine.copiaDe === theirs.id && num(mine.copiadoEn) >= num(theirs.updatedAt);
+function copyTargets(){
+  if (!me || dbState !== "ready") return [];
+  const other = OTHER[me];
+  const no = store.get("gym.nocopy", []);
+  return real.filter(s => s.athlete === other && s.sport === "gym" && !s.enCurso && !no.includes(s.id))
+    .filter(t => !(t.copiaDe && real.some(m => m.id === t.copiaDe))) // their copies of my own sessions
+    .filter(t => !real.some(m => m.athlete === me && m.date === t.date && isCopyOf(m, t)));
+}
+function copyOtherHTML(){
+  const ts = copyTargets(); if (!ts.length) return "";
+  const days = [...new Set(ts.map(t => t.date))].sort();
+  return `<div class="panel copy-other"><div class="panel-head" style="margin-bottom:6px"><h2>¿Entrenasteis juntos?</h2></div>
+    <p class="muted" style="margin:0 0 10px;font-size:13.5px">${ATH[OTHER[me]]} tiene ${days.length} día${days.length > 1 ? "s" : ""} de gimnasio que tú no tienes igual (${days.map(d => esc(dayName(d))).join(", ")}). Si hicisteis lo mismo, copia sus ejercicios, series, pesos y repeticiones: sustituyen a tus sesiones de gimnasio de esos días.</p>
+    <div class="row-btns"><button type="button" class="btn primary" data-copy-other="all">Copiar los entrenos de ${ATH[OTHER[me]]}</button><button type="button" class="btn ghost" data-copy-no="${esc(ts.map(t => t.id).join(","))}">No, cada uno lo suyo</button></div></div>`;
+}
+async function copyFromOther(){
+  const other = OTHER[me], src = copyTargets(); if (!src.length) return;
+  const days = new Set(src.map(s => s.date));
+  if (!confirm(`Se borran tus sesiones de gimnasio de ${days.size} día${days.size > 1 ? "s" : ""} y se ponen las de ${ATH[other]}. ¿Seguimos?`)) return;
+  const mine = real.filter(s => s.athlete === me && s.sport === "gym" && days.has(s.date));
+  if (run && run.athlete === me && mine.some(s => s.id === run.sid)) { run = null; store.del("gym.run"); }
+  try {
+    for (const s of mine) await db.collection("sesiones").doc(s.id).delete();
+    for (const s of src) {
+      const { id, enCurso, ...d } = s, now = Date.now();
+      await db.doc(`sesiones/copia-${id}`).set({ ...d, athlete: me, copiaDe: id, copiadoEn: now, createdAt: s.createdAt || now, updatedAt: now });
+    }
+    const ex = profiles[other] && profiles[other].extraSeries;
+    if (ex && Object.keys(ex).length) await db.doc("perfiles/" + me).set({ ...profileDoc(me), extraSeries: { ...ex }, updatedAt: Date.now() });
+    toast(`Copiados ${src.length} entreno${src.length > 1 ? "s" : ""} de ${ATH[other]}`);
+  } catch { toast("No se ha podido copiar todo. Prueba otra vez."); }
+}
+document.addEventListener("click", e => {
+  if (e.target.closest("button[data-copy-other]")) { copyFromOther(); return; }
+  const t = e.target.closest("button[data-copy-no]"); if (!t) return;
+  store.set("gym.nocopy", [...new Set([...store.get("gym.nocopy", []), ...t.dataset.copyNo.split(",")])]); renderView();
+});

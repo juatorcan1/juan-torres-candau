@@ -266,6 +266,7 @@ function renderPlan(){
         : `<button type="button" class="btn sm ${isToday ? "primary" : ""}" data-plan-day="${d.fecha}">${isToday ? "Empezar" : "Preparar"}</button>`}
     </div>`; };
   v.innerHTML = `<div style="display:grid;gap:18px">
+    ${copyOtherHTML()}
     ${p ? `<div class="panel"><div class="panel-head"><div><h2>${esc(p.titulo)}</h2><div class="muted" style="font-size:13px;margin-top:2px">Plan ${p.tipo === "mes" ? "mensual" : "semanal"} de ${ATH[me]}${p.nota ? " · " + esc(p.nota) : ""}</div></div>
         <div class="row-btns"><button type="button" class="btn sm" data-say="coach" data-text="Hazme un plan semanal nuevo">Nuevo semanal</button><button type="button" class="btn sm" data-say="coach" data-text="Hazme un plan de un mes">Nuevo mensual</button></div></div>
       ${(() => { // weeks already over fold away, so the plan opens on this week

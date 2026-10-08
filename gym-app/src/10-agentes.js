@@ -40,6 +40,7 @@ function athleteContext(who){
     pr.prefEntreno ? `Lo que le gusta y quiere: ${String(pr.prefEntreno).slice(0, 400)}` : "",
     notesText(who) ? `Sus notas de ejercicios (respétalas): ${notesText(who).slice(0, 800)}` : "",
     gripsText(who) ? `Agarres que usa: ${gripsText(who)}` : "",
+    extrasText(who) ? `Series de más que quiere siempre (súmalas a lo que pongas): ${extrasText(who)}` : "",
     `Objetivo de dieta: ${t.kcal} kcal, ${t.prot} g proteína, ${t.carbs} g hidratos, ${t.fat} g grasa. Hace ${freqText(who)}.`,
     `Mejores series: ${Object.entries(best).map(([k, b]) => `${k} ${b.kg ? fmt(b.kg, 1) + " kg × " : ""}${b.reps}`).join("; ") || "sin datos"}.`,
     `Últimas sesiones:\n${lines.join("\n") || "ninguna"}`

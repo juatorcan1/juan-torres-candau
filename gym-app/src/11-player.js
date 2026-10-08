@@ -23,6 +23,7 @@ function saveRun(){ store.set("gym.run", run); }
 function openPlayer(w, opts = {}){
   if (!me) { toast("Elige primero quién eres"); return; }
   const { w: ww, swapped } = autoSwap(w);
+  applyExtras(ww);
   const tuned = tuneFromHistory(ww);
   swap = null; fixOpen = false;
   const forDate = opts.date && opts.date < todayISO() ? opts.date : null;
@@ -194,7 +195,7 @@ function renderPlayer(){
         : working ? `<button type="button" class="btn ${paused ? "primary" : ""}" data-pl="pause">${paused ? "▶ Seguir" : "❚❚ Pausar"}</button><button type="button" class="btn primary big" data-pl="workdone">Hecho</button>`
         : it.modo === "tiempo" ? `<button type="button" class="btn primary big" data-pl="work">Empezar ${it.segundos} s</button>`
         : `<button type="button" class="btn primary big" data-pl="done">Serie hecha</button>`}
-      <div class="pl-aux">${resting || run.i > 0 ? `<button type="button" class="linkbtn" data-pl="back">◀ Anterior</button>` : ""}${resting ? `<button type="button" class="linkbtn" data-pl="plus">+30 s</button>` : ""}<button type="button" class="linkbtn" data-pl="skipex">Saltar ejercicio</button>${working ? "" : resting ? (next ? `<button type="button" class="linkbtn" data-swap-item="${next.bi}.${next.ii}">Cambiar el siguiente</button>` : "") : `<button type="button" class="linkbtn" data-swap-item="${st.bi}.${st.ii}">Cambiar ejercicio</button>`}<button type="button" class="linkbtn" data-pl="finish">Terminar y guardar</button></div>
+      <div class="pl-aux">${resting || run.i > 0 ? `<button type="button" class="linkbtn" data-pl="back">◀ Anterior</button>` : ""}${resting ? `<button type="button" class="linkbtn" data-pl="plus">+30 s</button>` : ""}<button type="button" class="linkbtn" data-pl="addset">+ Serie</button><button type="button" class="linkbtn" data-pl="skipex">Saltar ejercicio</button>${working ? "" : resting ? (next ? `<button type="button" class="linkbtn" data-swap-item="${next.bi}.${next.ii}">Cambiar el siguiente</button>` : "") : `<button type="button" class="linkbtn" data-swap-item="${st.bi}.${st.ii}">Cambiar ejercicio</button>`}<button type="button" class="linkbtn" data-pl="finish">Terminar y guardar</button></div>
     </div>`;
   }
   el.innerHTML = `<div class="pl-wrap">${head}${body}</div>${swapSheetHTML()}`;
@@ -363,7 +364,8 @@ let fixOpen = false;
 function fixSetsHTML(){
   const rows = run.w.bloques.flatMap((b, bi) => b.items.map((it, ii) => [it, bi + "." + ii])).filter(([it, k]) => it.modo === "reps" && (run.log[k] || []).length);
   if (!rows.length) return "";
-  return `<details class="pl-fix" ${fixOpen ? "open" : ""}><summary>Revisa y corrige las series</summary>${rows.map(([it, k]) => `<div class="fix-ex"><b>${esc(it.ejercicio)}</b><div class="fix-sets">${run.log[k].map((x, i) => `<span class="fix-set"><small>S${i + 1}</small><input class="stepin" data-fix="${k}:${i}:reps" inputmode="numeric" value="${fmt(num(x.reps))}" aria-label="${esc(it.ejercicio)}, serie ${i + 1}, repeticiones"><small>×</small><input class="stepin" data-fix="${k}:${i}:kg" inputmode="decimal" value="${fmt(num(x.kg), 2)}" aria-label="${esc(it.ejercicio)}, serie ${i + 1}, kilos"><small>kg</small></span>`).join("")}</div></div>`).join("")}</details>`;
+  return `<details class="pl-fix" ${fixOpen ? "open" : ""}><summary>Revisa y corrige las series</summary>${rows.map(([it, k]) => `<div class="fix-ex"><b>${esc(it.ejercicio)}</b><div class="fix-sets">${run.log[k].map((x, i) => `<span class="fix-set"><small>S${i + 1}</small><input class="stepin" data-fix="${k}:${i}:reps" inputmode="numeric" value="${fmt(num(x.reps))}" aria-label="${esc(it.ejercicio)}, serie ${i + 1}, repeticiones"><small>×</small><input class="stepin" data-fix="${k}:${i}:kg" inputmode="decimal" value="${fmt(num(x.kg), 2)}" aria-label="${esc(it.ejercicio)}, serie ${i + 1}, kilos"><small>kg</small></span>`).join("")}
+      <button type="button" class="btn sm ghost" data-addset="${k}" aria-label="Añadir una serie de ${esc(it.ejercicio)}">+ Serie</button></div>${alwaysHTML(it, run.log[k].length)}</div>`).join("")}</details>`;
 }
 document.addEventListener("change", e => {
   const f = e.target.dataset && e.target.dataset.fix; if (!f || !run) return;
@@ -399,6 +401,7 @@ document.addEventListener("click", e => {
   else if (a === "save") saveRunSession();
   else if (a === "discard") { if (run.sid && !confirm(dropAsk())) return; dropRunDoc(); closePlayer(true); }
   else if (a === "back") goBack();
+  else if (a === "addset") addSetNow();
 });
 function advanceFromStart(){ run.i = -1; advance(); }
 document.addEventListener("input", e => {

@@ -679,3 +679,5 @@ details.pl-edit[open] summary{margin-bottom:6px}
 .pweek-old{margin-bottom:6px}
 .pweek-old summary{cursor:pointer;font-weight:600;color:var(--ink-2);padding:6px 0}
 .pweek-old[open] summary{margin-bottom:8px}
+.fix-sets .btn{align-self:center}
+.fix-always{display:flex;align-items:center;gap:8px;flex-wrap:wrap}

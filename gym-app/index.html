@@ -3503,7 +3503,14 @@ async function syncRun(){
   if (!run || !me || run.athlete !== me || dbState !== "ready" || !Object.values(run.log).some(l => l.length)) return;
   if (!run.sid) { run.sid = `run-${me}-${run.startedAt || Date.now()}`; saveRun(); }
   const doc = runSession(), now = Date.now();
-  try { await db.doc("sesiones/" + run.sid).set({ ...doc, notes: doc.notes + " · sin terminar", enCurso: true, guia: guiaOf(run.w), createdAt: run.startedAt || now, updatedAt: now }); } catch {}
+  try { await db.doc("sesiones/" + run.sid).set({ ...doc, notes: doc.notes + " · sin terminar", enCurso: true, guia: guiaOf(run.w), createdAt: run.startedAt || now, updatedAt: now }); run.syncedAt = now; saveRun(); } catch {}
+}
+/* a workout left open on this phone whose session was finished or edited somewhere else (the form, the
+   plan, another device) is the old copy: drop it instead of writing it over the newer one */
+function dropStaleRun(){
+  if (!run || !run.sid || run.athlete !== me || playerOpen()) return;
+  const s = real.find(x => x.id === run.sid);
+  if (s && !s.enCurso && num(s.updatedAt) > num(run.syncedAt) + 1000) { run = null; store.del("gym.run"); }
 }
 // the workout itself goes with the session, so it can be carried on later (without last time's numbers)
 const guiaOf = w => JSON.parse(JSON.stringify(w, (k, v) => k === "prev" || k === "plan" || k === "reto" ? undefined : v));
@@ -4526,7 +4533,7 @@ function continueSession(id){
   const s = real.find(x => x.id === id); if (!s) return;
   if (run && run.athlete === me && run.phase !== "preview" && run.sid !== id) { toast("Antes guarda o descarta el entreno que tienes a medias"); return; }
   const r = runFromSession(s); if (!r) { toast("Ese entreno ya está completo"); return; }
-  run = r; run.resumedAt = Date.now(); run.lastAt = Date.now();
+  run = r; run.resumedAt = Date.now(); run.lastAt = Date.now(); run.syncedAt = Date.now();
   // weights from your history, without counting this same session as "last time"
   const at = run.steps[run.i], items = run.w.bloques.flatMap(b => b.items);
   const done = new Set(Object.entries(run.log).filter(([, l]) => l.length).map(([k]) => k));
@@ -4658,7 +4665,7 @@ resumePlayer();
   if (!db) { dbState = "none"; onData(); return; }
   const fail = () => { dbState = "none"; onData(); };
   const sub = (name, fn) => db.collection(name).onSnapshot(snap => { fn(snap.docs.map(d => ({ id: d.id, ...d.data() }))); const first = dbState !== "ready"; dbState = "ready"; if (first) renderAll(); else onData(); }, fail);
-  sub("sesiones", rows => { real = rows.filter(s => ATH[s.athlete] && s.date); });
+  sub("sesiones", rows => { real = rows.filter(s => ATH[s.athlete] && s.date); dropStaleRun(); });
   sub("pesajes", rows => { weights = rows.filter(w => ATH[w.athlete] && w.date && num(w.kg) > 0); });
   sub("bebidas", rows => { drinks = rows.filter(d => ATH[d.athlete] && d.date && Object.keys(d.counts || {}).length); });
   sub("perfiles", rows => { profiles = {}; for (const r of rows) if (ATH[r.id]) profiles[r.id] = r; });

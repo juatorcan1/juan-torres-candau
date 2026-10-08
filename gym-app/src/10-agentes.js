@@ -267,13 +267,27 @@ function renderPlan(){
   v.innerHTML = `<div style="display:grid;gap:18px">
     ${p ? `<div class="panel"><div class="panel-head"><div><h2>${esc(p.titulo)}</h2><div class="muted" style="font-size:13px;margin-top:2px">Plan ${p.tipo === "mes" ? "mensual" : "semanal"} de ${ATH[me]}${p.nota ? " · " + esc(p.nota) : ""}</div></div>
         <div class="row-btns"><button type="button" class="btn sm" data-say="coach" data-text="Hazme un plan semanal nuevo">Nuevo semanal</button><button type="button" class="btn sm" data-say="coach" data-text="Hazme un plan de un mes">Nuevo mensual</button></div></div>
-      ${p.semanas.map((w, i) => `<div class="pweek"><div class="eyebrow">Semana ${i + 1}${w.objetivo ? " · " + esc(w.objetivo) : ""}</div>${w.dias.map(dayRow).join("")}</div>`).join("")}</div>`
+      ${(() => { // weeks already over fold away, so the plan opens on this week
+        const mon = toISO(mondayOf(today())), wk = (w, i) => `<div class="pweek"><div class="eyebrow">Semana ${i + 1}${w.objetivo ? " · " + esc(w.objetivo) : ""}</div>${w.dias.map(dayRow).join("")}</div>`;
+        const over = p.semanas.map((w, i) => [w, i]).filter(([w]) => (w.dias || []).every(d => d.fecha < mon));
+        return (over.length ? `<details class="pweek-old"><summary>Semanas anteriores (${over.length})</summary>${over.map(([w, i]) => wk(w, i)).join("")}</details>` : "")
+          + p.semanas.map((w, i) => [w, i]).filter(([w]) => !(w.dias || []).every(d => d.fecha < mon)).map(([w, i]) => wk(w, i)).join(""); })()}</div>`
     : `<div class="panel empty-plan"><h2>Sin plan todavía</h2><p class="muted">Pídeselo a tu entrenador: tendrá en cuenta lo que has hecho, tu objetivo y cómo va ${ATH[OTHER[me]]}.</p>
       <div class="row-btns" style="justify-content:center"><button type="button" class="btn primary" data-say="coach" data-text="Hazme un plan semanal">Plan semanal</button><button type="button" class="btn" data-say="coach" data-text="Hazme un plan de un mes">Plan mensual</button></div>
       ${chatBusy.coach ? `<div class="thinking" style="justify-content:center;margin-top:12px"><span class="spin"></span>Preparando tu plan…</div>` : ""}</div>`}
     ${me ? dislikesHTML() : ""}
     ${o ? `<div class="panel"><div class="panel-head"><h2>El plan de ${ATH[OTHER[me]]}</h2></div>${(o.semanas[0] ? o.semanas.flatMap(w => w.dias).filter(d => d.fecha >= todayISO()).slice(0, 4) : []).map(d => `<div class="pday"><div class="pd-date"><b>${esc(d.dia.slice(0, 3))}</b><span>${parseISO(d.fecha).getDate()}</span></div><div class="pd-body"><b>${d.actividad === "descanso" ? "Descanso" : esc(d.foco || d.actividad)}</b> <span class="muted">${d.duracion_min ? "· " + d.duracion_min + " min" : ""}</span></div></div>`).join("")}</div>` : ""}
   </div>`;
+  if (planScrollPending && $("#view-plan .pday")) { planScrollPending = false; requestAnimationFrame(scrollPlanToToday); }
+}
+// set when the plan is opened; consumed by the first render that has days (the plan may load later)
+let planScrollPending = false;
+// opening the plan lands on today (or the next day of the plan), below the sticky scoreboard
+function scrollPlanToToday(){
+  const el = $("#view-plan .pday.today") || [...document.querySelectorAll("#view-plan .pday")].find(x => !x.classList.contains("past") && !x.closest("details"));
+  if (!el) return;
+  const strip = $(".strip"), off = (strip ? strip.offsetHeight : 0) + 12;
+  window.scrollTo({ top: Math.max(0, el.getBoundingClientRect().top + window.scrollY - off) });
 }
 /* a plan day that already carries its workout opens straight away */
 function openPlanDay(fecha){

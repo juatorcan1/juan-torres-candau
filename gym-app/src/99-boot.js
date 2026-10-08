@@ -13,6 +13,7 @@ function setTab(t){
   for (const b of document.querySelectorAll(".subnav button")) b.setAttribute("aria-selected", String(b.dataset.leaf === t));
   renderView();
   window.scrollTo({ top: 0 });
+  if (t === "plan") { planScrollPending = true; if ($("#view-plan .pday")) { planScrollPending = false; requestAnimationFrame(scrollPlanToToday); } }
 }
 function renderView(){
   staleView = false;

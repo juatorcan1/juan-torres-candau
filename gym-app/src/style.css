@@ -676,3 +676,6 @@ details.pl-edit[open] summary{margin-bottom:6px}
 .fix-set{display:inline-flex;align-items:center;gap:4px;background:var(--surface);border:1px solid var(--line-2);border-radius:8px;padding:4px 6px}
 .fix-set input{width:3.4em;text-align:center;font:600 15px var(--body);padding:4px 2px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink)}
 .fix-set small{color:var(--muted)}
+.pweek-old{margin-bottom:6px}
+.pweek-old summary{cursor:pointer;font-weight:600;color:var(--ink-2);padding:6px 0}
+.pweek-old[open] summary{margin-bottom:8px}

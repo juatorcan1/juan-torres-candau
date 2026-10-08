@@ -685,6 +685,8 @@ details.pl-edit[open] summary{margin-bottom:6px}
 .pweek-old{margin-bottom:6px}
 .pweek-old summary{cursor:pointer;font-weight:600;color:var(--ink-2);padding:6px 0}
 .pweek-old[open] summary{margin-bottom:8px}
+.fix-sets .btn{align-self:center}
+.fix-always{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 </style>
 <div class="wrap">
   <div class="brand">
@@ -2888,6 +2890,7 @@ function athleteContext(who){
     pr.prefEntreno ? `Lo que le gusta y quiere: ${String(pr.prefEntreno).slice(0, 400)}` : "",
     notesText(who) ? `Sus notas de ejercicios (respétalas): ${notesText(who).slice(0, 800)}` : "",
     gripsText(who) ? `Agarres que usa: ${gripsText(who)}` : "",
+    extrasText(who) ? `Series de más que quiere siempre (súmalas a lo que pongas): ${extrasText(who)}` : "",
     `Objetivo de dieta: ${t.kcal} kcal, ${t.prot} g proteína, ${t.carbs} g hidratos, ${t.fat} g grasa. Hace ${freqText(who)}.`,
     `Mejores series: ${Object.entries(best).map(([k, b]) => `${k} ${b.kg ? fmt(b.kg, 1) + " kg × " : ""}${b.reps}`).join("; ") || "sin datos"}.`,
     `Últimas sesiones:\n${lines.join("\n") || "ninguna"}`
@@ -3246,6 +3249,7 @@ function saveRun(){ store.set("gym.run", run); }
 function openPlayer(w, opts = {}){
   if (!me) { toast("Elige primero quién eres"); return; }
   const { w: ww, swapped } = autoSwap(w);
+  applyExtras(ww);
   const tuned = tuneFromHistory(ww);
   swap = null; fixOpen = false;
   const forDate = opts.date && opts.date < todayISO() ? opts.date : null;
@@ -3417,7 +3421,7 @@ function renderPlayer(){
         : working ? `<button type="button" class="btn ${paused ? "primary" : ""}" data-pl="pause">${paused ? "▶ Seguir" : "❚❚ Pausar"}</button><button type="button" class="btn primary big" data-pl="workdone">Hecho</button>`
         : it.modo === "tiempo" ? `<button type="button" class="btn primary big" data-pl="work">Empezar ${it.segundos} s</button>`
         : `<button type="button" class="btn primary big" data-pl="done">Serie hecha</button>`}
-      <div class="pl-aux">${resting || run.i > 0 ? `<button type="button" class="linkbtn" data-pl="back">◀ Anterior</button>` : ""}${resting ? `<button type="button" class="linkbtn" data-pl="plus">+30 s</button>` : ""}<button type="button" class="linkbtn" data-pl="skipex">Saltar ejercicio</button>${working ? "" : resting ? (next ? `<button type="button" class="linkbtn" data-swap-item="${next.bi}.${next.ii}">Cambiar el siguiente</button>` : "") : `<button type="button" class="linkbtn" data-swap-item="${st.bi}.${st.ii}">Cambiar ejercicio</button>`}<button type="button" class="linkbtn" data-pl="finish">Terminar y guardar</button></div>
+      <div class="pl-aux">${resting || run.i > 0 ? `<button type="button" class="linkbtn" data-pl="back">◀ Anterior</button>` : ""}${resting ? `<button type="button" class="linkbtn" data-pl="plus">+30 s</button>` : ""}<button type="button" class="linkbtn" data-pl="addset">+ Serie</button><button type="button" class="linkbtn" data-pl="skipex">Saltar ejercicio</button>${working ? "" : resting ? (next ? `<button type="button" class="linkbtn" data-swap-item="${next.bi}.${next.ii}">Cambiar el siguiente</button>` : "") : `<button type="button" class="linkbtn" data-swap-item="${st.bi}.${st.ii}">Cambiar ejercicio</button>`}<button type="button" class="linkbtn" data-pl="finish">Terminar y guardar</button></div>
     </div>`;
   }
   el.innerHTML = `<div class="pl-wrap">${head}${body}</div>${swapSheetHTML()}`;
@@ -3586,7 +3590,8 @@ let fixOpen = false;
 function fixSetsHTML(){
   const rows = run.w.bloques.flatMap((b, bi) => b.items.map((it, ii) => [it, bi + "." + ii])).filter(([it, k]) => it.modo === "reps" && (run.log[k] || []).length);
   if (!rows.length) return "";
-  return `<details class="pl-fix" ${fixOpen ? "open" : ""}><summary>Revisa y corrige las series</summary>${rows.map(([it, k]) => `<div class="fix-ex"><b>${esc(it.ejercicio)}</b><div class="fix-sets">${run.log[k].map((x, i) => `<span class="fix-set"><small>S${i + 1}</small><input class="stepin" data-fix="${k}:${i}:reps" inputmode="numeric" value="${fmt(num(x.reps))}" aria-label="${esc(it.ejercicio)}, serie ${i + 1}, repeticiones"><small>×</small><input class="stepin" data-fix="${k}:${i}:kg" inputmode="decimal" value="${fmt(num(x.kg), 2)}" aria-label="${esc(it.ejercicio)}, serie ${i + 1}, kilos"><small>kg</small></span>`).join("")}</div></div>`).join("")}</details>`;
+  return `<details class="pl-fix" ${fixOpen ? "open" : ""}><summary>Revisa y corrige las series</summary>${rows.map(([it, k]) => `<div class="fix-ex"><b>${esc(it.ejercicio)}</b><div class="fix-sets">${run.log[k].map((x, i) => `<span class="fix-set"><small>S${i + 1}</small><input class="stepin" data-fix="${k}:${i}:reps" inputmode="numeric" value="${fmt(num(x.reps))}" aria-label="${esc(it.ejercicio)}, serie ${i + 1}, repeticiones"><small>×</small><input class="stepin" data-fix="${k}:${i}:kg" inputmode="decimal" value="${fmt(num(x.kg), 2)}" aria-label="${esc(it.ejercicio)}, serie ${i + 1}, kilos"><small>kg</small></span>`).join("")}
+      <button type="button" class="btn sm ghost" data-addset="${k}" aria-label="Añadir una serie de ${esc(it.ejercicio)}">+ Serie</button></div>${alwaysHTML(it, run.log[k].length)}</div>`).join("")}</details>`;
 }
 document.addEventListener("change", e => {
   const f = e.target.dataset && e.target.dataset.fix; if (!f || !run) return;
@@ -3622,6 +3627,7 @@ document.addEventListener("click", e => {
   else if (a === "save") saveRunSession();
   else if (a === "discard") { if (run.sid && !confirm(dropAsk())) return; dropRunDoc(); closePlayer(true); }
   else if (a === "back") goBack();
+  else if (a === "addset") addSetNow();
 });
 function advanceFromStart(){ run.i = -1; advance(); }
 document.addEventListener("input", e => {
@@ -4530,6 +4536,57 @@ function continueSession(id){
   toast(`Sigues por ${itemOf(at).ejercicio}, serie ${at.s}: te quedan ${leftSets(run)} series`);
 }
 document.addEventListener("click", e => { const t = e.target.closest("button[data-continue]"); if (t) continueSession(t.dataset.continue); });
+
+/* ===== 22-series.js ===== */
+/* ---------- one more set ----------
+   «+ Serie» adds a set to the exercise you are on (or, in the summary, to any exercise). «Siempre con N
+   series» keeps it for every workout from then on, whatever the plan: perfiles/<who>.extraSeries =
+   { "Extensión en polea": 1, … }, added to that exercise each time a workout is opened. */
+const extraOf = (name, who = me) => { const x = profiles[who] && profiles[who].extraSeries; return Math.max(0, num(x && x[canonicalName(name)])); };
+const extrasText = who => Object.entries((profiles[who] && profiles[who].extraSeries) || {}).filter(([, n]) => num(n) > 0).map(([k, n]) => `${k} +${n}`).join("; ");
+function applyExtras(w){
+  for (const b of w.bloques) for (const it of b.items) {
+    it.base0 = it.series; const n = it.modo === "reps" ? extraOf(it.ejercicio) : 0;
+    if (n) { it.series += n; it.extra = n; }
+  }
+  return w;
+}
+async function saveExtra(name, n){
+  if (dbState !== "ready" || !me) return;
+  const extraSeries = { ...((profiles[me] && profiles[me].extraSeries) || {}) }, k = canonicalName(name);
+  if (n > 0) extraSeries[k] = n; else delete extraSeries[k];
+  const doc = { ...profileDoc(me), extraSeries, updatedAt: Date.now() };
+  profiles[me] = { id: me, ...doc };
+  try { await db.doc("perfiles/" + me).set(doc); toast(n > 0 ? `A partir de ahora, ${name} con ${n} serie${n > 1 ? "s" : ""} más` : `${name} vuelve a sus series normales`); }
+  catch { toast("No se ha podido guardar"); }
+  if (playerOpen()) renderPlayer();
+}
+// under each exercise of the summary: make today's extra sets the rule, or see that they already are
+function alwaysHTML(it, done){
+  const base = it.base0 != null ? it.base0 : run.resumedAt ? null : it.series - (it.extra || 0);
+  if (base == null) return "";
+  const want = done - base, has = extraOf(it.ejercicio);
+  if (has > 0 && want <= has) return `<div class="fix-always"><span class="pill ok">Siempre ${base + has} series</span><button type="button" class="linkbtn" data-always="${esc(it.ejercicio)}" data-n="0">Quitar</button></div>`;
+  return want > 0 ? `<div class="fix-always"><button type="button" class="btn sm" data-always="${esc(it.ejercicio)}" data-n="${want}">Siempre con ${done} series</button></div>` : "";
+}
+// one more set of the exercise on screen (in the rest: of the one you just did)
+function addSetNow(){
+  const st = run.steps[run.i]; if (!st) return;
+  const it = itemOf(st); it.series++;
+  run.steps = flatten(run.w); run.i = run.steps.findIndex(x => x.bi === st.bi && x.ii === st.ii && x.s === st.s);
+  if (run.phase === "rest") { const l = lastLog(); run.nextCur = l ? { reps: l.reps, kg: l.kg, meters: l.meters } : null; }
+  saveRun(); renderPlayer(); syncRun();
+  toast(`${it.ejercicio}: ahora ${it.series} series`);
+}
+document.addEventListener("click", e => {
+  const t = e.target.closest("button[data-addset],button[data-always]"); if (!t || !run) return;
+  e.preventDefault(); e.stopPropagation();
+  if (t.dataset.always) { fixOpen = true; saveExtra(t.dataset.always, +t.dataset.n); return; }
+  const k = t.dataset.addset, l = run.log[k]; if (!l || !l.length) return;
+  const [bi, ii] = k.split(".").map(Number), it = run.w.bloques[bi].items[ii];
+  l.push({ ...l[l.length - 1] }); it.series = Math.max(it.series, l.length); run.steps = flatten(run.w);
+  fixOpen = true; saveRun(); renderPlayer(); syncRun();
+}, true);
 
 /* ===== 99-boot.js ===== */
 /* ---------- navigation ---------- */

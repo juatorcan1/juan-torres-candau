@@ -61,7 +61,7 @@ function daySessionsHTML(fecha){
   return `<div class="pd-ses">${ss.map(s => `<div class="pd-s">
       <div class="pd-s-h"><b>${esc(SPORTS[s.sport] || s.sport)}</b>${num(s.minutes) ? ` · ${fmt(num(s.minutes))} min` : ""}${s.enCurso ? ` · <span class="muted">sin terminar</span>` : ""}</div>
       <div class="pd-s-sum">${esc(daySesText(s))}</div>
-      <div class="row-btns">${live(s) ? `<button type="button" class="btn sm primary" data-hoy="resume">Continuar</button>` : `<button type="button" class="btn sm" data-day-edit="${esc(s.id)}">Editar</button>`}<button type="button" class="btn sm ghost" data-day-del="${esc(s.id)}" aria-label="Borrar esta sesión">Borrar</button></div></div>`).join("")}
+      <div class="row-btns">${live(s) ? `<button type="button" class="btn sm primary" data-hoy="resume">Continuar</button>` : `${(c => c ? `<button type="button" class="btn sm primary" data-continue="${esc(s.id)}">Continuar · faltan ${leftSets(c)} series</button>` : "")(continuable(s))}<button type="button" class="btn sm" data-day-edit="${esc(s.id)}">Editar</button>`}<button type="button" class="btn sm ghost" data-day-del="${esc(s.id)}" aria-label="Borrar esta sesión">Borrar</button></div></div>`).join("")}
     <button type="button" class="linkbtn" data-log-day="${fecha}" data-mode="form">+ Añadir otra sesión</button></div>`;
 }
 document.addEventListener("click", e => {

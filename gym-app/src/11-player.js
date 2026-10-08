@@ -276,13 +276,26 @@ async function syncRun(){
   if (!run || !me || run.athlete !== me || dbState !== "ready" || !Object.values(run.log).some(l => l.length)) return;
   if (!run.sid) { run.sid = `run-${me}-${run.startedAt || Date.now()}`; saveRun(); }
   const doc = runSession(), now = Date.now();
-  try { await db.doc("sesiones/" + run.sid).set({ ...doc, notes: doc.notes + " · sin terminar", enCurso: true, createdAt: run.startedAt || now, updatedAt: now }); } catch {}
+  try { await db.doc("sesiones/" + run.sid).set({ ...doc, notes: doc.notes + " · sin terminar", enCurso: true, guia: guiaOf(run.w), createdAt: run.startedAt || now, updatedAt: now }); } catch {}
 }
-async function dropRunDoc(){ const sid = run && run.sid; if (sid && dbState === "ready") { try { await db.doc("sesiones/" + sid).delete(); } catch {} } }
+// the workout itself goes with the session, so it can be carried on later (without last time's numbers)
+const guiaOf = w => JSON.parse(JSON.stringify(w, (k, v) => k === "prev" || k === "plan" || k === "reto" ? undefined : v));
+// discarding a workout that was carried on keeps what had been saved (and what you added): it is only closed
+async function dropRunDoc(){
+  const sid = run && run.sid; if (!sid || dbState !== "ready") return;
+  try {
+    if (run.resumedAt) await db.doc("sesiones/" + sid).set({ ...runSession(), guia: guiaOf(run.w), createdAt: run.startedAt || Date.now(), updatedAt: Date.now() });
+    else await db.doc("sesiones/" + sid).delete();
+  } catch {}
+}
+const dropAsk = () => run && run.resumedAt ? "¿Lo dejas aquí? Se queda guardado lo que llevas." : "¿Descartar este entreno? Se borra también lo que ya se había guardado de él.";
 
 /* summary and saving */
 function runSession(){
-  const w = run.w, ex = [], mins = run.forDate && run.forMin ? run.forMin : Math.min(240, Math.max(1, Math.round(((run.endedAt || Date.now()) - (run.startedAt || Date.now())) / 60000)));
+  // a workout carried on later counts the minutes saved before plus the ones since it was resumed
+  const span = from => Math.round(((run.endedAt || Date.now()) - (from || Date.now())) / 60000);
+  const w = run.w, ex = [], mins = run.forDate && run.forMin ? run.forMin
+    : Math.min(240, Math.max(1, run.resumedAt ? num(run.prevMin) + span(run.resumedAt) : span(run.startedAt)));
   let meters = 0;
   w.bloques.forEach((b, bi) => b.items.forEach((it, ii) => {
     const l = run.log[bi + "." + ii]; if (!l || !l.length) return;
@@ -326,7 +339,7 @@ function summaryHTML(){
 async function saveRunSession(){
   const doc = runSession(); const now = Date.now();
   try {
-    await (run.sid ? db.doc("sesiones/" + run.sid) : db.collection("sesiones").doc()).set({ ...doc, createdAt: run.startedAt || now, updatedAt: now });
+    await (run.sid ? db.doc("sesiones/" + run.sid) : db.collection("sesiones").doc()).set({ ...doc, guia: guiaOf(run.w), createdAt: run.startedAt || now, updatedAt: now });
     const prs = prList(doc);
     closePlayer(true);
     toast(prs.length ? `Guardado. ¡${prs.length} récord${prs.length > 1 ? "s" : ""}! ${ATH[OTHER[me]]} ya lo ve.` : "Entreno guardado");
@@ -384,7 +397,7 @@ document.addEventListener("click", e => {
   else if (a === "skipex") { run.nextCur = null; const k = keyOf(run.steps[run.i]); while (run.steps[run.i] && keyOf(run.steps[run.i]) === k) run.i++; run.i--; advance(); saveRun(); renderPlayer(); }
   else if (a === "finish") finishRun();
   else if (a === "save") saveRunSession();
-  else if (a === "discard") { if (run.sid && !confirm("¿Descartar este entreno? Se borra también lo que ya se había guardado de él.")) return; dropRunDoc(); closePlayer(true); }
+  else if (a === "discard") { if (run.sid && !confirm(dropAsk())) return; dropRunDoc(); closePlayer(true); }
   else if (a === "back") goBack();
 });
 function advanceFromStart(){ run.i = -1; advance(); }

@@ -3482,13 +3482,26 @@ async function syncRun(){
   if (!run || !me || run.athlete !== me || dbState !== "ready" || !Object.values(run.log).some(l => l.length)) return;
   if (!run.sid) { run.sid = `run-${me}-${run.startedAt || Date.now()}`; saveRun(); }
   const doc = runSession(), now = Date.now();
-  try { await db.doc("sesiones/" + run.sid).set({ ...doc, notes: doc.notes + " · sin terminar", enCurso: true, createdAt: run.startedAt || now, updatedAt: now }); } catch {}
+  try { await db.doc("sesiones/" + run.sid).set({ ...doc, notes: doc.notes + " · sin terminar", enCurso: true, guia: guiaOf(run.w), createdAt: run.startedAt || now, updatedAt: now }); } catch {}
 }
-async function dropRunDoc(){ const sid = run && run.sid; if (sid && dbState === "ready") { try { await db.doc("sesiones/" + sid).delete(); } catch {} } }
+// the workout itself goes with the session, so it can be carried on later (without last time's numbers)
+const guiaOf = w => JSON.parse(JSON.stringify(w, (k, v) => k === "prev" || k === "plan" || k === "reto" ? undefined : v));
+// discarding a workout that was carried on keeps what had been saved (and what you added): it is only closed
+async function dropRunDoc(){
+  const sid = run && run.sid; if (!sid || dbState !== "ready") return;
+  try {
+    if (run.resumedAt) await db.doc("sesiones/" + sid).set({ ...runSession(), guia: guiaOf(run.w), createdAt: run.startedAt || Date.now(), updatedAt: Date.now() });
+    else await db.doc("sesiones/" + sid).delete();
+  } catch {}
+}
+const dropAsk = () => run && run.resumedAt ? "¿Lo dejas aquí? Se queda guardado lo que llevas." : "¿Descartar este entreno? Se borra también lo que ya se había guardado de él.";
 
 /* summary and saving */
 function runSession(){
-  const w = run.w, ex = [], mins = run.forDate && run.forMin ? run.forMin : Math.min(240, Math.max(1, Math.round(((run.endedAt || Date.now()) - (run.startedAt || Date.now())) / 60000)));
+  // a workout carried on later counts the minutes saved before plus the ones since it was resumed
+  const span = from => Math.round(((run.endedAt || Date.now()) - (from || Date.now())) / 60000);
+  const w = run.w, ex = [], mins = run.forDate && run.forMin ? run.forMin
+    : Math.min(240, Math.max(1, run.resumedAt ? num(run.prevMin) + span(run.resumedAt) : span(run.startedAt)));
   let meters = 0;
   w.bloques.forEach((b, bi) => b.items.forEach((it, ii) => {
     const l = run.log[bi + "." + ii]; if (!l || !l.length) return;
@@ -3532,7 +3545,7 @@ function summaryHTML(){
 async function saveRunSession(){
   const doc = runSession(); const now = Date.now();
   try {
-    await (run.sid ? db.doc("sesiones/" + run.sid) : db.collection("sesiones").doc()).set({ ...doc, createdAt: run.startedAt || now, updatedAt: now });
+    await (run.sid ? db.doc("sesiones/" + run.sid) : db.collection("sesiones").doc()).set({ ...doc, guia: guiaOf(run.w), createdAt: run.startedAt || now, updatedAt: now });
     const prs = prList(doc);
     closePlayer(true);
     toast(prs.length ? `Guardado. ¡${prs.length} récord${prs.length > 1 ? "s" : ""}! ${ATH[OTHER[me]]} ya lo ve.` : "Entreno guardado");
@@ -3590,7 +3603,7 @@ document.addEventListener("click", e => {
   else if (a === "skipex") { run.nextCur = null; const k = keyOf(run.steps[run.i]); while (run.steps[run.i] && keyOf(run.steps[run.i]) === k) run.i++; run.i--; advance(); saveRun(); renderPlayer(); }
   else if (a === "finish") finishRun();
   else if (a === "save") saveRunSession();
-  else if (a === "discard") { if (run.sid && !confirm("¿Descartar este entreno? Se borra también lo que ya se había guardado de él.")) return; dropRunDoc(); closePlayer(true); }
+  else if (a === "discard") { if (run.sid && !confirm(dropAsk())) return; dropRunDoc(); closePlayer(true); }
   else if (a === "back") goBack();
 });
 function advanceFromStart(){ run.i = -1; advance(); }
@@ -3668,6 +3681,9 @@ function renderHoy(){
 
     <div class="panel today">
       <div class="panel-head" style="margin-bottom:10px"><h2>Entrena hoy</h2>${doneToday.length ? `<span class="pill ok">${doneToday.length} hecho${doneToday.length > 1 ? "s" : ""} hoy</span>` : ""}</div>
+      ${!paused ? (() => { const s = doneToday.find(x => continuable(x)); const c = s && continuable(s);
+        return c ? `<div class="resume"><div><b>${esc(c.w.titulo)}</b><div class="muted" style="font-size:13px">Lo guardaste a medias: te quedan ${leftSets(c)} series</div></div>
+          <div class="row-btns"><button type="button" class="btn primary" data-continue="${esc(s.id)}">Continuar</button></div></div>` : ""; })() : ""}
       ${paused ? `<div class="resume"><div><b>${esc(run.w.titulo)}</b><div class="muted" style="font-size:13px">Entreno a medias${run.startedAt && toISO(new Date(run.startedAt)) !== todayISO() ? " del " + relDay(toISO(new Date(run.startedAt))) : ""} · ${Object.values(run.log).reduce((a, l) => a + l.length, 0)}/${run.steps.length} series</div></div>
           <div class="row-btns"><button type="button" class="btn primary" data-hoy="resume">Continuar</button><button type="button" class="btn" data-hoy="savepart">Guardar lo hecho</button><button type="button" class="btn ghost" data-hoy="drop">Descartar</button></div></div>` : ""}
       ${pd ? `<div class="plan-today"><div class="eyebrow">Según tu plan</div><b>${pd.actividad === "descanso" ? "Hoy toca descanso" : esc(pd.foco || SPORTS[pd.actividad] || pd.actividad)}</b>${pd.duracion_min ? ` <span class="muted">· ${pd.duracion_min} min</span>` : ""}
@@ -3722,7 +3738,7 @@ document.addEventListener("click", async e => {
   else if (t.dataset.ckm) { const list = ck[t.dataset.ckm], k = t.dataset.k; const i = list.indexOf(k); if (i >= 0) list.splice(i, 1); else list.push(k); saveCk(); renderHoy(); }
   else if (t.dataset.hoy === "resume") showPlayer();
   else if (t.dataset.hoy === "drop") {
-    if (!confirm("¿Descartar este entreno? Se borra también lo que ya se había guardado de él.")) return;
+    if (!confirm(dropAsk())) return;
     dropRunDoc(); run = null; store.del("gym.run"); renderHoy();
   }
   else if (t.dataset.hoy === "savepart") { showPlayer(); finishRun(); }
@@ -4428,7 +4444,7 @@ function daySessionsHTML(fecha){
   return `<div class="pd-ses">${ss.map(s => `<div class="pd-s">
       <div class="pd-s-h"><b>${esc(SPORTS[s.sport] || s.sport)}</b>${num(s.minutes) ? ` · ${fmt(num(s.minutes))} min` : ""}${s.enCurso ? ` · <span class="muted">sin terminar</span>` : ""}</div>
       <div class="pd-s-sum">${esc(daySesText(s))}</div>
-      <div class="row-btns">${live(s) ? `<button type="button" class="btn sm primary" data-hoy="resume">Continuar</button>` : `<button type="button" class="btn sm" data-day-edit="${esc(s.id)}">Editar</button>`}<button type="button" class="btn sm ghost" data-day-del="${esc(s.id)}" aria-label="Borrar esta sesión">Borrar</button></div></div>`).join("")}
+      <div class="row-btns">${live(s) ? `<button type="button" class="btn sm primary" data-hoy="resume">Continuar</button>` : `${(c => c ? `<button type="button" class="btn sm primary" data-continue="${esc(s.id)}">Continuar · faltan ${leftSets(c)} series</button>` : "")(continuable(s))}<button type="button" class="btn sm" data-day-edit="${esc(s.id)}">Editar</button>`}<button type="button" class="btn sm ghost" data-day-del="${esc(s.id)}" aria-label="Borrar esta sesión">Borrar</button></div></div>`).join("")}
     <button type="button" class="linkbtn" data-log-day="${fecha}" data-mode="form">+ Añadir otra sesión</button></div>`;
 }
 document.addEventListener("click", e => {
@@ -4439,6 +4455,64 @@ document.addEventListener("click", e => {
   if (run && run.sid === s.id) { run = null; store.del("gym.run"); }
   db.collection("sesiones").doc(s.id).delete().then(() => toast("Sesión borrada")).catch(() => toast("No se ha podido borrar"));
 });
+
+/* ===== 21-continuar.js ===== */
+/* ---------- carry on with a guided workout that was saved before the end ----------
+   A saved session keeps its workout (guia); older ones find it in the plan or in the coach's chat by its
+   title. The sets already logged go back into the player, it starts at the first set left, and saving
+   updates the same session (same id), so nothing is duplicated. */
+function workoutOfSession(s){
+  if (s.guia && Array.isArray(s.guia.bloques)) return normalizeWorkout(s.guia);
+  const title = String(s.notes || "").replace(/\s*\(entreno guiado\).*$/, "").trim(); if (!title) return null;
+  const p = trainPlan(s.athlete);
+  for (const w of (p && p.semanas) || []) for (const d of w.dias || []) if (d.entreno && String(d.entreno.titulo || "").trim() === title) return normalizeWorkout(d.entreno);
+  const m = chatMsgs("coach").slice().reverse().find(x => x.entreno && String(x.entreno.titulo || "").trim() === title);
+  return m ? normalizeWorkout(m.entreno) : null;
+}
+// the player state rebuilt from a saved session, or null if there is nothing left to do
+function runFromSession(s){
+  if (!s || s.athlete !== me || s.sport !== "gym") return null;
+  const base = workoutOfSession(s); if (!base) return null;
+  const { w } = autoSwap(base);
+  const log = {}, used = new Set(), extra = [];
+  for (const e of s.exercises || []) {
+    let at = null;
+    w.bloques.forEach((b, bi) => b.items.forEach((it, ii) => { if (!at && !used.has(bi + "." + ii) && normName(it.ejercicio) === normName(e.name)) at = [bi, ii, it]; }));
+    const sets = (e.sets || []).filter(x => !x.warmup);
+    if (!at) { extra.push(e); continue; }
+    const [bi, ii, it] = at, k = bi + "." + ii; used.add(k);
+    log[k] = sets.map(x => ({ reps: it.modo === "tiempo" ? 0 : num(x.reps), kg: num(x.kg), secs: it.modo === "tiempo" ? it.segundos : null, meters: null }));
+    if (log[k].length > it.series) it.series = log[k].length;
+  }
+  // exercises logged that are not in the workout any more stay as done, at the start
+  if (extra.length) {
+    w.bloques.unshift({ nombre: "Ya hecho", items: extra.map(e => ({ ejercicio: e.name, modo: "reps", series: (e.sets || []).length, reps: num((e.sets[0] || {}).reps), kg: num((e.sets[0] || {}).kg), descanso_s: 0 })) });
+    const shifted = {}; for (const [k, v] of Object.entries(log)) { const [bi, ii] = k.split(".").map(Number); shifted[(bi + 1) + "." + ii] = v; }
+    Object.keys(log).forEach(k => delete log[k]); Object.assign(log, shifted);
+    extra.forEach((e, ii) => { log["0." + ii] = (e.sets || []).map(x => ({ reps: num(x.reps), kg: num(x.kg), secs: null, meters: null })); });
+  }
+  const steps = flatten(w), i = steps.findIndex(st => ((log[st.bi + "." + st.ii] || []).length) < st.s);
+  if (i < 0) return null;
+  const ts = +String(s.id).split("-").pop();
+  return { w, steps, i, log, startedAt: ts > 1e12 ? ts : (s.createdAt || Date.now()), prevMin: num(s.minutes), resumedAt: null, sid: s.id, athlete: me,
+    phase: "set", until: null, cur: null, rpe: s.rpe || null, extra: "", swapped: [], tuned: 0, date: s.date };
+}
+const leftSets = r => r.steps.length - Object.values(r.log).reduce((a, l) => a + l.length, 0);
+function continuable(s){ if (run && run.sid === s.id) return null; const r = runFromSession(s); return r && leftSets(r) > 0 ? r : null; }
+function continueSession(id){
+  const s = real.find(x => x.id === id); if (!s) return;
+  if (run && run.athlete === me && run.phase !== "preview" && run.sid !== id) { toast("Antes guarda o descarta el entreno que tienes a medias"); return; }
+  const r = runFromSession(s); if (!r) { toast("Ese entreno ya está completo"); return; }
+  run = r; run.resumedAt = Date.now(); run.lastAt = Date.now();
+  // weights from your history, without counting this same session as "last time"
+  const at = run.steps[run.i], items = run.w.bloques.flatMap(b => b.items);
+  const done = new Set(Object.entries(run.log).filter(([, l]) => l.length).map(([k]) => k));
+  run.tuned = tuneFromHistory({ bloques: run.w.bloques.map((b, bi) => ({ ...b, items: b.items.filter((it, ii) => !done.has(bi + "." + ii)) })) });
+  run.cur = planned(itemOf(at), at.s);
+  saveRun(); showPlayer();
+  toast(`Sigues por ${itemOf(at).ejercicio}, serie ${at.s}: te quedan ${leftSets(run)} series`);
+}
+document.addEventListener("click", e => { const t = e.target.closest("button[data-continue]"); if (t) continueSession(t.dataset.continue); });
 
 /* ===== 99-boot.js ===== */
 /* ---------- navigation ---------- */

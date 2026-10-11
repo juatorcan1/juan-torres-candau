@@ -917,7 +917,7 @@ const debesGenteAt = iso => sum(cuentas().filter(c => LENT(c.tipo)).map(c => leD
 
 // Lo que se paga en impuestos en el año. Las multas van aparte: el banco las cobra como «pago de
 // impuestos», pero no lo son. Lo que retiene la nómina no se ve: al banco sólo llega lo neto.
-const TAX_CATS = ["finanzas.irpf", "casa.ibi", "coche.impuesto"];
+const TAX_CATS = ["finanzas.irpf", "arq.cuota", "arq.iva", "casa.ibi", "coche.impuesto"];
 function impuestosHTML(st){
   const g = st.byCat.gasto, dev = num(st.byCat.ingreso["otrosi.hacienda"]);
   const filas = TAX_CATS.filter(c => CATIDX[c] && num(g[c]) > 0.005).map(c => [catName(c), num(g[c])]);

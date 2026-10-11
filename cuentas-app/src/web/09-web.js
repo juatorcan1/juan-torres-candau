@@ -18,7 +18,11 @@ function makeDb(){
   async function load(col){
     const { data, error } = await sb.from("cuentas_docs").select("id,data").eq("collection", col);
     if (error) throw toErr(error);
-    cache[col] = new Map(data.map(r => [r.id, r]));
+    const next = new Map(data.map(r => [r.id, r]));
+    // Si nada ha cambiado no se repinta (la lectura de cada minuto no debe mover la pantalla).
+    const same = cache[col] && cache[col].size === next.size && [...next].every(([k, r]) => cache[col].has(k) && JSON.stringify(cache[col].get(k).data) === JSON.stringify(r.data));
+    cache[col] = next;
+    if (same) return;
     for (const f of listeners[col] || []) f(snap(col));
   }
   sb.channel("cuentas-docs")
@@ -227,3 +231,7 @@ document.addEventListener("submit", async e => {
 sb.auth.getSession().then(({ data }) => { if (data.session) enter(data.session); else showLogin(); });
 sb.auth.onAuthStateChange(ev => { if (ev === "SIGNED_OUT" && !document.body.classList.contains("locked")) location.reload(); });
 document.addEventListener("visibilitychange", () => { if (!document.hidden && dbNs) dbNs.refresh(); });
+// Por si el aviso en directo no llega (ventana de escritorio que nunca se oculta, conexión dormida):
+// al volver a la ventana y cada minuto mientras se ve, se vuelve a leer lo guardado.
+window.addEventListener("focus", () => { if (dbNs) dbNs.refresh(); });
+setInterval(() => { if (!document.hidden && dbNs) dbNs.refresh(); }, 60000);

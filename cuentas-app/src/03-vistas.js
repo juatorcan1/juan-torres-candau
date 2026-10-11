@@ -15,6 +15,22 @@ const deudaAt = iso => sum(cuentas().filter(c => DEBT(c.tipo)).map(c => debe(c, 
 const teDebenAt = iso => sum(cuentas().filter(c => LENT(c.tipo)).map(c => teDebe(c, iso)));
 const debesGenteAt = iso => sum(cuentas().filter(c => LENT(c.tipo)).map(c => leDebes(c, iso)));
 
+// Lo que se paga en impuestos en el año. Las multas van aparte: el banco las cobra como «pago de
+// impuestos», pero no lo son. Lo que retiene la nómina no se ve: al banco sólo llega lo neto.
+const TAX_CATS = ["finanzas.irpf", "casa.ibi", "coche.impuesto"];
+function impuestosHTML(st){
+  const g = st.byCat.gasto, dev = num(st.byCat.ingreso["otrosi.hacienda"]);
+  const filas = TAX_CATS.filter(c => CATIDX[c] && num(g[c]) > 0.005).map(c => [catName(c), num(g[c])]);
+  const tot = sum(filas.map(f => f[1])), multas = num(g["coche.multas"]);
+  let h = `<div class="panel"><div class="panel-head"><div><h2>Impuestos</h2><p>${tot > 0.005 ? `En ${Y} has pagado <b class="num">${eur(tot)}</b> en impuestos.` : `En ${Y} no hay impuestos apuntados.`}</p></div></div>`;
+  const rows = filas.map(([n, v]) => [n, eur(v)]);
+  if (dev > 0.005) rows.push(["Te ha devuelto Hacienda", "−" + eur(dev)]);
+  if (multas > 0.005) rows.push(["Multas (aparte, no son impuestos)", eur(multas)]);
+  if (rows.length) h += `<div class="rank">${rows.map(([n, v]) => `<div class="rk" style="cursor:default"><span class="nm">${esc(n)}</span><span class="am">${v}</span></div>`).join("")}</div>`;
+  h += `<p class="small" style="margin:8px 0 0">Lo que te quitan de la nómina (IRPF y Seguridad Social) no sale aquí: al banco te llega ya descontado.</p></div>`;
+  return h;
+}
+
 function renderAnio(){
   const el = $("#v-anio");
   if (dbState === "loading") { el.innerHTML = `<div class="panel"><div class="thinking"><span class="spin"></span>Cargando tus cuentas…</div></div>`; return; }
@@ -40,6 +56,7 @@ function renderAnio(){
     <div class="tile"><span class="l">Ahorrado</span><span class="v" style="color:${ah < 0 ? "var(--over)" : "inherit"}">${eur(ah)}</span><span class="s">${st.I > 0 ? pct(ah / st.I * 100) + " de lo que ha entrado" : "&nbsp;"}</span></div>
     <div class="tile"><span class="l"><span class="sw" style="background:var(--sal)"></span>${phase === "pasado" ? "Dinero a 31 dic" : "Dinero hoy"}</span><span class="v">${dinero == null ? "—" : eur(dinero)}</span><span class="s">${colchon != null ? "te da para " + NF0.format(Math.floor(colchon)) + (Math.floor(colchon) === 1 ? " mes" : " meses") + " de gastos" : phase === "futuro" ? "año que viene" : "en todas tus cuentas"}</span>${deuda > 0.005 ? `<span class="s" style="color:var(--over)">y debes ${eur(deuda)}</span>` : ""}${teDeben > 0.005 ? `<span class="s">y te deben ${eur(teDeben)}</span>` : ""}</div>
   </div>`;
+  h += impuestosHTML(st);
   if (st.revisar) h += `<div class="banner warn"><b>${st.revisar === 1 ? "Hay 1 movimiento" : "Hay " + st.revisar + " movimientos"} que la IA no ha tenido claro.</b> <button class="btn sm" data-go="movs" data-rev="1">Revisarlos</button></div>`;
 
   h += `<div class="panel"><div class="panel-head"><div><h2>Mes a mes</h2><p>${phase === "pasado" ? "Lo que entró y salió cada mes de " + Y + "." : "Lo que ha entrado y salido cada mes. Lo punteado es lo que calculo que falta."}</p></div></div>

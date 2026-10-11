@@ -325,12 +325,15 @@ function learnedForIA(){
   return seen.size ? [...seen.values()].join("\n") : "(todavía nada)";
 }
 function accountsForIA(){ return cuentas().map(c => `${c.id} = ${c.nombre} (${ACC_TYPES[c.tipo] || c.tipo}${c.tarjetas ? ", tarjetas acabadas en " + c.tarjetas : ""})`).join("\n"); }
-function guessAccount(o){
+// Con qué se pagó. En los tickets y facturas escaneados, Juan quiere efectivo por defecto
+// (11/10/2026): sólo va a una tarjeta si el papel trae sus 4 últimas cifras y son de una de sus cuentas.
+function guessAccount(o, origen){
   const pago = String(o.pago || "").toLowerCase();
   if (o.cuenta && cuenta(o.cuenta)) return o.cuenta;
   if (pago === "efectivo" && cashAccount()) return cashAccount();
   const fin = String(o.tarjeta_final || "").replace(/\D/g, "");
   if (fin) { const c = cuentas().find(c => String(c.tarjetas || "").split(/[^0-9]+/).includes(fin)); if (c) return c.id; }
+  if (origen === "ticket" && cashAccount()) return cashAccount();
   return defaultAccount();
 }
 // La pregunta de la IA cuando duda de una categoría: sólo con opciones que existan
@@ -355,7 +358,7 @@ function iaToDraft(o, origen){
   const conf = num(o.confianza);
   return newDraft({
     tipo, fecha: fecha || toISO(NOW), total: o.total == null ? "" : r2(Math.abs(num(o.total))),
-    cuenta: tipo === "traspaso" ? (cuenta(o.cuenta) ? o.cuenta : defaultAccount()) : guessAccount(o),
+    cuenta: tipo === "traspaso" ? (cuenta(o.cuenta) ? o.cuenta : defaultAccount()) : guessAccount(o, origen),
     destino: tipo === "traspaso" ? (cuenta(o.destino) ? o.destino : (String(o.destino || "").toLowerCase().includes("efectivo") ? cashAccount() : "")) : "",
     comercio: String(o.comercio || ""), nota: aMano, origen,
     factura: o.razon_social || o.numero || o.cif ? { proveedor: String(o.razon_social || "").slice(0, 120), cif: String(o.cif || "").slice(0, 20), numero: String(o.numero || "").slice(0, 40) } : null,

@@ -28,7 +28,7 @@ function typing(){ const a = document.activeElement; return !!(a && a.closest &&
 function onData(){
   STATS = {}; FC = {};
   renderHeader();
-  if (dbState === "ready") driveAuto();
+  if (dbState === "ready") { driveAuto(); krAuto(); }
   if (typing()) { stale = true; return; }
   renderView();
 }
@@ -249,6 +249,7 @@ renderHeader();
   use("sample").then(async s => { sample = s; if (s) imgCaps = await s.limits().catch(() => null); if (!typing()) renderView(); });
   use("assets").then(a => { assets = a; });
   use("tricount").then(t => { tcApi = t; if (t && tab === "medias") renderView(); });
+  use("kraken").then(k => { krApi = k; krAuto(); if (k && tab === "dinero") renderView(); });
   use("drive").then(d => { driveApi = d; if (d && dbState === "ready") driveAuto(); if (d && tab === "dinero") renderView(); });
   db = await use("db");
   if (!db) { dbState = "none"; renderAll(); return; }

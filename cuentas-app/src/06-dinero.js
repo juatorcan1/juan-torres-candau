@@ -38,17 +38,19 @@ function cuentasHTML(){
       extra = `<div class="meta">${c.tae ? "Al " + NF2.format(num(c.tae)) + " % TAE" : "Sin TAE apuntada"}${v ? ` · vence el ${shortDate(c.vence)}${v.getFullYear() !== Y ? " de " + v.getFullYear() : ""}` : ""}</div>`;
       if (num(c.tae) && phase !== "pasado") { const until = v && v < endY ? v : endY; const d = (until - NOW) / 864e5; if (d > 0) extra += `<div class="meta">Te dará unos <b class="num">${eur(s * num(c.tae) / 100 * d / 365)}</b> hasta ${v && v < endY ? "que venza" : "fin de año"}.</div>`; }
     }
+    if (c.cripto) extra += criptoHTML(c);
     h += `<div class="acc"><div class="acc-h"><div><b>${esc(c.nombre)}</b><div class="meta">${esc(ACC_TYPES[c.tipo] || c.tipo)}${c.entidad && c.entidad !== c.nombre ? " · " + esc(c.entidad) : ""}${c.tarjetas ? " · tarjeta …" + esc(c.tarjetas) : ""}</div></div><button class="btn sm ghost" data-accedit="${c.id}">Cambiar</button></div>
       <div class="bal num${s < 0 ? " neg" : ""}">${c.ancla ? eur(s) : "—"}</div>
-      <div class="meta">${c.ancla ? `Saldo que me diste: ${eur(c.ancla.saldo)} el ${shortDate(c.ancla.fecha)}${parseISO(c.ancla.fecha).getFullYear() !== CUR_Y ? " de " + parseISO(c.ancla.fecha).getFullYear() : ""}` : "Dime cuánto hay hoy para poder llevar la cuenta."}</div>
+      <div class="meta">${c.kraken ? "Lo leo yo solo de Kraken." : c.ancla ? `Saldo que me diste: ${eur(c.ancla.saldo)} el ${shortDate(c.ancla.fecha)}${parseISO(c.ancla.fecha).getFullYear() !== CUR_Y ? " de " + parseISO(c.ancla.fecha).getFullYear() : ""}` : "Dime cuánto hay hoy para poder llevar la cuenta."}</div>
       ${extra}${c.ancla ? sparkline(months, col) : ""}
       ${cuadrar && cuadrar.id === c.id ? `<div class="fgrid"><div class="f"><label for="cq-v">${DEBT(c.tipo) ? "Lo que debes de verdad hoy (€)" : "Lo que hay de verdad hoy (€)"}</label><input id="cq-v" inputmode="decimal" value="${esc(cuadrar.v)}"></div></div><div class="row"><button class="btn sm primary" data-cqsave="${c.id}">Poner este saldo</button><button class="btn sm ghost" data-cqcancel="1">Cancelar</button></div><p class="small muted" style="margin:0">Si no coincide con lo que calculo, la diferencia es algo que no está apuntado. No pasa nada: desde hoy cuento a partir de lo que me digas.</p>`
-        : `<div class="row"><button class="btn sm" data-cq="${c.id}">${c.ancla ? "Cuadrar con el banco" : "Poner el saldo de hoy"}</button><button class="btn sm ghost" data-seeacc="${c.id}">Movimientos</button></div>`}
+        : `<div class="row">${c.kraken ? "" : `<button class="btn sm" data-cq="${c.id}">${c.ancla ? "Cuadrar con el banco" : "Poner el saldo de hoy"}</button>`}<button class="btn sm ghost" data-seeacc="${c.id}">Movimientos</button></div>`}
     </div>`;
   }
   h += `</div></div>`;
   h += deudasHTML(ds, iso, phase);
   h += deudoresHTML(ls, iso, phase);
+  if (WEB) h += krakenHTML();
   if (WEB) h += driveHTML();
   if (WEB) h += `<div class="panel"><div class="panel-head"><div><h2>Copia de seguridad</h2><p>Todo lo tuyo en un fichero, por si algún día falla algo. La de Excel se abre con cualquier programa; la completa sirve para volver a cargarlo todo.</p></div></div>
     <div class="row"><button class="btn" id="bk-csv">Descargar en Excel</button><button class="btn" id="bk-json">Descargar la copia completa</button></div></div>`;

@@ -155,8 +155,31 @@ function makeDrive(){
     }
   };
 }
-let dbNs = null, sampleNs = null, assetsNs = null, tcNs = null, driveNs = null;
-window.claude = { use: name => ready.then(() => name === "db" ? (dbNs ||= makeDb()) : name === "sample" ? (sampleNs ||= makeSample()) : name === "assets" ? (assetsNs ||= makeAssets()) : name === "tricount" ? (tcNs ||= makeTricount()) : name === "drive" ? (driveNs ||= makeDrive()) : null) };
+// Kraken, sólo para mirar: la Edge Function cuentas-kraken guarda la llave y lee el saldo
+function makeKraken(){
+  const call = async body => {
+    const { data } = await sb.auth.getSession();
+    if (!data.session) throw { code: "session_expired", message: "Sin sesión" };
+    let r;
+    try {
+      r = await fetch(CFG.url + "/functions/v1/cuentas-kraken", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer " + data.session.access_token, apikey: CFG.key },
+        body: JSON.stringify(body)
+      });
+    } catch (e) { throw { code: "unavailable", message: "sin conexión" }; }
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw { code: j.code || "upstream_error", message: j.error || r.statusText };
+    return j;
+  };
+  return {
+    saldo: () => call({ accion: "saldo" }),
+    guardar: (key, secret) => call({ accion: "guardar", key, secret }),
+    quitar: () => call({ accion: "quitar" })
+  };
+}
+let dbNs = null, sampleNs = null, assetsNs = null, tcNs = null, driveNs = null, krNs = null;
+window.claude = { use: name => ready.then(() => name === "db" ? (dbNs ||= makeDb()) : name === "sample" ? (sampleNs ||= makeSample()) : name === "assets" ? (assetsNs ||= makeAssets()) : name === "tricount" ? (tcNs ||= makeTricount()) : name === "drive" ? (driveNs ||= makeDrive()) : name === "kraken" ? (krNs ||= makeKraken()) : null) };
 
 /* pantalla de entrada */
 const loginEl = document.createElement("div");

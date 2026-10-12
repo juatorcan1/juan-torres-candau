@@ -23,7 +23,14 @@ function cuentasHTML(){
   const inv = sum(cs.filter(c => !LIQUID(c.tipo)).map(c => saldo(c, iso)));
   const deb = sum(ds.map(c => debe(c, iso)));
   const lent = sum(ls.map(c => teDebe(c, iso))), amigos = sum(ls.map(c => leDebes(c, iso)));
-  let h = `<div class="panel"><div class="panel-head"><div><h2>${phase === "pasado" ? "Tu dinero a 31 de diciembre de " + Y : "Tu dinero hoy"}</h2><p>Bancos y efectivo: <b class="num">${eur(liq)}</b>${inv ? ` · depósitos e inversiones: <b class="num">${eur(inv)}</b>` : ""}${lent > 0.005 ? ` · te deben: <b class="num">${eur(lent)}</b>` : ""}${deb + amigos > 0.005 ? ` · debes: <b class="num" style="color:var(--over)">${eur(deb + amigos)}</b>` : ""}${deb + amigos > 0.005 || lent > 0.005 ? ` · lo tuyo de verdad: <b class="num">${eur(liq + inv + lent - deb - amigos)}</b>` : ""}</p></div><button class="btn primary sm" id="acc-new">Añadir cuenta</button></div>`;
+  // Arriba, todo junto en una cifra; debajo, de dónde sale (por tipo de cuenta)
+  const total = liq + inv;
+  const porTipo = [["Bancos", ["banco"]], ["Efectivo", ["efectivo"]], ["Ahorro", ["ahorro"]], ["Depósitos", ["deposito"]], ["Inversiones y cripto", ["inversion"]]]
+    .map(([n, ts]) => [n, sum(cs.filter(c => ts.includes(c.tipo)).map(c => saldo(c, iso)))]).filter(([, v]) => Math.abs(v) > 0.005);
+  let h = `<div class="panel"><div class="panel-head"><div><h2>${phase === "pasado" ? "Todo tu dinero a 31 de diciembre de " + Y : "Todo tu dinero hoy"}</h2>
+    <div class="dinero-total num">${eur(total)}</div>
+    <p>Sumando todas tus cuentas, el efectivo y lo invertido.${lent > 0.005 ? ` Además te deben <b class="num">${eur(lent)}</b>.` : ""}${deb + amigos > 0.005 ? ` Debes <b class="num" style="color:var(--over)">${eur(deb + amigos)}</b>; quitándolo te quedan <b class="num">${eur(total + lent - deb - amigos)}</b>.` : ""}</p></div><button class="btn primary sm" id="acc-new">Añadir cuenta</button></div>
+    ${porTipo.length > 1 ? `<div class="tiles" style="margin-bottom:14px;grid-template-columns:repeat(auto-fit,minmax(140px,1fr))">${porTipo.map(([n, v]) => `<div class="tile"><span class="l">${esc(n)}</span><span class="v" style="font-size:clamp(17px,2.6vw,22px)">${eur(v)}</span><span class="s">${pct(v / total * 100)} del total</span></div>`).join("")}</div>` : ""}`;
   if (!cfg.cuentas || !cfg.cuentas.length) h += `<div class="banner" style="margin-bottom:12px"><b>Empieza por aquí.</b> Añade tus bancos y dime cuánto tienes hoy en cada uno. Así sé cuánto dinero tienes y cuánto tendrás a final de año.</div>`;
   if (accForm && !DEBT(accForm.tipo)) h += accFormHTML();
   h += `<div class="accs">`;

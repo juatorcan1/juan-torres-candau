@@ -235,6 +235,7 @@ input,select,textarea{min-width:0}
 .acc{border:1px solid var(--line-2);border-radius:12px;padding:14px;background:var(--surface);display:grid;gap:8px;align-content:start}
 .acc-h{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
 .acc-h b{font-size:16px}
+.dinero-total{font-family:var(--display);font-weight:800;font-size:clamp(30px,5vw,42px);letter-spacing:-.02em;line-height:1.1;margin:6px 0 4px}
 .acc .bal{font-family:var(--display);font-weight:800;font-size:26px;letter-spacing:-.02em;line-height:1.1}
 .acc .bal.neg{color:var(--over)}
 .acc .meta{font-size:12.5px;color:var(--ink-2)}

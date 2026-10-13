@@ -1,0 +1,23 @@
+{
+  "name": "telefonista-ia",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Una IA que coge el teléfono de la empresa: atiende, vende, resuelve y toma recados, en muchos idiomas.",
+  "type": "module",
+  "engines": { "node": ">=22.18" },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env src/servidor.ts",
+    "probar": "node --env-file-if-exists=.env src/probar.ts",
+    "comprobar": "tsc --noEmit && node --test pruebas/*.test.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "0.129.0",
+    "@supabase/supabase-js": "2.117.2",
+    "ws": "8.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.4",
+    "@types/ws": "8.18.1",
+    "typescript": "7.0.2"
+  }
+}

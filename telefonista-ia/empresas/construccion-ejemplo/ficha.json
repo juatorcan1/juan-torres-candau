@@ -1,0 +1,23 @@
+{
+  "nombre": "Obras Horizonte",
+  "sector": "empresa constructora: reformas integrales, obra nueva y rehabilitación de fachadas",
+  "asistente": "Martín",
+  "telefonos": ["+34 960 000 002"],
+  "idiomaPrincipal": "es-ES",
+  "idiomas": ["es-ES", "en-GB", "fr-FR", "de-DE", "nl-NL", "ru-RU", "uk-UA", "ro-RO", "ar-SA", "zh-CN"],
+  "zonaHoraria": "Europe/Madrid",
+  "horario": "Oficina: lunes a viernes de 8:00 a 15:00. Urgencias de obras en curso: siempre.",
+  "saludo": "Obras Horizonte, buenos días. Le atiende Martín, el asistente virtual. We also speak English. ¿En qué le puedo ayudar?",
+  "tono": "serio, claro y de confianza; se habla de usted salvo que el cliente prefiera otra cosa",
+  "transferencias": {
+    "oficina": { "numero": "+34 960 000 201", "descripcion": "oficina técnica y comercial: presupuestos en marcha, contratos, facturas", "horario": "lunes a viernes de 8:00 a 15:00" },
+    "urgencias": { "numero": "+34 960 000 202", "descripcion": "encargado de guardia: sólo urgencias de obras en curso (fugas de agua, riesgo de caída, daños a vecinos)" }
+  },
+  "avisos": { "webhook": "" },
+  "filtro": {
+    "miTelefono": "+34 699 000 000",
+    "desconocidos": "ia",
+    "conocidos": "preguntar",
+    "segundosParaDecidir": 20
+  }
+}

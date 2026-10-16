@@ -70,6 +70,10 @@ persona paga algo por ti (p. ej. la cuenta del bar), queda en negativo y aparece
   `cuentas_secretos`, sin políticas (la web no la puede leer; sólo la función con service_role). El valor en
   euros se guarda como saldo de hoy de la cuenta «Kraken» (`kraken: true`, con `cripto` y `criptoHora`) al
   abrir la app y al volver a ella, como mucho cada 10 minutos.
+  Debajo, «Cómo va el ALGO frente al euro»: la misma función, con `accion: "historico"`, trae de `OHLC`
+  (público, sin llave) el cierre de cada día (unos dos años) y de cada semana (para «Todo»). Se pide al ver la
+  cuenta, como mucho una vez por hora, y no se guarda en la base: sólo en memoria. Lo de «tus monedas» se
+  calcula con las que hay hoy, y así lo dice la pantalla.
 - **Como una aplicación en el móvil**: la web lleva su ficha (`src/web/manifest.json`) y sus iconos
   (`src/web/icons/`), así que Chrome la instala con su icono y sin la barra del navegador.
 - **Copia de seguridad**: en Dinero → Cuentas, «Descargar en Excel» y «Descargar la copia completa».

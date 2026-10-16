@@ -344,6 +344,15 @@ tr.subrow td:first-child{padding-left:22px}
 .dia-tot{font-family:var(--mono);letter-spacing:0;text-transform:none;color:var(--ink-2);margin-left:4px}
 .tc-pasar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:16px 0 4px;padding:12px 14px;border-radius:10px;background:var(--acc-wash)}
 .tc-pasar > div{display:grid;gap:2px;min-width:0}
+.acc.wide{grid-column:1/-1}
+.kr-hist{margin-top:4px;padding-top:12px;border-top:1px solid var(--line-2);display:grid;gap:8px;min-width:0}
+.kr-hist-h{display:flex;justify-content:space-between;align-items:center;gap:8px 12px;flex-wrap:wrap}
+.kr-hist-h b{font-size:14.5px}
+.kr-hist .seg button{padding:6px 9px;font-size:12.5px;white-space:nowrap}
+.kr-hist p{margin:0}
+.chart .cross{stroke:var(--muted);stroke-width:1;stroke-dasharray:3 3}
+.chart .t-hit{fill:transparent;cursor:crosshair;outline:none;touch-action:pan-y}
+.chart .t-hit:focus-visible{stroke:var(--acc);stroke-width:1.5}
 </style>
 <div class="wrap">
   <div class="strip">
@@ -897,6 +906,82 @@ function sparkline(values, color){
   return `<svg class="spark" viewBox="-4 0 ${W + 8} ${H}" preserveAspectRatio="none" aria-hidden="true"><path d="M${pts.map(p => p[0].toFixed(1) + "," + p[1].toFixed(1)).join("L")}" style="fill:none;stroke:${color}" stroke-width="2" vector-effect="non-scaling-stroke"/><circle cx="${last[0]}" cy="${last[1]}" r="3" style="fill:${color}"/></svg>`;
 }
 const cssv = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+// Una línea en el tiempo (pts: [[ms, valor]], ordenados), para precios: el eje no empieza en cero y
+// una raya vertical sigue al dedo hasta el día más cercano. opts: {unit, tip(i) → html, label, color}
+function niceStep(x){
+  const p = Math.pow(10, Math.floor(Math.log10(x)));
+  for (const k of [1, 2, 2.5, 5, 10]) if (k * p >= x) return k * p;
+  return 10 * p;
+}
+function timeTicks(t0, t1){
+  const d0 = new Date(t0), days = (t1 - t0) / 864e5, out = [];
+  if (days > 800) {
+    const n = new Date(t1).getFullYear() - d0.getFullYear(), st = Math.max(1, Math.ceil(n / 6));
+    for (let y = d0.getFullYear() + 1; y <= new Date(t1).getFullYear(); y += st) out.push([new Date(y, 0, 1).getTime(), String(y)]);
+  } else if (days > 75) {
+    const st = Math.max(1, Math.ceil(days / 30.4 / 6));
+    for (let d = new Date(d0.getFullYear(), d0.getMonth() + 1, 1); d.getTime() <= t1; d = new Date(d.getFullYear(), d.getMonth() + st, 1))
+      out.push([d.getTime(), d.getMonth() === 0 || days > 400 ? MES[d.getMonth()] + " " + String(d.getFullYear()).slice(2) : MES[d.getMonth()]]);
+  } else {
+    const st = Math.max(1, Math.ceil(days / 5));
+    for (let d = new Date(d0.getFullYear(), d0.getMonth(), d0.getDate() + 1); d.getTime() <= t1; d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + st))
+      out.push([d.getTime(), d.getDate() + " " + MES[d.getMonth()]]);
+  }
+  return out;
+}
+function timeLine(el, pts, opts = {}){
+  const W = Math.round(Math.max(300, Math.min(720, el.clientWidth || 640))), H = opts.h || 210, L = 58, R = 14, T = 12, B = 26;
+  const pw = W - L - R, ph = H - T - B, color = opts.color || "var(--ing)";
+  const t0 = pts[0][0], t1 = pts[pts.length - 1][0], ts = t1 - t0 || 1;
+  const vs = pts.map(p => p[1]), vmin = Math.min(...vs), vmax = Math.max(...vs);
+  const pad = (vmax - vmin) * 0.08 || Math.abs(vmax) * 0.05 || 1;
+  let step = niceStep((vmax - vmin + 2 * pad) / 4);
+  let lo = Math.floor((vmin - pad) / step) * step, hi = Math.ceil((vmax + pad) / step) * step;
+  if (lo < 0 && vmin >= 0) lo = 0;
+  if ((hi - lo) / step > 6) { step *= 2; lo = Math.floor(lo / step) * step; hi = Math.ceil(hi / step) * step; }
+  const dec = Math.min(4, Math.max(0, -Math.floor(Math.log10(step) + 1e-9)));
+  const nf = new Intl.NumberFormat("es-ES", { minimumFractionDigits: dec, maximumFractionDigits: dec });
+  const xv = t => L + (t - t0) / ts * pw, yv = v => T + ph - (v - lo) / (hi - lo) * ph;
+  let g = "";
+  for (let k = 0; lo + k * step <= hi + step / 1e6; k++) { const v = lo + k * step, y = yv(v); g += `<line class="grid" x1="${L}" x2="${W - R}" y1="${y}" y2="${y}"/><text class="axis" x="${L - 6}" y="${y + 4}" text-anchor="end">${nf.format(v)}${opts.unit ? " " + opts.unit : ""}</text>`; }
+  for (const [t, lab] of timeTicks(t0, t1)) { const x = xv(t); if (x < L + 16 || x > W - R - 16) continue; g += `<text class="axis" x="${x}" y="${H - 8}" text-anchor="middle">${lab}</text>`; }
+  const d = "M" + pts.map(p => xv(p[0]).toFixed(1) + "," + yv(p[1]).toFixed(1)).join("L");
+  const last = pts[pts.length - 1];
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(opts.label || "Evolución")}">${g}<line class="base" x1="${L}" x2="${W - R}" y1="${T + ph}" y2="${T + ph}"/>`
+    + `<path d="${d}" style="fill:none;stroke:${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`
+    + `<circle cx="${xv(last[0])}" cy="${yv(last[1])}" r="4" style="fill:${color};stroke:var(--surface)" stroke-width="2"/>`
+    + `<line class="cross" x1="0" x2="0" y1="${T}" y2="${T + ph}" visibility="hidden"/><circle class="cross-dot" r="5" style="fill:${color};stroke:var(--surface)" stroke-width="2" visibility="hidden"/>`
+    + `<rect class="t-hit" tabindex="0" x="${L}" y="${T}" width="${pw}" height="${ph}" aria-label="${esc(opts.label || "Evolución")}: usa las flechas para ir de un día a otro"/></svg>`;
+  const svg = el.querySelector("svg"), hit = svg.querySelector(".t-hit"), cross = svg.querySelector(".cross"), dot = svg.querySelector(".cross-dot");
+  let cur = -1;
+  const show = i => {
+    cur = Math.max(0, Math.min(pts.length - 1, i));
+    const x = xv(pts[cur][0]), y = yv(pts[cur][1]), k = svg.getBoundingClientRect().width / W;
+    cross.setAttribute("x1", x); cross.setAttribute("x2", x); cross.setAttribute("visibility", "visible");
+    dot.setAttribute("cx", x); dot.setAttribute("cy", y); dot.setAttribute("visibility", "visible");
+    tipShow(el, x * k, y * k, opts.tip ? opts.tip(cur) : nf.format(pts[cur][1]));
+  };
+  const hide = () => { cross.setAttribute("visibility", "hidden"); dot.setAttribute("visibility", "hidden"); tipHide(el); };
+  const nearest = cx => {
+    const r = svg.getBoundingClientRect(), t = t0 + ((cx - r.left) * W / r.width - L) / pw * ts;
+    let a = 0, b = pts.length - 1;
+    while (b - a > 1) { const m = (a + b) >> 1; if (pts[m][0] < t) a = m; else b = m; }
+    return t - pts[a][0] <= pts[b][0] - t ? a : b;
+  };
+  hit.addEventListener("pointermove", e => show(nearest(e.clientX)));
+  hit.addEventListener("pointerdown", e => show(nearest(e.clientX)));
+  hit.addEventListener("pointerleave", hide);
+  hit.addEventListener("focus", () => show(cur < 0 ? pts.length - 1 : cur));
+  hit.addEventListener("blur", hide);
+  hit.addEventListener("keydown", e => {
+    const st = e.shiftKey ? 10 : 1;
+    if (e.key === "ArrowLeft") { show(cur - st); e.preventDefault(); }
+    else if (e.key === "ArrowRight") { show(cur + st); e.preventDefault(); }
+    else if (e.key === "Home") { show(0); e.preventDefault(); }
+    else if (e.key === "End") { show(pts.length - 1); e.preventDefault(); }
+  });
+}
 
 /* ===== 03-vistas.js ===== */
 /* ================= pantalla: el año ================= */
@@ -1994,6 +2079,7 @@ function renderDinero(){
     <button role="tab" data-dsub="categorias" aria-selected="${dSub === "categorias"}">Categorías</button></div>`;
   h += dSub === "cuentas" ? cuentasHTML() : dSub === "objetivos" ? objetivosHTML() : categoriasHTML();
   el.innerHTML = h;
+  if (dSub === "cuentas") krDrawCharts();
 }
 
 /* ---------- cuentas ---------- */
@@ -2028,7 +2114,7 @@ function cuentasHTML(){
       if (num(c.tae) && phase !== "pasado") { const until = v && v < endY ? v : endY; const d = (until - NOW) / 864e5; if (d > 0) extra += `<div class="meta">Te dará unos <b class="num">${eur(s * num(c.tae) / 100 * d / 365)}</b> hasta ${v && v < endY ? "que venza" : "fin de año"}.</div>`; }
     }
     if (c.cripto) extra += criptoHTML(c);
-    h += `<div class="acc"><div class="acc-h"><div><b>${esc(c.nombre)}</b><div class="meta">${esc(ACC_TYPES[c.tipo] || c.tipo)}${c.entidad && c.entidad !== c.nombre ? " · " + esc(c.entidad) : ""}${c.tarjetas ? " · tarjeta …" + esc(c.tarjetas) : ""}</div></div><button class="btn sm ghost" data-accedit="${c.id}">Cambiar</button></div>
+    h += `<div class="acc${c.kraken && c.cripto ? " wide" : ""}"><div class="acc-h"><div><b>${esc(c.nombre)}</b><div class="meta">${esc(ACC_TYPES[c.tipo] || c.tipo)}${c.entidad && c.entidad !== c.nombre ? " · " + esc(c.entidad) : ""}${c.tarjetas ? " · tarjeta …" + esc(c.tarjetas) : ""}</div></div><button class="btn sm ghost" data-accedit="${c.id}">Cambiar</button></div>
       <div class="bal num${s < 0 ? " neg" : ""}">${c.ancla ? eur(s) : "—"}</div>
       <div class="meta">${c.kraken ? "Lo leo yo solo de Kraken." : c.ancla ? `Saldo que me diste: ${eur(c.ancla.saldo)} el ${shortDate(c.ancla.fecha)}${parseISO(c.ancla.fecha).getFullYear() !== CUR_Y ? " de " + parseISO(c.ancla.fecha).getFullYear() : ""}` : "Dime cuánto hay hoy para poder llevar la cuenta."}</div>
       ${extra}${c.ancla ? sparkline(months, col) : ""}
@@ -3198,8 +3284,63 @@ function criptoHTML(c){
   if (!as.length) return "";
   const h = c.criptoHora ? new Date(c.criptoHora) : null;
   return as.map(a => a.activo === "EUR" ? `<div class="meta"><b class="num">${eur(a.cantidad)}</b> en euros, sin invertir</div>` : `<div class="meta"><b class="num">${NFQ.format(a.cantidad)} ${esc(a.activo)}</b>${a.precio != null ? ` a ${NFP.format(a.precio)} € = <b class="num">${eur(a.eur)}</b>` : " · sin precio en euros"}</div>`).join("")
-    + (h ? `<div class="meta">Precio de Kraken del ${shortDate(toISO(h))} a las ${String(h.getHours()).padStart(2, "0")}:${String(h.getMinutes()).padStart(2, "0")}</div>` : "");
+    + (h ? `<div class="meta">Precio de Kraken del ${shortDate(toISO(h))} a las ${String(h.getHours()).padStart(2, "0")}:${String(h.getMinutes()).padStart(2, "0")}</div>` : "")
+    + (krApi && krApi.historico ? as.filter(a => a.activo !== "EUR").map(krHistHTML).join("") : "");
 }
+
+/* ---------- Cómo va cada moneda frente al euro ---------- */
+// El precio de cierre de cada día (o de cada semana, para «Todo») lo da Kraken a cualquiera, sin llave.
+// Se pide al ver la cuenta, como mucho una vez cada hora, y se queda sólo en memoria.
+const KR_RANGOS = [["1m", "Mes", 30], ["3m", "3 meses", 91], ["1a", "Año", 365], ["2a", "2 años", 730], ["todo", "Todo", 0]];
+// Los precios de menos de un euro, siempre con cuatro decimales para que se puedan comparar
+const NFP4 = new Intl.NumberFormat("es-ES", { minimumFractionDigits: 4, maximumFractionDigits: 4 });
+const krP = v => (Math.abs(v) < 1 ? NFP4 : NFP).format(v);
+let krRango = store.get("cj.krrango", "1a");
+if (!KR_RANGOS.some(r => r[0] === krRango)) krRango = "1a";
+const krHist = {};   // activo → {dias, semanas, at, busy, err}
+const krFecha = (t, semana) => { const d = new Date(t); return (semana ? "Semana del " : "") + d.getDate() + " " + MES[d.getMonth()] + " " + d.getFullYear(); };
+function krPuntos(activo){
+  const h = krHist[activo] || {}, r = KR_RANGOS.find(x => x[0] === krRango);
+  if (krRango === "todo" || !(h.dias || []).length) return h.semanas || [];
+  const desde = Date.now() - r[2] * 864e5;
+  return h.dias.filter(p => p[0] >= desde);
+}
+async function krHistLoad(activo){
+  const h = krHist[activo] || (krHist[activo] = {});
+  if (!krApi || !krApi.historico || h.busy || (h.at && Date.now() - h.at < 3600e3)) return;
+  h.busy = true; h.err = "";
+  try { const r = await krApi.historico(activo); Object.assign(h, { dias: r.dias || [], semanas: r.semanas || [], at: Date.now() }); }
+  catch (e) { h.err = "Ahora mismo no puedo traer de Kraken el precio de otros días. Lo vuelvo a intentar en unos minutos."; h.at = Date.now() - 3300e3; }
+  finally { h.busy = false; if (tab === "dinero" && !typing()) renderView(); }
+}
+function krHistHTML(a){
+  const h = krHist[a.activo] || {}, pts = krPuntos(a.activo), r = KR_RANGOS.find(x => x[0] === krRango);
+  let s = `<div class="kr-hist"><div class="kr-hist-h"><b>Cómo va el ${esc(a.activo)} frente al euro</b><div class="seg" role="group" aria-label="Periodo">${KR_RANGOS.map(([k, n]) => `<button data-krr="${k}" aria-pressed="${k === krRango}">${n}</button>`).join("")}</div></div>`;
+  if (pts.length > 1) {
+    const p0 = pts[0][1], p1 = pts[pts.length - 1][1], d = (p1 - p0) / p0 * 100;
+    const cuando = krRango === "todo" ? "Desde el " + krFecha(pts[0][0]).toLowerCase() : { "1m": "En el último mes", "3m": "En los últimos 3 meses", "1a": "En los últimos 12 meses", "2a": "En los últimos 2 años" }[krRango];
+    s += `<p class="small">${cuando}, cada ${esc(a.activo)} ha pasado de <b class="num">${krP(p0)} €</b> a <b class="num">${krP(p1)} €</b>: ${Math.abs(d) < 0.05 ? "<b>igual</b>" : `<b>${d > 0 ? "sube" : "baja"} un ${NF1.format(Math.abs(d))} %</b>`}.`
+      + (a.cantidad > 0 ? ` Tus ${NFQ.format(a.cantidad)} ${esc(a.activo)} valían <b class="num">${eur(a.cantidad * p0)}</b> y hoy <b class="num">${eur(a.cantidad * p1)}</b>.` : "") + `</p>`;
+    s += `<div class="chart kr-chart" data-activo="${esc(a.activo)}"></div>`;
+    s += `<p class="small muted">Precio de cierre de cada ${krRango === "todo" ? "semana" : "día"} en Kraken. Lo de tus monedas está calculado con las que tienes hoy.</p>`;
+  } else if (h.err) s += `<p class="small muted">${esc(h.err)}</p>`;
+  else if (h.at && !h.busy) s += `<p class="small muted">Kraken no tiene precios en euros de otros días para el ${esc(a.activo)}.</p>`;
+  else s += `<p class="small muted" style="display:flex;gap:8px;align-items:center"><span class="spin"></span> Trayendo el precio de cada día…</p>`;
+  return s + `</div>`;
+}
+// Se llama después de pintar la pantalla de Dinero: dibuja las gráficas y pide lo que falte
+function krDrawCharts(){
+  const c = krCuenta(); if (!c || !krApi || !krApi.historico) return;
+  for (const a of (c.cripto || []).filter(x => x.activo !== "EUR" && x.cantidad > 0)) krHistLoad(a.activo);
+  for (const el of $$(".kr-chart")) {
+    const activo = el.dataset.activo, pts = krPuntos(activo), a = (c.cripto || []).find(x => x.activo === activo) || {}, semana = krRango === "todo";
+    if (pts.length > 1) timeLine(el, pts, { unit: "€", label: "Precio de 1 " + activo + " en euros", tip: i => `<b>${krP(pts[i][1])} €</b> cada ${esc(activo)}<div>${krFecha(pts[i][0], semana)}</div>` + (a.cantidad > 0 ? `<div>Tus ${esc(activo)}: ${eur(a.cantidad * pts[i][1])}</div>` : "") });
+  }
+}
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-krr]"); if (!b) return;
+  krRango = b.dataset.krr; store.set("cj.krrango", krRango); renderView();
+});
 
 // El recuadro para conectar Kraken (o ver que ya lo está)
 function krakenHTML(){

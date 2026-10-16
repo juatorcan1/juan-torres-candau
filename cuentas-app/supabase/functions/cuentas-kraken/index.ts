@@ -1,6 +1,6 @@
 // Edge Function cuentas-kraken: la web "Las cuentas de Juan" mira aquí lo que Juan tiene en Kraken
 // (cuántas monedas y cuánto valen hoy en euros). SÓLO PARA LEER: la llave que se guarda es de
-// "Consultar fondos" y aquí sólo se llama a Balance (privado) y a Ticker (público). Nunca a nada
+// "Consultar fondos" y aquí sólo se llama a Balance (privado) y a Ticker y OHLC (públicos). Nunca a nada
 // que compre, venda o saque dinero.
 // La llave vive en cuentas_secretos (sin permisos para la web: sólo la lee esta función).
 // Solo para los usuarios de cuentas_usuarios.
@@ -73,6 +73,23 @@ async function precioEur(asset: string): Promise<number | null> {
   } catch { return null; }
 }
 
+// El precio de cada día (y de cada semana, para ver años atrás) de una moneda en euros. Es público:
+// no usa la llave. Kraken da como mucho 720 velas: con las diarias, unos dos años; con las semanales,
+// desde que la moneda está en Kraken. De cada vela sólo hace falta el cierre.
+async function historico(asset: string) {
+  if (!/^[A-Z0-9]{2,12}$/.test(asset) || asset === "EUR") throw new KrError("invalid_request", "Moneda no válida");
+  const velas = async (interval: number): Promise<number[][]> => {
+    const r = await fetch(`${API}/0/public/OHLC?pair=${asset}EUR&interval=${interval}`);
+    const j = await r.json().catch(() => ({}));
+    if ((j.error || []).length) throw new KrError("upstream_error", (j.error as string[]).join(", "));
+    const k = Object.keys(j.result || {}).find((x) => x !== "last");
+    const filas = (k ? j.result[k] : []) as unknown[][];
+    return filas.map((f) => [Number(f[0]) * 1000, Number(f[4])]).filter(([t, c]) => Number.isFinite(t) && Number.isFinite(c) && c > 0);
+  };
+  const [dias, semanas] = await Promise.all([velas(1440), velas(10080)]);
+  return { activo: asset, dias, semanas, hora: new Date().toISOString() };
+}
+
 async function saldo(key: string, secret: string) {
   const bal = await balance(key, secret);
   const suma: Record<string, number> = {};
@@ -97,10 +114,11 @@ Deno.serve(async (req: Request) => {
   const { data: socio } = await admin.from("cuentas_usuarios").select("user_id").eq("user_id", user.id).maybeSingle();
   if (!socio) return reply({ code: "forbidden", error: "Este usuario no tiene acceso a las cuentas" }, 403);
 
-  let body: { accion?: string; key?: string; secret?: string } = {};
+  let body: { accion?: string; key?: string; secret?: string; activo?: string } = {};
   try { body = await req.json(); } catch { /* vacío */ }
   const accion = String(body.accion || "saldo");
   try {
+    if (accion === "historico") return reply(await historico(String(body.activo || "").trim().toUpperCase()));
     if (accion === "guardar") {
       const key = String(body.key || "").trim(), secret = String(body.secret || "").replace(/\s+/g, "");
       if (key.length < 20 || secret.length < 40) throw new KrError("bad_key", "Faltan la clave o la clave privada");

@@ -12,6 +12,7 @@ function renderDinero(){
     <button role="tab" data-dsub="categorias" aria-selected="${dSub === "categorias"}">Categorías</button></div>`;
   h += dSub === "cuentas" ? cuentasHTML() : dSub === "objetivos" ? objetivosHTML() : categoriasHTML();
   el.innerHTML = h;
+  if (dSub === "cuentas") krDrawCharts();
 }
 
 /* ---------- cuentas ---------- */
@@ -46,7 +47,7 @@ function cuentasHTML(){
       if (num(c.tae) && phase !== "pasado") { const until = v && v < endY ? v : endY; const d = (until - NOW) / 864e5; if (d > 0) extra += `<div class="meta">Te dará unos <b class="num">${eur(s * num(c.tae) / 100 * d / 365)}</b> hasta ${v && v < endY ? "que venza" : "fin de año"}.</div>`; }
     }
     if (c.cripto) extra += criptoHTML(c);
-    h += `<div class="acc"><div class="acc-h"><div><b>${esc(c.nombre)}</b><div class="meta">${esc(ACC_TYPES[c.tipo] || c.tipo)}${c.entidad && c.entidad !== c.nombre ? " · " + esc(c.entidad) : ""}${c.tarjetas ? " · tarjeta …" + esc(c.tarjetas) : ""}</div></div><button class="btn sm ghost" data-accedit="${c.id}">Cambiar</button></div>
+    h += `<div class="acc${c.kraken && c.cripto ? " wide" : ""}"><div class="acc-h"><div><b>${esc(c.nombre)}</b><div class="meta">${esc(ACC_TYPES[c.tipo] || c.tipo)}${c.entidad && c.entidad !== c.nombre ? " · " + esc(c.entidad) : ""}${c.tarjetas ? " · tarjeta …" + esc(c.tarjetas) : ""}</div></div><button class="btn sm ghost" data-accedit="${c.id}">Cambiar</button></div>
       <div class="bal num${s < 0 ? " neg" : ""}">${c.ancla ? eur(s) : "—"}</div>
       <div class="meta">${c.kraken ? "Lo leo yo solo de Kraken." : c.ancla ? `Saldo que me diste: ${eur(c.ancla.saldo)} el ${shortDate(c.ancla.fecha)}${parseISO(c.ancla.fecha).getFullYear() !== CUR_Y ? " de " + parseISO(c.ancla.fecha).getFullYear() : ""}` : "Dime cuánto hay hoy para poder llevar la cuenta."}</div>
       ${extra}${c.ancla ? sparkline(months, col) : ""}

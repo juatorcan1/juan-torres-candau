@@ -100,3 +100,79 @@ function sparkline(values, color){
   return `<svg class="spark" viewBox="-4 0 ${W + 8} ${H}" preserveAspectRatio="none" aria-hidden="true"><path d="M${pts.map(p => p[0].toFixed(1) + "," + p[1].toFixed(1)).join("L")}" style="fill:none;stroke:${color}" stroke-width="2" vector-effect="non-scaling-stroke"/><circle cx="${last[0]}" cy="${last[1]}" r="3" style="fill:${color}"/></svg>`;
 }
 const cssv = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+// Una línea en el tiempo (pts: [[ms, valor]], ordenados), para precios: el eje no empieza en cero y
+// una raya vertical sigue al dedo hasta el día más cercano. opts: {unit, tip(i) → html, label, color}
+function niceStep(x){
+  const p = Math.pow(10, Math.floor(Math.log10(x)));
+  for (const k of [1, 2, 2.5, 5, 10]) if (k * p >= x) return k * p;
+  return 10 * p;
+}
+function timeTicks(t0, t1){
+  const d0 = new Date(t0), days = (t1 - t0) / 864e5, out = [];
+  if (days > 800) {
+    const n = new Date(t1).getFullYear() - d0.getFullYear(), st = Math.max(1, Math.ceil(n / 6));
+    for (let y = d0.getFullYear() + 1; y <= new Date(t1).getFullYear(); y += st) out.push([new Date(y, 0, 1).getTime(), String(y)]);
+  } else if (days > 75) {
+    const st = Math.max(1, Math.ceil(days / 30.4 / 6));
+    for (let d = new Date(d0.getFullYear(), d0.getMonth() + 1, 1); d.getTime() <= t1; d = new Date(d.getFullYear(), d.getMonth() + st, 1))
+      out.push([d.getTime(), d.getMonth() === 0 || days > 400 ? MES[d.getMonth()] + " " + String(d.getFullYear()).slice(2) : MES[d.getMonth()]]);
+  } else {
+    const st = Math.max(1, Math.ceil(days / 5));
+    for (let d = new Date(d0.getFullYear(), d0.getMonth(), d0.getDate() + 1); d.getTime() <= t1; d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + st))
+      out.push([d.getTime(), d.getDate() + " " + MES[d.getMonth()]]);
+  }
+  return out;
+}
+function timeLine(el, pts, opts = {}){
+  const W = Math.round(Math.max(300, Math.min(720, el.clientWidth || 640))), H = opts.h || 210, L = 58, R = 14, T = 12, B = 26;
+  const pw = W - L - R, ph = H - T - B, color = opts.color || "var(--ing)";
+  const t0 = pts[0][0], t1 = pts[pts.length - 1][0], ts = t1 - t0 || 1;
+  const vs = pts.map(p => p[1]), vmin = Math.min(...vs), vmax = Math.max(...vs);
+  const pad = (vmax - vmin) * 0.08 || Math.abs(vmax) * 0.05 || 1;
+  let step = niceStep((vmax - vmin + 2 * pad) / 4);
+  let lo = Math.floor((vmin - pad) / step) * step, hi = Math.ceil((vmax + pad) / step) * step;
+  if (lo < 0 && vmin >= 0) lo = 0;
+  if ((hi - lo) / step > 6) { step *= 2; lo = Math.floor(lo / step) * step; hi = Math.ceil(hi / step) * step; }
+  const dec = Math.min(4, Math.max(0, -Math.floor(Math.log10(step) + 1e-9)));
+  const nf = new Intl.NumberFormat("es-ES", { minimumFractionDigits: dec, maximumFractionDigits: dec });
+  const xv = t => L + (t - t0) / ts * pw, yv = v => T + ph - (v - lo) / (hi - lo) * ph;
+  let g = "";
+  for (let k = 0; lo + k * step <= hi + step / 1e6; k++) { const v = lo + k * step, y = yv(v); g += `<line class="grid" x1="${L}" x2="${W - R}" y1="${y}" y2="${y}"/><text class="axis" x="${L - 6}" y="${y + 4}" text-anchor="end">${nf.format(v)}${opts.unit ? " " + opts.unit : ""}</text>`; }
+  for (const [t, lab] of timeTicks(t0, t1)) { const x = xv(t); if (x < L + 16 || x > W - R - 16) continue; g += `<text class="axis" x="${x}" y="${H - 8}" text-anchor="middle">${lab}</text>`; }
+  const d = "M" + pts.map(p => xv(p[0]).toFixed(1) + "," + yv(p[1]).toFixed(1)).join("L");
+  const last = pts[pts.length - 1];
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(opts.label || "Evolución")}">${g}<line class="base" x1="${L}" x2="${W - R}" y1="${T + ph}" y2="${T + ph}"/>`
+    + `<path d="${d}" style="fill:none;stroke:${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`
+    + `<circle cx="${xv(last[0])}" cy="${yv(last[1])}" r="4" style="fill:${color};stroke:var(--surface)" stroke-width="2"/>`
+    + `<line class="cross" x1="0" x2="0" y1="${T}" y2="${T + ph}" visibility="hidden"/><circle class="cross-dot" r="5" style="fill:${color};stroke:var(--surface)" stroke-width="2" visibility="hidden"/>`
+    + `<rect class="t-hit" tabindex="0" x="${L}" y="${T}" width="${pw}" height="${ph}" aria-label="${esc(opts.label || "Evolución")}: usa las flechas para ir de un día a otro"/></svg>`;
+  const svg = el.querySelector("svg"), hit = svg.querySelector(".t-hit"), cross = svg.querySelector(".cross"), dot = svg.querySelector(".cross-dot");
+  let cur = -1;
+  const show = i => {
+    cur = Math.max(0, Math.min(pts.length - 1, i));
+    const x = xv(pts[cur][0]), y = yv(pts[cur][1]), k = svg.getBoundingClientRect().width / W;
+    cross.setAttribute("x1", x); cross.setAttribute("x2", x); cross.setAttribute("visibility", "visible");
+    dot.setAttribute("cx", x); dot.setAttribute("cy", y); dot.setAttribute("visibility", "visible");
+    tipShow(el, x * k, y * k, opts.tip ? opts.tip(cur) : nf.format(pts[cur][1]));
+  };
+  const hide = () => { cross.setAttribute("visibility", "hidden"); dot.setAttribute("visibility", "hidden"); tipHide(el); };
+  const nearest = cx => {
+    const r = svg.getBoundingClientRect(), t = t0 + ((cx - r.left) * W / r.width - L) / pw * ts;
+    let a = 0, b = pts.length - 1;
+    while (b - a > 1) { const m = (a + b) >> 1; if (pts[m][0] < t) a = m; else b = m; }
+    return t - pts[a][0] <= pts[b][0] - t ? a : b;
+  };
+  hit.addEventListener("pointermove", e => show(nearest(e.clientX)));
+  hit.addEventListener("pointerdown", e => show(nearest(e.clientX)));
+  hit.addEventListener("pointerleave", hide);
+  hit.addEventListener("focus", () => show(cur < 0 ? pts.length - 1 : cur));
+  hit.addEventListener("blur", hide);
+  hit.addEventListener("keydown", e => {
+    const st = e.shiftKey ? 10 : 1;
+    if (e.key === "ArrowLeft") { show(cur - st); e.preventDefault(); }
+    else if (e.key === "ArrowRight") { show(cur + st); e.preventDefault(); }
+    else if (e.key === "Home") { show(0); e.preventDefault(); }
+    else if (e.key === "End") { show(pts.length - 1); e.preventDefault(); }
+  });
+}

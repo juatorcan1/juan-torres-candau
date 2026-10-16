@@ -175,7 +175,8 @@ function makeKraken(){
   return {
     saldo: () => call({ accion: "saldo" }),
     guardar: (key, secret) => call({ accion: "guardar", key, secret }),
-    quitar: () => call({ accion: "quitar" })
+    quitar: () => call({ accion: "quitar" }),
+    historico: activo => call({ accion: "historico", activo })
   };
 }
 let dbNs = null, sampleNs = null, assetsNs = null, tcNs = null, driveNs = null, krNs = null;

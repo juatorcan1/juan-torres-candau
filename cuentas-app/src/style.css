@@ -338,3 +338,12 @@ tr.subrow td:first-child{padding-left:22px}
 .dia-tot{font-family:var(--mono);letter-spacing:0;text-transform:none;color:var(--ink-2);margin-left:4px}
 .tc-pasar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:16px 0 4px;padding:12px 14px;border-radius:10px;background:var(--acc-wash)}
 .tc-pasar > div{display:grid;gap:2px;min-width:0}
+.acc.wide{grid-column:1/-1}
+.kr-hist{margin-top:4px;padding-top:12px;border-top:1px solid var(--line-2);display:grid;gap:8px;min-width:0}
+.kr-hist-h{display:flex;justify-content:space-between;align-items:center;gap:8px 12px;flex-wrap:wrap}
+.kr-hist-h b{font-size:14.5px}
+.kr-hist .seg button{padding:6px 9px;font-size:12.5px;white-space:nowrap}
+.kr-hist p{margin:0}
+.chart .cross{stroke:var(--muted);stroke-width:1;stroke-dasharray:3 3}
+.chart .t-hit{fill:transparent;cursor:crosshair;outline:none;touch-action:pan-y}
+.chart .t-hit:focus-visible{stroke:var(--acc);stroke-width:1.5}

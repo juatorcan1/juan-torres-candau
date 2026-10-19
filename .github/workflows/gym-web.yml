@@ -19,7 +19,11 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Si las comprobaciones fallan no se publica nada: la web de antes sigue como estaba.
+  comprobar:
+    uses: ./.github/workflows/comprobaciones.yml
   deploy:
+    needs: comprobar
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

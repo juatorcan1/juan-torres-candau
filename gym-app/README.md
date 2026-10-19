@@ -20,7 +20,7 @@ Abajo hay cinco botones:
 - Cada uno entra con su usuario (Juan o Ignacio) y su contraseña, que se cambia desde la propia app.
 - Datos en Supabase (proyecto `senda-memoria`, tablas `gym_usuarios`, `gym_docs` — sesiones, pesajes, bebidas, perfiles, planes, chats — y `gym_claude_uso`, separadas de Senda). Row Level Security: los dos leen todo y cada uno solo escribe lo suyo.
 - Claude (dictado, valoración, menús) pasa por la Edge Function `supabase/functions/gym-claude`, que necesita la clave de Anthropic: el secreto `ANTHROPIC_API_KEY` de las Edge Functions o, si no está, el secreto `gym_anthropic_api_key` del Vault (lo lee la función SQL `gym_anthropic_key`, solo para `service_role`). Tope de 80 llamadas por persona y día.
-- `./build-web.sh` genera `web/index.html`; el workflow `.github/workflows/gym-web.yml` lo sube a la rama `gh-pages` (la que publica GitHub Pages) en cada push a `main`.
+- `./build-web.sh` genera `web/index.html`; el workflow `.github/workflows/gym-web.yml` lo sube a la rama `gh-pages` (la que publica GitHub Pages) en cada push a `main`, sólo si pasan las comprobaciones de `.github/workflows/comprobaciones.yml` (también en cada pull request).
 
 **Artifact de Claude**: `./build.sh` genera `index.html`, que se publica como Artifact (base de datos del artifact y capacidad `sample`).
 

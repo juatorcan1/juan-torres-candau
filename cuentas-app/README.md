@@ -80,7 +80,9 @@ persona paga algo por ti (p. ej. la cuenta del bar), queda en negativo y aparece
   (`src/web/icons/`), así que Chrome la instala con su icono y sin la barra del navegador.
 - **Copia de seguridad**: en Dinero → Cuentas, «Descargar en Excel» y «Descargar la copia completa».
 - `./build-web.sh` genera `web/index.html`; el workflow `.github/workflows/gym-web.yml` lo publica en
-  `/cuentas/` junto a la web del gimnasio en cada push a `main`.
+  `/cuentas/` junto a la web del gimnasio en cada push a `main`, sólo si pasan las comprobaciones
+  (`.github/workflows/comprobaciones.yml`: el JavaScript se lee bien y la web arranca sin errores), que también
+  corren en cada pull request.
 
 **Artifact de Claude**: `./build.sh` genera `index.html`, que se publica como Artifact
 (base de datos del artifact, `sample` y `assets`). Guarda sus datos aparte de la web.

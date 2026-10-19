@@ -76,7 +76,18 @@ document.addEventListener("click", async e => {
   if (k && DRAFTS[k]) {
     const d = DRAFTS[k];
     if (ds.edtipo) { if (d.tipo !== ds.edtipo) { d.tipo = ds.edtipo; d.lineas = d.lineas.map(l => ({ ...l, cat: CATIDX[l.cat] && CATIDX[l.cat].tipo === d.tipo ? l.cat : "" })); if (d.tipo === "traspaso" && !d.destino) d.destino = cuentas().find(c => c.id !== d.cuenta) ? cuentas().find(c => c.id !== d.cuenta).id : ""; repaintEditor(k); } return; }
-    if (ds.parte != null && !ds.edsave) { d.parte = num(d.parte) === num(ds.parte) ? "" : num(ds.parte); return repaintEditor(k); }
+    if (ds.parte != null && !ds.edsave) { d.parteModo = "eur"; d.parte = num(d.parte) === num(ds.parte) ? "" : num(ds.parte); return repaintEditor(k); }
+    if (ds.partepct != null) { const v = +ds.partepct; d.partePct = Math.abs(pctIn(d.partePct) - r2(v)) < 0.005 ? "" : v; return repaintEditor(k); }
+    if (ds.partemodo) {
+      if (parteModo(d) !== ds.partemodo) {
+        // lo que ya hubiera escrito se pasa al otro modo, para no perderlo
+        const tot = r2(Math.abs(num(d.total)) || linesSum(d)), parte = parteEur(d);
+        if (ds.partemodo === "pct") d.partePct = parte > 0 && tot > 0 ? r2(parte / tot * 100) : "";
+        else d.parte = parte || "";
+        store.set("cj.partemodo", ds.partemodo);
+      }
+      d.parteModo = ds.partemodo; return repaintEditor(k);
+    }
     if (ds.pregcat && d.pregunta) { const l = d.lineas[d.pregunta.linea]; if (l) l.cat = ds.pregcat; d.pregunta = null; return repaintEditor(k); }
     if (ds.liadd) { d.lineas.push({ concepto: "", cat: "", importe: "" }); repaintEditor(k); const ins = document.querySelectorAll(`.ed[data-ed="${k}"] [data-lk="concepto"]`); if (ins.length) ins[ins.length - 1].focus(); return; }
     if (ds.lidel != null) { d.lineas.splice(+ds.lidel, 1); if (!d.lineas.length) d.lineas.push({ concepto: "", cat: "", importe: "" }); return repaintEditor(k); }
@@ -206,7 +217,7 @@ let qT;
 document.addEventListener("input", e => {
   const el = e.target;
   const k = edKey(el);
-  if (k && DRAFTS[k]) { readEd(k, el); if (el.dataset.lk === "importe" || el.dataset.k === "total") paintSum(k); return; }
+  if (k && DRAFTS[k]) { readEd(k, el); if (el.dataset.lk === "importe" || /^(total|parte|partePct)$/.test(el.dataset.k || "")) paintSum(k); return; }
   if (el.id === "mf-q") { mf.q = el.value; mf.limit = 200; clearTimeout(qT); qT = setTimeout(renderView, 250); return; }
   if (el.dataset.pres) return presInput(el);
 });

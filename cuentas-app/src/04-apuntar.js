@@ -49,18 +49,38 @@ function editorHTML(key){
     h += `</div><div class="row"><button type="button" class="btn sm" data-liadd="1">+ Otra categoría</button></div><div class="sumcheck" id="${key}-sum"></div>`;
   }
   if (t !== "traspaso" && !d.id) {
-    const tot = r2(Math.abs(num(d.total))), parte = r2(Math.abs(num(d.parte)));
-    h += `<div class="f parte"><label for="${key}-parte">Mi parte (€) <small>(si sólo pagaste o tomaste una parte del ticket)</small></label><input id="${key}-parte" data-k="parte" inputmode="decimal" value="${esc(d.parte === "" || d.parte == null ? "" : typeof d.parte === "number" ? NF2.format(d.parte) : d.parte)}" placeholder="todo">`;
-    if (d.pagos && d.pagos.length > 1) h += `<div class="small" style="margin-top:6px">Se pagó en varias veces. ¿Cuál fue lo tuyo?</div><div class="chips sm" style="margin-top:4px">${d.pagos.map(p => `<button type="button" data-parte="${p.importe}" aria-pressed="${Math.abs(parte - p.importe) < 0.005}">${esc(cap(p.forma || "pago"))} ${esc(NF2.format(p.importe))} €</button>`).join("")}</div>`;
-    if (parte > 0 && tot > 0 && parte < tot - 0.005) h += `<div class="small muted" style="margin-top:6px">Guardo ${eur(parte)} como gasto tuyo (cada línea en proporción, el ${pct(parte / tot * 100)}). El ticket entero se archiva igual.</div>`;
-    h += `</div>`;
+    const pc = parteModo(d) === "pct", parte = parteEur(d), pp = r2(pctIn(d.partePct));
+    const val = pc ? d.partePct : d.parte;
+    h += `<div class="f parte"><label for="${key}-parte">Mi parte (${pc ? "%" : "€"}) <small>(si sólo pagaste o tomaste una parte del ticket)</small></label><div class="parte-in"><input id="${key}-parte" data-k="${pc ? "partePct" : "parte"}" inputmode="decimal" value="${esc(val === "" || val == null ? "" : typeof val === "number" ? (pc ? NFPCT : NF2).format(val) : val)}" placeholder="${pc ? "100" : "todo"}"><div class="seg" role="group" aria-label="Mi parte en"><button type="button" data-partemodo="eur" aria-pressed="${!pc}">€</button><button type="button" data-partemodo="pct" aria-pressed="${pc}">%</button></div></div>`;
+    if (pc) h += `<div class="chips sm" style="margin-top:6px">${[[50, "La mitad"], [100 / 3, "Un tercio"], [25, "Un cuarto"]].map(([v, n]) => `<button type="button" data-partepct="${v}" aria-pressed="${Math.abs(pp - r2(v)) < 0.005}">${n} · ${NFPCT.format(v)} %</button>`).join("")}</div>`;
+    else if (d.pagos && d.pagos.length > 1) h += `<div class="small" style="margin-top:6px">Se pagó en varias veces. ¿Cuál fue lo tuyo?</div><div class="chips sm" style="margin-top:4px">${d.pagos.map(p => `<button type="button" data-parte="${p.importe}" aria-pressed="${Math.abs(parte - p.importe) < 0.005}">${esc(cap(p.forma || "pago"))} ${esc(NF2.format(p.importe))} €</button>`).join("")}</div>`;
+    h += `<div class="small muted" id="${key}-parteinfo" style="margin-top:6px">${parteInfo(d)}</div></div>`;
   } else if (d.ticketTotal) h += `<p class="small muted" style="margin:0">Es tu parte de un ticket de ${eur(d.ticketTotal)}.</p>`;
   h += `<div class="f"><label for="${key}-nota">Nota <small>(opcional)</small></label><input id="${key}-nota" data-k="nota" value="${esc(d.nota)}"></div>`;
   h += `<div class="ed-foot"><button type="button" class="btn primary" data-edsave="${key}">${d.id ? "Guardar cambios" : "Guardar"}</button>${d.id ? `<span class="sp"></span><button type="button" class="btn danger" data-eddel="${key}">${d.confirmDel ? "Sí, bórralo" : "Borrar"}</button>` : `<button type="button" class="btn ghost" data-eddrop="${key}">Descartar</button>`}<span class="err" id="${key}-err"></span></div>`;
   return h + `</div>`;
 }
+// «Mi parte», en euros o en tanto por ciento del total (el modo que usaste la última vez se recuerda)
+const NFPCT = new Intl.NumberFormat("es-ES", { maximumFractionDigits: 2 });
+function parteModo(d){ return d.parteModo || store.get("cj.partemodo", "eur"); }
+function pctIn(v){ const n = typeof v === "number" ? v : parseFloat(String(v ?? "").replace(/[%\s]/g, "").replace(",", ".")); return isFinite(n) ? Math.abs(n) : 0; }
+function parteDe(d, tot){
+  if (parteModo(d) !== "pct") return r2(Math.abs(num(d.parte)));
+  const p = pctIn(d.partePct);
+  return p > 0 && p < 100 ? r2(tot * p / 100) : 0;
+}
+function parteEur(d){ return parteDe(d, r2(Math.abs(num(d.total)) || linesSum(d))); }
+function parteInfo(d){
+  const tot = r2(Math.abs(num(d.total)) || linesSum(d)), parte = parteEur(d);
+  return parte > 0 && tot > 0 && parte < tot - 0.005 ? `Guardo <b class="num">${eur(parte)}</b> como gasto tuyo (${parteModo(d) === "pct" ? `el ${NFPCT.format(pctIn(d.partePct))} % de ${eur(tot)}` : `el ${pct(parte / tot * 100)}`}, cada línea en proporción). El ticket entero se archiva igual.` : "";
+}
 function paintSum(key){
-  const d = DRAFTS[key], box = document.getElementById(key + "-sum"); if (!d || !box) return;
+  const d = DRAFTS[key], info = document.getElementById(key + "-parteinfo");
+  if (d && info) {
+    info.innerHTML = parteInfo(d);
+    info.parentNode.querySelectorAll("[data-partepct]").forEach(b => b.setAttribute("aria-pressed", Math.abs(pctIn(d.partePct) - r2(+b.dataset.partepct)) < 0.005));
+  }
+  const box = document.getElementById(key + "-sum"); if (!d || !box) return;
   const tot = num(d.total), s = linesSum(d), empties = d.lineas.filter(l => l.importe === "" || l.importe == null).length;
   if (empties === 1 && tot) { box.className = "sumcheck ok"; box.innerHTML = `<span>La línea sin importe se lleva lo que falta: <b class="num">${eur(tot - s)}</b></span>`; return; }
   const diff = r2(tot - s);
@@ -112,14 +132,14 @@ function draftToMov(d){
     }
     m.revisar = m.lineas.some(l => !l.cat) || !m.lineas.length || !!d.pregunta;
     // sólo una parte es tuya: el gasto es tu parte (cada línea en proporción) y se guarda el total del papel
-    const parte = r2(Math.abs(num(d.parte)));
+    const parte = parteDe(d, m.total);
     if (!d.id && parte > 0 && parte < m.total - 0.005) {
       const f = parte / m.total;
       m.lineas = m.lineas.map(l => ({ ...l, importe: r2(l.importe * f) }));
       const res = r2(parte - linesSum(m));
       if (Math.abs(res) >= 0.005 && m.lineas.length) { const big = m.lineas.slice().sort((a, b) => b.importe - a.importe)[0]; big.importe = r2(big.importe + res); }
       m.ticketTotal = m.total; m.total = parte;
-      const aviso = `Mi parte de un ticket de ${eur(m.ticketTotal)}`;
+      const aviso = `Mi parte${parteModo(d) === "pct" ? ` (${NFPCT.format(pctIn(d.partePct))} %)` : ""} de un ticket de ${eur(m.ticketTotal)}`;
       m.nota = (m.nota ? m.nota + " · " : "") + aviso;
     }
   } else m.revisar = false;

@@ -25,3 +25,10 @@ Abajo hay cinco botones:
 **Artifact de Claude**: `./build.sh` genera `index.html`, que se publica como Artifact (base de datos del artifact y capacidad `sample`).
 
 El código compartido está en `src/`; lo propio de la web (inicio de sesión y conexión con Supabase) en `src/web/`.
+
+## Que no se pierda nada
+
+- El entreno guiado se sube serie a serie; sin conexión se queda en el móvil y se sube en cuanto vuelve.
+- La base de datos guarda cada versión anterior de lo que se cambia o se borra (`gym_docs_historial`).
+- **Copia** (arriba, junto a tu nombre) descarga todos los datos de los dos en un JSON.
+- Para trabajar en la app con Claude: `CLAUDE.md` (esquema, cómo se guarda, cómo revisar y recuperar datos).

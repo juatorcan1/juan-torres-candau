@@ -53,7 +53,7 @@ function renderHeader(){
   document.body.classList.toggle("me-juan", me === "juan");
   document.body.classList.toggle("me-ignacio", me === "ignacio");
   $("#whoami").innerHTML = me
-    ? `<span class="dot ${me}"></span><span>${WEB ? "Hola," : "Registras como"} <b>${ATH[me]}</b></span>${WEB ? `<button class="linkbtn" id="pw-open" type="button">Contraseña</button><button class="linkbtn" id="logout" type="button">Salir</button>` : `<button class="linkbtn" id="switch-me" type="button">Cambiar</button>`}`
+    ? `<span class="dot ${me}"></span><span>${WEB ? "Hola," : "Registras como"} <b>${ATH[me]}</b></span>${dbState === "ready" ? `<button class="linkbtn" id="backup" type="button" title="Descargar una copia de todos los datos">Copia</button>` : ""}${WEB ? `<button class="linkbtn" id="pw-open" type="button">Contraseña</button><button class="linkbtn" id="logout" type="button">Salir</button>` : `<button class="linkbtn" id="switch-me" type="button">Cambiar</button>`}`
     : `<span>Elige quién eres para registrar</span>`;
   const { T } = computeDuel();
   const side = k => `

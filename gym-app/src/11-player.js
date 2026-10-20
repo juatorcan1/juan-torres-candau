@@ -19,9 +19,15 @@ function flatten(w){
 const itemOf = (st) => run.w.bloques[st.bi].items[st.ii];
 const keyOf = (st) => st.bi + "." + st.ii;
 function saveRun(){ store.set("gym.run", run); }
+const setsDone = r => Object.values(r.log).reduce((a, l) => a + l.length, 0);
 // opts.date: logging a past day you trained but did not record (no rests, saved on that date)
-function openPlayer(w, opts = {}){
+async function openPlayer(w, opts = {}){
   if (!me) { toast("Elige primero quién eres"); return; }
+  // a workout with sets already logged is never replaced on the phone: it goes to the database as it is first
+  if (run && run.athlete === me && run.phase !== "preview" && setsDone(run)) {
+    if (!confirm(`Tienes «${run.w.titulo}» a medias (${setsDone(run)} series). Se guarda tal cual, como «sin terminar», y empiezas el nuevo. ¿Seguimos?`)) { showPlayer(); return; }
+    if (!(await parkRun())) { if (!playerOpen()) toast("No se ha podido guardar el entreno a medias: continúalo o prueba otra vez con conexión"); return; }
+  }
   const { w: ww, swapped } = autoSwap(w);
   applyExtras(ww);
   const tuned = tuneFromHistory(ww);
@@ -54,7 +60,9 @@ function tuneFromHistory(w){
   }
   return n;
 }
-function resumePlayer(){ if (run && run.athlete === me && run.phase !== "preview") showPlayer(); }
+// a workout left open hours ago does not take over the screen: Hoy shows it and parkOldRun saves it
+const runIdle = r => Date.now() - (r.lastAt || r.startedAt || 0) > 6 * 3600000;
+function resumePlayer(){ if (run && run.athlete === me && run.phase !== "preview" && !runIdle(run)) showPlayer(); }
 function showPlayer(){
   $("#player").hidden = false; document.body.classList.add("playing");
   renderPlayer(); keepAwake(true);
@@ -267,17 +275,84 @@ function advance(){
   run.nextCur = null;
   run.phase = "set";
 }
+// left half done and saved later: the workout ended with the last set, not now
+const idleEnd = (r = run) => r.lastAt && Date.now() - r.lastAt > 20 * 60000 ? r.lastAt : Date.now();
 function finishRun(){ run.phase = "done"; run.until = null; setTimeout(syncRun, 0);
-  // left half done and saved later: the workout ended with the last set, not now
-  run.endedAt = run.lastAt && Date.now() - run.lastAt > 20 * 60000 ? run.lastAt : Date.now(); say("Entreno terminado. ¡Buen trabajo!"); saveRun(); renderPlayer(); }
+  run.endedAt = idleEnd(); say("Entreno terminado. ¡Buen trabajo!"); saveRun(); renderPlayer(); }
 
 /* the workout goes to the database set by set (sesiones/<sid>, marked enCurso), so nothing is lost if
-   the phone dies, the page is closed or you forget to press save; saving at the end updates the same one */
-async function syncRun(){
-  if (!run || !me || run.athlete !== me || dbState !== "ready" || !Object.values(run.log).some(l => l.length)) return;
-  if (!run.sid) { run.sid = `run-${me}-${run.startedAt || Date.now()}`; saveRun(); }
-  const doc = runSession(), now = Date.now();
-  try { await db.doc("sesiones/" + run.sid).set({ ...doc, notes: doc.notes + " · sin terminar", enCurso: true, guia: guiaOf(run.w), createdAt: run.startedAt || now, updatedAt: now }); run.syncedAt = now; saveRun(); } catch {}
+   the phone dies, the page is closed or you forget to press save; saving at the end updates the same one.
+   Without connection the sets stay on the phone (run.unsynced) and go up as soon as it is back: with the
+   connection, when the app comes to the front, or every 30 s. Returns whether the database has it all. */
+function markUnsynced(r){
+  if (r.unsynced) return;
+  r.unsynced = true; if (r === run) saveRun();
+  toast("Sin conexión: lo que apuntas se queda en el móvil y se sube en cuanto vuelva");
+}
+// the writes of the workout go one after another, so an older one never lands after a newer one
+let writes = Promise.resolve();
+function queueWrite(fn){ const p = writes.then(fn); writes = p.catch(() => {}); return p; }
+// changed somewhere else since this phone last wrote it (another phone, the form, the plan)
+function changedElsewhere(r){ const s = r.sid && real.find(x => x.id === r.sid); return s && num(s.updatedAt) > num(r.syncedAt) + 1000 ? s : null; }
+const setsIn = s => (s.exercises || []).reduce((a, e) => a + (e.sets || []).length, 0);
+// r.rev counts the changes made on this phone and r.syncedRev the last one the database has
+function syncRun(){
+  const r = run;
+  if (!r || !me || r.athlete !== me || !setsDone(r)) return Promise.resolve(true);
+  r.rev = (r.rev || 0) + 1;
+  return queueWrite(() => writeRun(r));
+}
+async function writeRun(r, final = false){
+  const rev = r.rev || 0;
+  if (!final && num(r.syncedRev) >= rev) return true; // a write after it in the queue already took it
+  if (dbState !== "ready" || !db) { markUnsynced(r); return false; }
+  const other = changedElsewhere(r);
+  if (other) {
+    // never written over: with as much there as here, this copy is the old one; otherwise it stays on the phone
+    if (setsIn(other) >= setsDone(r)) { if (run === r && !playerOpen()) { run = null; store.del("gym.run"); } return true; }
+    if (!r.conflict) { r.conflict = true; if (r === run) saveRun(); toast("Este entreno se ha cambiado en otro móvil: lo de aquí no se sube para no pisarlo"); }
+    return false;
+  }
+  if (!r.sid) r.sid = `run-${me}-${r.startedAt || Date.now()}`;
+  const doc = runSession(r), now = Date.now();
+  try {
+    await db.doc("sesiones/" + r.sid).set(final ? { ...doc, guia: guiaOf(r.w), createdAt: r.startedAt || now, updatedAt: now }
+      : { ...doc, notes: doc.notes + " · sin terminar", enCurso: true, guia: guiaOf(r.w), createdAt: r.startedAt || now, updatedAt: now });
+  } catch { markUnsynced(r); return false; }
+  r.syncedAt = now; r.syncedRev = Math.max(num(r.syncedRev), rev);
+  if (r.unsynced && r.syncedRev >= (r.rev || 0)) { r.unsynced = false; toast("Subido lo que apuntaste sin conexión"); }
+  if (r === run) saveRun();
+  return true;
+}
+function retrySync(){ if (run && run.unsynced && run.athlete === me) syncRun(); }
+window.addEventListener("online", retrySync);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) retrySync(); });
+setInterval(retrySync, 30000);
+/* a workout half done is never thrown away by starting another one, nor left on the phone for days: it goes
+   to the database as it is («sin terminar», to carry on from the plan, or finished if it was) and leaves the
+   phone. If it was carried on meanwhile (Continuar, another set) it stays: it is the workout in use. */
+async function parkRun(){
+  const r = run;
+  if (!r || r.athlete !== me || r.phase === "preview" || !setsDone(r)) return true;
+  const rev = r.rev = (r.rev || 0) + 1;
+  if (!(await queueWrite(() => writeRun(r, r.phase === "done")))) return false;
+  if (run !== r) return true;
+  if (playerOpen() || r.rev !== rev) return false;
+  run = null; store.del("gym.run");
+  return true;
+}
+// called with every snapshot of the sessions: a workout left open more than 6 hours ago is parked
+let parking = false;
+async function parkOldRun(){
+  if (parking || !run || run.athlete !== me || run.phase === "preview" || playerOpen() || !runIdle(run) || !setsDone(run)) return;
+  parking = true;
+  const when = relDay(toISO(new Date(run.lastAt || run.startedAt))), done = run.phase === "done";
+  try {
+    if (!(await parkRun()) || run) return;
+    toast(`El entreno de ${when} que quedó abierto ya está guardado${done ? "" : " como «sin terminar»: lo continúas desde el plan"}`);
+    if (tab === "hoy") renderHoy();
+  }
+  finally { parking = false; }
 }
 /* a workout left open on this phone whose session was finished or edited somewhere else (the form, the
    plan, another device) is the old copy: drop it instead of writing it over the newer one */
@@ -290,34 +365,33 @@ function dropStaleRun(){
 const guiaOf = w => JSON.parse(JSON.stringify(w, (k, v) => k === "prev" || k === "plan" || k === "reto" ? undefined : v));
 // discarding a workout that was carried on keeps what had been saved (and what you added): it is only closed
 async function dropRunDoc(){
-  const sid = run && run.sid; if (!sid || dbState !== "ready") return;
-  try {
-    if (run.resumedAt) await db.doc("sesiones/" + sid).set({ ...runSession(), guia: guiaOf(run.w), createdAt: run.startedAt || Date.now(), updatedAt: Date.now() });
-    else await db.doc("sesiones/" + sid).delete();
-  } catch {}
+  const r = run, sid = r && r.sid; if (!sid || dbState !== "ready") return;
+  r.rev = (r.rev || 0) + 1;
+  if (r.resumedAt) await queueWrite(() => writeRun(r, true));
+  else await queueWrite(() => db.doc("sesiones/" + sid).delete()).catch(() => {});
 }
 const dropAsk = () => run && run.resumedAt ? "¿Lo dejas aquí? Se queda guardado lo que llevas." : "¿Descartar este entreno? Se borra también lo que ya se había guardado de él.";
 
 /* summary and saving */
-function runSession(){
+function runSession(r = run){
   // a workout carried on later counts the minutes saved before plus the ones since it was resumed
-  const span = from => Math.round(((run.endedAt || Date.now()) - (from || Date.now())) / 60000);
-  const w = run.w, ex = [], mins = run.forDate && run.forMin ? run.forMin
-    : Math.min(240, Math.max(1, run.resumedAt ? num(run.prevMin) + span(run.resumedAt) : span(run.startedAt)));
+  const span = from => Math.round(((r.endedAt || idleEnd(r)) - (from || Date.now())) / 60000);
+  const w = r.w, ex = [], mins = r.forDate && r.forMin ? r.forMin
+    : Math.min(240, Math.max(1, r.resumedAt ? num(r.prevMin) + span(r.resumedAt) : span(r.startedAt)));
   let meters = 0;
   w.bloques.forEach((b, bi) => b.items.forEach((it, ii) => {
-    const l = run.log[bi + "." + ii]; if (!l || !l.length) return;
+    const l = r.log[bi + "." + ii]; if (!l || !l.length) return;
     if (it.modo === "distancia") { meters += l.reduce((a, x) => a + num(x.meters), 0); return; }
     if (it.modo === "tiempo") { ex.push(clean({ name: it.ejercicio, group: CATALOG[it.ejercicio] || "", notes: `${l.length} × ${it.segundos} s`, sets: l.map(() => ({ reps: 1, kg: 0 })) })); return; }
     ex.push(clean({ name: it.ejercicio, group: CATALOG[it.ejercicio] || "", equip: num(l[0].kg) ? "" : "Peso corporal", sets: l.map(x => clean({ reps: x.reps, kg: x.kg, rest: it.descanso_s || null })) }));
   }));
   const sport = w.tipo === "natacion" ? "natacion" : w.tipo === "cinta" || w.tipo === "bici" ? w.tipo : w.tipo === "otro" ? "otro" : "gym";
-  const doc = clean({ athlete: me, date: run.forDate || (run.startedAt ? toISO(new Date(run.startedAt)) : todayISO()), time: `${pad(new Date(run.startedAt || Date.now()).getHours())}:${pad(new Date(run.startedAt || Date.now()).getMinutes())}`,
-    sport, minutes: mins, rpe: run.rpe, notes: `${w.titulo} (entreno guiado)`, source: "entrenador" });
+  const doc = clean({ athlete: me, date: r.forDate || (r.startedAt ? toISO(new Date(r.startedAt)) : todayISO()), time: `${pad(new Date(r.startedAt || Date.now()).getHours())}:${pad(new Date(r.startedAt || Date.now()).getMinutes())}`,
+    sport, minutes: mins, rpe: r.rpe, notes: `${w.titulo} (entreno guiado)`, source: "entrenador" });
   if (sport === "gym" && ex.length) doc.exercises = ex;
   if (sport === "gym" && !ex.length) { doc.sport = "otro"; doc.activity = w.titulo; }
   if (sport === "natacion") Object.assign(doc, clean({ meters: meters || null, style: w.bloques.flatMap(b => b.items).find(i => i.modo === "distancia")?.ejercicio }));
-  if (sport === "cinta" || sport === "bici" || sport === "otro") { const km = num(run.extra); if (km) doc.km = km; if (sport === "otro") doc.activity = w.titulo; }
+  if (sport === "cinta" || sport === "bici" || sport === "otro") { const km = num(r.extra); if (km) doc.km = km; if (sport === "otro") doc.activity = w.titulo; }
   return doc;
 }
 function prList(doc){
@@ -345,15 +419,13 @@ function summaryHTML(){
     <div class="pl-aux"><button type="button" class="linkbtn" data-pl="discard">Descartar</button></div></div>`;
 }
 async function saveRunSession(){
-  const doc = runSession(); const now = Date.now();
-  try {
-    await (run.sid ? db.doc("sesiones/" + run.sid) : db.collection("sesiones").doc()).set({ ...doc, guia: guiaOf(run.w), createdAt: run.startedAt || now, updatedAt: now });
-    const prs = prList(doc);
-    closePlayer(true);
-    toast(prs.length ? `Guardado. ¡${prs.length} récord${prs.length > 1 ? "s" : ""}! ${ATH[OTHER[me]]} ya lo ve.` : "Entreno guardado");
-  } catch (e) { toast(e && e.code === "invalid_argument" ? "Solo puedes guardar tus propios entrenos" : "No se ha podido guardar. Revisa la conexión."); }
+  const r = run, doc = runSession(r);
+  r.rev = (r.rev || 0) + 1;
+  if (!(await queueWrite(() => writeRun(r, true)))) { if (!r.conflict) toast("No se ha podido guardar. Revisa la conexión."); return; }
+  const prs = prList(doc);
+  if (run === r) closePlayer(true);
+  toast(prs.length ? `Guardado. ¡${prs.length} récord${prs.length > 1 ? "s" : ""}! ${ATH[OTHER[me]]} ya lo ve.` : "Entreno guardado");
 }
-
 /* one step back: in the rest it undoes the set you just logged, in a set it goes to the previous one;
    a set that was done comes back with what you logged, ready to correct and log again */
 function goBack(){

@@ -27,8 +27,12 @@ exacto y quién tiene que dar el visto bueno (los datos de Ignacio, Ignacio).
    e iPhone es Ignacio. Sin ninguna petición, la app no se abrió con conexión ese día.
 6. **Historial** (`gym_docs_historial`): borrados y sobrescrituras recientes, sobre todo de sesiones terminadas.
 7. **Plan**: si el plan de entreno se acaba en menos de 7 días, avísalo (hay que pedir uno nuevo al Entrenador).
-8. **Agentes**: llamadas a Claude por día (`gym_claude_uso`) y errores de la Edge Function `gym-claude`.
-9. `get_advisors` de seguridad: solo lo que afecte a tablas o funciones `gym_*`.
+8. **Dieta y cuerpo**: último pesaje de cada uno (`pesajes`; sin pesarse en más de 7 días, avísalo: sin peso el
+   Dietista calcula con 80 kg), días sin comidas apuntadas (`comidas`), si el menú del Dietista
+   (`planes/<atleta>_dieta`, `dias[].fecha`) ya se acabó o se acaba en menos de 2 días, y si el perfil
+   (`perfiles/<atleta>`) no tiene altura, edad u objetivo (`goal`).
+9. **Agentes**: llamadas a Claude por día (`gym_claude_uso`) y errores de la Edge Function `gym-claude`.
+10. `get_advisors` de seguridad: solo lo que afecte a tablas o funciones `gym_*`.
 
 ## Informe
 

@@ -42,3 +42,5 @@ jobs:
         run: node gym-app/pruebas/plan-domingo.mjs
       - name: El entreno guiado cabe en el móvil sin hacer scroll
         run: node gym-app/pruebas/pantalla.mjs
+      - name: El Dietista guarda lo que no os gusta comer sin pisar el perfil
+        run: node gym-app/pruebas/dietista.mjs

@@ -6,7 +6,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import Anthropic from "npm:@anthropic-ai/sdk@0.128.0";
 import { createClient } from "npm:@supabase/supabase-js@2.117.0";
 
-const MODEL = "claude-opus-5";
+const MODEL = "claude-opus-5-5";
 const DAILY_LIMIT = 80;
 const cors = {
   "Access-Control-Allow-Origin": "*",

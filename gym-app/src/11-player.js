@@ -19,9 +19,15 @@ function flatten(w){
 const itemOf = (st) => run.w.bloques[st.bi].items[st.ii];
 const keyOf = (st) => st.bi + "." + st.ii;
 function saveRun(){ store.set("gym.run", run); }
+const setsDone = r => Object.values(r.log).reduce((a, l) => a + l.length, 0);
 // opts.date: logging a past day you trained but did not record (no rests, saved on that date)
-function openPlayer(w, opts = {}){
+async function openPlayer(w, opts = {}){
   if (!me) { toast("Elige primero quién eres"); return; }
+  // a workout with sets already logged is never replaced on the phone: it goes to the database as it is first
+  if (run && run.athlete === me && run.phase !== "preview" && setsDone(run)) {
+    if (!confirm(`Tienes «${run.w.titulo}» a medias (${setsDone(run)} series). Se guarda tal cual, como «sin terminar», y empiezas el nuevo. ¿Seguimos?`)) { showPlayer(); return; }
+    if (!(await parkRun())) { toast("Sin conexión no se puede guardar el entreno a medias: continúalo o prueba otra vez con conexión"); return; }
+  }
   const { w: ww, swapped } = autoSwap(w);
   applyExtras(ww);
   const tuned = tuneFromHistory(ww);
@@ -54,7 +60,9 @@ function tuneFromHistory(w){
   }
   return n;
 }
-function resumePlayer(){ if (run && run.athlete === me && run.phase !== "preview") showPlayer(); }
+// a workout left open hours ago does not take over the screen: Hoy shows it and parkOldRun saves it
+const runIdle = r => Date.now() - (r.lastAt || r.startedAt || 0) > 6 * 3600000;
+function resumePlayer(){ if (run && run.athlete === me && run.phase !== "preview" && !runIdle(run)) showPlayer(); }
 function showPlayer(){
   $("#player").hidden = false; document.body.classList.add("playing");
   renderPlayer(); keepAwake(true);
@@ -267,17 +275,65 @@ function advance(){
   run.nextCur = null;
   run.phase = "set";
 }
+// left half done and saved later: the workout ended with the last set, not now
+const idleEnd = (r = run) => r.lastAt && Date.now() - r.lastAt > 20 * 60000 ? r.lastAt : Date.now();
 function finishRun(){ run.phase = "done"; run.until = null; setTimeout(syncRun, 0);
-  // left half done and saved later: the workout ended with the last set, not now
-  run.endedAt = run.lastAt && Date.now() - run.lastAt > 20 * 60000 ? run.lastAt : Date.now(); say("Entreno terminado. ¡Buen trabajo!"); saveRun(); renderPlayer(); }
+  run.endedAt = idleEnd(); say("Entreno terminado. ¡Buen trabajo!"); saveRun(); renderPlayer(); }
 
 /* the workout goes to the database set by set (sesiones/<sid>, marked enCurso), so nothing is lost if
-   the phone dies, the page is closed or you forget to press save; saving at the end updates the same one */
+   the phone dies, the page is closed or you forget to press save; saving at the end updates the same one.
+   Without connection the sets stay on the phone (run.unsynced) and go up as soon as it is back: with the
+   connection, when the app comes to the front, or every 30 s. Returns whether the database has it all. */
+function markUnsynced(r){
+  if (r.unsynced) return;
+  r.unsynced = true; if (r === run) saveRun();
+  toast("Sin conexión: lo que apuntas se queda en el móvil y se sube en cuanto vuelva");
+}
 async function syncRun(){
-  if (!run || !me || run.athlete !== me || dbState !== "ready" || !Object.values(run.log).some(l => l.length)) return;
-  if (!run.sid) { run.sid = `run-${me}-${run.startedAt || Date.now()}`; saveRun(); }
-  const doc = runSession(), now = Date.now();
-  try { await db.doc("sesiones/" + run.sid).set({ ...doc, notes: doc.notes + " · sin terminar", enCurso: true, guia: guiaOf(run.w), createdAt: run.startedAt || now, updatedAt: now }); run.syncedAt = now; saveRun(); } catch {}
+  const r = run;
+  if (!r || !me || r.athlete !== me || !setsDone(r)) return true;
+  if (dbState !== "ready" || !db) { markUnsynced(r); return false; }
+  if (!r.sid) { r.sid = `run-${me}-${r.startedAt || Date.now()}`; saveRun(); }
+  const doc = runSession(r), now = Date.now();
+  try { await db.doc("sesiones/" + r.sid).set({ ...doc, notes: doc.notes + " · sin terminar", enCurso: true, guia: guiaOf(r.w), createdAt: r.startedAt || now, updatedAt: now }); }
+  catch { markUnsynced(r); return false; }
+  r.syncedAt = now;
+  if (r.unsynced) { r.unsynced = false; toast("Subido lo que apuntaste sin conexión"); }
+  if (r === run) saveRun();
+  return true;
+}
+function retrySync(){ if (run && run.unsynced && run.athlete === me) syncRun(); }
+window.addEventListener("online", retrySync);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) retrySync(); });
+setInterval(retrySync, 30000);
+/* a workout half done is never thrown away by starting another one, nor left on the phone for days: it goes
+   to the database as it is («sin terminar», to carry on from the plan, or finished if it was) and leaves the phone */
+async function parkRun(){
+  const r = run;
+  if (!r || r.athlete !== me || r.phase === "preview" || !setsDone(r)) return true;
+  if (r.phase === "done") {
+    if (dbState !== "ready" || !db) return false;
+    if (!r.sid) r.sid = `run-${me}-${r.startedAt || Date.now()}`;
+    try { await db.doc("sesiones/" + r.sid).set({ ...runSession(r), guia: guiaOf(r.w), createdAt: r.startedAt || Date.now(), updatedAt: Date.now() }); } catch { return false; }
+  } else if (!(await syncRun())) return false;
+  if (run === r) { if (playerOpen()) closePlayer(true); else { run = null; store.del("gym.run"); } }
+  return true;
+}
+// called with every snapshot of the sessions: a workout left open more than 6 hours ago is parked
+let parking = false;
+async function parkOldRun(){
+  if (parking || !run || run.athlete !== me || run.phase === "preview" || playerOpen() || !runIdle(run) || !setsDone(run)) return;
+  parking = true;
+  const when = relDay(toISO(new Date(run.lastAt || run.startedAt))), done = run.phase === "done";
+  // already in the database as it is (or newer there, carried on elsewhere): it only has to leave the phone
+  const up = !done && !run.unsynced && run.sid && real.some(x => x.id === run.sid);
+  try {
+    if (up) { run = null; store.del("gym.run"); }
+    else if (!(await parkRun())) return;
+    toast(`El entreno de ${when} que quedó abierto ya está guardado${done ? "" : " como «sin terminar»: lo continúas desde el plan"}`);
+    if (tab === "hoy") renderHoy();
+  }
+  finally { parking = false; }
 }
 /* a workout left open on this phone whose session was finished or edited somewhere else (the form, the
    plan, another device) is the old copy: drop it instead of writing it over the newer one */
@@ -299,25 +355,25 @@ async function dropRunDoc(){
 const dropAsk = () => run && run.resumedAt ? "¿Lo dejas aquí? Se queda guardado lo que llevas." : "¿Descartar este entreno? Se borra también lo que ya se había guardado de él.";
 
 /* summary and saving */
-function runSession(){
+function runSession(r = run){
   // a workout carried on later counts the minutes saved before plus the ones since it was resumed
-  const span = from => Math.round(((run.endedAt || Date.now()) - (from || Date.now())) / 60000);
-  const w = run.w, ex = [], mins = run.forDate && run.forMin ? run.forMin
-    : Math.min(240, Math.max(1, run.resumedAt ? num(run.prevMin) + span(run.resumedAt) : span(run.startedAt)));
+  const span = from => Math.round(((r.endedAt || idleEnd(r)) - (from || Date.now())) / 60000);
+  const w = r.w, ex = [], mins = r.forDate && r.forMin ? r.forMin
+    : Math.min(240, Math.max(1, r.resumedAt ? num(r.prevMin) + span(r.resumedAt) : span(r.startedAt)));
   let meters = 0;
   w.bloques.forEach((b, bi) => b.items.forEach((it, ii) => {
-    const l = run.log[bi + "." + ii]; if (!l || !l.length) return;
+    const l = r.log[bi + "." + ii]; if (!l || !l.length) return;
     if (it.modo === "distancia") { meters += l.reduce((a, x) => a + num(x.meters), 0); return; }
     if (it.modo === "tiempo") { ex.push(clean({ name: it.ejercicio, group: CATALOG[it.ejercicio] || "", notes: `${l.length} × ${it.segundos} s`, sets: l.map(() => ({ reps: 1, kg: 0 })) })); return; }
     ex.push(clean({ name: it.ejercicio, group: CATALOG[it.ejercicio] || "", equip: num(l[0].kg) ? "" : "Peso corporal", sets: l.map(x => clean({ reps: x.reps, kg: x.kg, rest: it.descanso_s || null })) }));
   }));
   const sport = w.tipo === "natacion" ? "natacion" : w.tipo === "cinta" || w.tipo === "bici" ? w.tipo : w.tipo === "otro" ? "otro" : "gym";
-  const doc = clean({ athlete: me, date: run.forDate || (run.startedAt ? toISO(new Date(run.startedAt)) : todayISO()), time: `${pad(new Date(run.startedAt || Date.now()).getHours())}:${pad(new Date(run.startedAt || Date.now()).getMinutes())}`,
-    sport, minutes: mins, rpe: run.rpe, notes: `${w.titulo} (entreno guiado)`, source: "entrenador" });
+  const doc = clean({ athlete: me, date: r.forDate || (r.startedAt ? toISO(new Date(r.startedAt)) : todayISO()), time: `${pad(new Date(r.startedAt || Date.now()).getHours())}:${pad(new Date(r.startedAt || Date.now()).getMinutes())}`,
+    sport, minutes: mins, rpe: r.rpe, notes: `${w.titulo} (entreno guiado)`, source: "entrenador" });
   if (sport === "gym" && ex.length) doc.exercises = ex;
   if (sport === "gym" && !ex.length) { doc.sport = "otro"; doc.activity = w.titulo; }
   if (sport === "natacion") Object.assign(doc, clean({ meters: meters || null, style: w.bloques.flatMap(b => b.items).find(i => i.modo === "distancia")?.ejercicio }));
-  if (sport === "cinta" || sport === "bici" || sport === "otro") { const km = num(run.extra); if (km) doc.km = km; if (sport === "otro") doc.activity = w.titulo; }
+  if (sport === "cinta" || sport === "bici" || sport === "otro") { const km = num(r.extra); if (km) doc.km = km; if (sport === "otro") doc.activity = w.titulo; }
   return doc;
 }
 function prList(doc){

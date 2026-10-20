@@ -53,7 +53,7 @@ function verdictOf(o){
 }
 function dietIntro(){
   const { t } = targetsFor(me), pr = profileOf(me);
-  return `Eres el dietista de ${ATH[me]} (hombre, ${pr.age} años, ${pr.height} cm, objetivo: ${GOALS[pr.goal].l.toLowerCase()}). Objetivo diario: ${t.kcal} kcal y ${t.prot} g de proteína. Hace ${freqText(me)}. Hablas en español de España, de tú, directo y sin sermones, sin emojis.`;
+  return `Eres el dietista de ${ATH[me]} (hombre, ${pr.age} años, ${pr.height} cm, objetivo: ${GOALS[pr.goal].l.toLowerCase()}). Objetivo diario: ${t.kcal} kcal y ${t.prot} g de proteína. Hace ${freqText(me)}.${foodDislikes().length ? ` No le gusta o no come: ${foodDislikes().join(", ")}.` : ""} Hablas en español de España, de tú, directo y sin sermones, sin emojis.`;
 }
 const VERDICT_JSON = `Responde SOLO con JSON: {"kcal": n, "proteina_g": n, "veredicto": "bien"|"regular"|"mal", "comentario": str}`;
 async function askVerdict(key, prompt){

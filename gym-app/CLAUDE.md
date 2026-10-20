@@ -23,7 +23,7 @@ Row Level Security: los dos leen todo; cada uno solo escribe lo suyo.
 | `sesiones` | uuid, `run-<atleta>-<ms>` (entreno guiado), `copia-<id>` | un entreno: `date`, `sport`, `minutes`, `exercises[{name, sets[{kg, reps}]}]`, `guia` (el entreno del agente), `enCurso: true` mientras está a medias |
 | `pesajes` | `<atleta>_<fecha>` | peso, cintura, grasa |
 | `bebidas` | `<atleta>_<fecha>` | copas del día |
-| `perfiles` | `<atleta>` | datos, preferencias, agarres, notas, series extra |
+| `perfiles` | `<atleta>` | datos, preferencias, agarres, notas, series extra, `noGusta` (ejercicios) y `noComida` (alimentos: los apunta el Dietista y se quitan en la Dieta) |
 | `planes` | `<atleta>_entreno`, `<atleta>_dieta` | el plan del Entrenador (semanas con días y entreno; una semana puede traer `diasDomingo`, la versión que vale si nadó el domingo de antes: la elige `trainPlan`) y del Dietista |
 | `chats` | `<atleta>_coach`, `<atleta>_nutri` | los últimos 30 mensajes con cada agente |
 | `comidas` | `<atleta>_<fecha>` | lo comido |
@@ -52,6 +52,10 @@ Si cambias algo de esto: `./build.sh && node pruebas/guardado.mjs` (Chromium, ba
 Si tocas cómo se lee el plan: `node pruebas/plan-domingo.mjs`.
 Si tocas la pantalla del entreno guiado: `node pruebas/pantalla.mjs` (la serie y el descanso caben en un móvil de
 360 × 640 sin scroll; los estilos de móvil están al final de `src/style.css`).
+Si tocas el Dietista o cómo se guarda el perfil: `node pruebas/dietista.mjs`.
+
+Los agentes de la app (Entrenador y Dietista) llaman a Claude por `supabase/functions/gym-claude` (modelo en
+`MODEL`). Si cambias esa función, despliégala en Supabase con el mismo código que queda en el repo.
 
 ## Revisar los datos (MCP de Supabase, proyecto `eqwhiguptakmuuihpjpu`)
 

@@ -79,6 +79,8 @@ function renderDieta(){
       <p class="note" style="margin:12px 0 0">Cantidades ajustadas a ${fmt(t.kcal)} kcal. ${esc(scaleText("Los días de pierna o de doble sesión añade {40} g de pan o {30} g de arroz en crudo.", factor))} Es una guía orientativa: si tienes alguna patología o alergia, consúltalo con un nutricionista.</p>
     </div>
 
+    ${me && me === dWho ? foodDislikesHTML() : ""}
+
     ${sample ? `<div class="panel">
       <div class="panel-head"><h2>Otra propuesta con Claude</h2></div>
       <div class="fgrid" style="grid-template-columns:1fr auto;align-items:end">
@@ -99,6 +101,7 @@ async function askMenu(){
 Objetivo diario: ${t.kcal} kcal, ${t.prot} g de proteína, ${t.carbs} g de hidratos, ${t.fat} g de grasa.
 Hace ${freqText(dWho)}: reparte las kcal y la proteína solo entre esas.
 Situación del día (para lo que come fuera; la cena es en casa): ${CIRCS[dCirc].l} (${CIRCS[dCirc].s}). ${dCirc === "bocadillo" ? "No tiene cocina: solo cosas que se lleven en la mochila (bocadillos, tortitas de maíz, táper frío)." : dCirc === "bar" ? "Di qué pedir en un menú del día o de tapas típico de España y qué evitar." : "Tiene microondas y nevera en la oficina."}
+${foodDislikes(dWho).length ? "No le gusta o no come (no lo pongas): " + foodDislikes(dWho).join(", ") + "." : ""}
 ${keep("d-pref") ? "Preferencias: " + String(keep("d-pref")).slice(0, 300) : ""}
 Formato: un apartado por comida (${mealsFor(dWho).map(([, l]) => l).join(", ")}), cada uno con 1 a 3 líneas y cantidades en gramos, y al final una línea con el total aproximado de kcal y proteína. Comida española normal, fácil y barata. Sin emojis ni tablas.`;
   try {

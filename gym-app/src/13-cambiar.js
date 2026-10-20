@@ -20,6 +20,17 @@ async function updateDislikes({ add = [], remove = [] }){
   try { await db.doc("perfiles/" + me).set(doc); return true; }
   catch { toast("No se ha podido guardar"); return false; }
 }
+/* foods the athlete doesn't like or doesn't eat (perfiles/<who>.noComida): the dietitian leaves them out */
+const foodDislikes = (who = me) => { const l = profiles[who] && profiles[who].noComida; return Array.isArray(l) ? l.map(String) : []; };
+async function updateFoodDislikes({ add = [], remove = [] }){
+  if (dbState !== "ready" || !me) return false;
+  const drop = new Set([...add, ...remove].map(normName));
+  const next = [...foodDislikes().filter(n => !drop.has(normName(n))), ...add.map(n => n.toLowerCase())].slice(-40);
+  const doc = { ...profileDoc(me), noComida: next, updatedAt: Date.now() };
+  profiles[me] = { id: me, ...doc };
+  try { await db.doc("perfiles/" + me).set(doc); return true; }
+  catch { toast("No se ha podido guardar"); return false; }
+}
 
 /* the alternatives */
 const bodyweightOnly = w => w.tipo === "calistenia" || (ck && ck.date === todayISO() && (ck.lugar === "casa" || ck.lugar === "parque"));
@@ -144,14 +155,21 @@ function dislikesHTML(){
     <p class="muted" style="margin:0 0 10px;font-size:13.5px">No te los pongo en ningún entreno: se cambian solos por otro del mismo músculo. Toca uno para volver a aceptarlo.</p>
     <div class="chips">${l.map(n => `<button type="button" data-undislike="${esc(n)}" aria-label="Volver a aceptar ${esc(n)}">${esc(n)} ✕</button>`).join("")}</div></div>`;
 }
+function foodDislikesHTML(){
+  const l = foodDislikes(); if (!l.length) return "";
+  return `<div class="panel"><div class="panel-head" style="margin-bottom:6px"><h2>No te gusta comer</h2></div>
+    <p class="muted" style="margin:0 0 10px;font-size:13.5px">Tu dietista no te lo pone en los menús. Díselo en el chat para añadir más; toca uno para volver a aceptarlo.</p>
+    <div class="chips">${l.map(n => `<button type="button" data-unfood="${esc(n)}" aria-label="Volver a aceptar ${esc(n)}">${esc(n)} ✕</button>`).join("")}</div></div>`;
+}
 
 document.addEventListener("click", async e => {
-  const t = e.target.closest("[data-swap-item],[data-swap],[data-swap-pick],[data-undislike]"); if (!t) return;
+  const t = e.target.closest("[data-swap-item],[data-swap],[data-swap-pick],[data-undislike],[data-unfood]"); if (!t) return;
   if (t.dataset.swapItem && run) { const [bi, ii] = t.dataset.swapItem.split(".").map(Number); openSwap(bi, ii); }
   else if (t.dataset.swap === "close") { swap = null; renderPlayer(); }
   else if (t.dataset.swap === "ai" && swap) askCoachSwap();
   else if (t.dataset.swapPick && swap) { const [src, i] = t.dataset.swapPick.split(":"); pickSwap(src, +i); }
   else if (t.dataset.undislike) { if (await updateDislikes({ remove: [t.dataset.undislike] })) { toast(`${t.dataset.undislike} vuelve a salir`); if (tab === "plan") renderPlan(); } }
+  else if (t.dataset.unfood) { if (await updateFoodDislikes({ remove: [t.dataset.unfood] })) { toast(`${t.dataset.unfood} vuelve a los menús`); if (tab === "dieta") renderDieta(); } }
 });
 document.addEventListener("change", e => { if (e.target.id === "swap-dis" && swap) swap.dislike = e.target.checked; });
 document.addEventListener("keydown", e => { if (e.key === "Escape" && swap) { swap = null; renderPlayer(); } });

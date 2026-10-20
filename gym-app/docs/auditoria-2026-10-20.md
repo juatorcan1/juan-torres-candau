@@ -77,3 +77,25 @@ comprobaciones y esta las pasa todas.
       (`gym_copia_semanal()`, la primera ya hecha, 45 de 45) e informe. La copia a Google Drive se descartó: el
       agente tendría que reescribir los datos a mano y una copia así no es fiable.
 - [ ] Borrar la Edge Function `gym-ping` (desde el panel de Supabase).
+
+## El Dietista (revisado el mismo día)
+
+- **Modelo**: la Edge Function `gym-claude` pasa a Claude Opus 5.5 (esfuerzo medio y, si Claude se niega, otro
+  modelo de respaldo). La usan el Entrenador y el Dietista.
+- **Lo que no os gusta comer**: se le dice en el chat («no me gusta el atún») y lo guarda en el perfil
+  (`noComida`); no lo vuelve a poner en ningún menú. Se ve y se quita en Dieta («No te gusta comer»).
+- **Más imaginación y menús para ganar músculo**: no repite la proteína principal dos días seguidos, al menos 2 días
+  de pescado y 2 de legumbre, productos de temporada, guisos y recetas distintas, ideas para cocinar el domingo
+  para los táperes, más hidratos los días de gimnasio y una comida después de entrenar.
+- **Datos del perfil**: Ignacio no tenía objetivo y la app le calculaba «perder grasa»; ahora es «ganar músculo»
+  como Juan. Faltan sus datos (altura, edad, comidas al día) y el peso de los dos: sin peso, el Dietista
+  calcula con 80 kg.
+- **Copias**: los menús, chats y comidas van en `gym_docs`, así que tienen las mismas copias que los entrenos.
+- **Guardián**: ahora avisa también si alguien lleva más de 7 días sin pesarse, de los días sin comidas
+  apuntadas y de cuándo se acaba el menú.
+- `gym-app/pruebas/dietista.mjs` (en «Comprobaciones») comprueba que lo que no os gusta se guarda sin pisar el
+  resto del perfil y le llega al Dietista.
+
+- [ ] Juan e Ignacio: pesaros y apuntarlo (Dietista → Cuerpo). Ignacio: rellenar su altura, edad y comidas al día
+      (Dietista → Dieta → Tus datos).
+- [ ] Después, pedir cada uno un menú nuevo al Dietista.

@@ -68,21 +68,24 @@ const TRAIN_PLAN_SCHEMA = `PLAN_ENTRENO = {"tipo": "semana"|"mes", "titulo": str
 Reglas del PLAN_ENTRENO: empieza hoy; semana = 7 días, mes = 4 semanas; cada semana con su objetivo y progresión; incluye descansos; "detalle" en una frase. "diasDomingo" (opcional) es la misma semana para cuando nadó el domingo de antes: si sus preferencias dicen que entonces la semana se adelanta, ponla también.`;
 const DIET_PLAN_SCHEMA = `SITIO = {"bocadillo": [str], "bar": [str], "oficina": [str]}
 PLAN_DIETA = {"titulo": str, "dias": [{"fecha": "YYYY-MM-DD", "dia": "lunes"…, "desayuno": SITIO, "media": SITIO, "comida": SITIO, "merienda": SITIO, "cena": [str], "kcal": n}], "consejos": [str]}
-Reglas del PLAN_DIETA: 7 días desde hoy; cantidades en gramos ajustadas a su objetivo de kcal; desayuno, media mañana, comida y merienda con 3 versiones distintas de verdad: "bocadillo" = obra sin cocina (sale temprano, todo va en la mochila: bocadillos, tortitas de maíz, táper frío), "bar" = en un bar o restaurante (qué pedir en un menú del día o de tapas) y "oficina" = oficina con microondas y nevera; la cena es en casa, una sola versión; comida española normal y barata.`;
+Reglas del PLAN_DIETA: 7 días desde hoy; cantidades en gramos ajustadas a su objetivo de kcal; desayuno, media mañana, comida y merienda con 3 versiones distintas de verdad: "bocadillo" = obra sin cocina (sale temprano, todo va en la mochila: bocadillos, tortitas de maíz, táper frío), "bar" = en un bar o restaurante (qué pedir en un menú del día o de tapas) y "oficina" = oficina con microondas y nevera; la cena es en casa, una sola versión; comida española normal y barata.
+Variedad: la proteína principal de la comida y de la cena no se repite dos días seguidos (pollo, pavo, ternera, cerdo magro, pescado blanco, pescado azul, huevos, legumbres); al menos 2 días de pescado y 2 de legumbre; verduras y fruta de temporada; algún plato de cuchara, guiso o receta distinta cada semana, no siempre plancha. Puede cocinar el domingo para varios días: si encaja, dilo en "consejos" (qué preparar de una vez para los táperes).
+Entreno: mira su plan de entreno. Los días de gimnasio, más hidratos y una comida después de entrenar con proteína e hidratos; los de descanso, algo menos de hidratos con las mismas proteínas. Proteína en todas las comidas.`;
 
 function agentPrompt(agent, userText){
   const other = OTHER[me], hist = chatMsgs(agent).slice(-12);
   const role = agent === "coach"
     ? `Eres el entrenador personal de ${ATH[me]} en su app "Juan vs Ignacio", donde compite con su amigo ${ATH[other]}. Motivas, eres directo y concreto, con pique sano con ${ATH[other]}. Sabes de fuerza, calistenia, natación y cardio.`
-    : `Eres el dietista de ${ATH[me]} en su app "Juan vs Ignacio", donde compite con su amigo ${ATH[other]}. Práctico, sin sermones, comida española normal. Tienes en cuenta el alcohol (1 UBE = 10 g) y su trabajo: a veces está en la obra sin cocina, otras come en un bar o en la oficina con microondas.`;
+    : `Eres el dietista de ${ATH[me]} en su app "Juan vs Ignacio", donde compite con su amigo ${ATH[other]}. Práctico, sin sermones, comida española normal, y con imaginación: platos variados y apetecibles, no siempre pollo con arroz. Entrena fuerte en el gimnasio para ganar músculo y estar definido, así que la proteína es lo primero. Tienes en cuenta el alcohol (1 UBE = 10 g) y su trabajo: a veces está en la obra sin cocina, otras come en un bar o en la oficina con microondas.`;
   const schemas = agent === "coach"
     ? `Responde SOLO con JSON: {"respuesta": str, "entreno": ENTRENO|null, "plan": PLAN_ENTRENO|null, "no_gusta": [str]|null, "si_gusta": [str]|null}
 Pon "entreno" solo si pide un entrenamiento concreto para hacer (hoy o un día concreto) y "plan" solo si pide un plan semanal o mensual. Si hay plan y pide "el entreno de hoy", hazlo según el plan.
 Si dice que un ejercicio no le gusta, le molesta o le cuesta demasiado, pon su nombre en "no_gusta" y en "respuesta" proponle 2 o 3 que trabajen el mismo músculo; si pide entreno, ya sin ese ejercicio. Si dice que vuelve a querer uno que no le gustaba, ponlo en "si_gusta". Nunca pongas en un entreno un ejercicio que no le gusta: usa otro del mismo músculo.
 ${WORKOUT_SCHEMA.replace("${RIVAL}", ATH[other])}
 ${TRAIN_PLAN_SCHEMA}`
-    : `Responde SOLO con JSON: {"respuesta": str, "plan": PLAN_DIETA|null}
+    : `Responde SOLO con JSON: {"respuesta": str, "plan": PLAN_DIETA|null, "no_gusta": [str]|null, "si_gusta": [str]|null}
 Pon "plan" solo si pide el menú de varios días o de la semana; para un día o una comida, contesta en "respuesta".
+Si dice que un alimento o un plato no le gusta, le sienta mal o no lo come, pon el alimento en "no_gusta" (corto: "atún", "coliflor") y no se lo vuelvas a poner; si dice que vuelve a quererlo, ponlo en "si_gusta".
 ${DIET_PLAN_SCHEMA}
 Hace ${freqText(me)}: rellena solo esas comidas y deja las otras como listas vacías. Las mismas kcal del día repartidas entre ellas, con raciones más grandes, y la proteína repartida a partes iguales (unos ${Math.round(targetsFor(me).t.prot / freqOf(me))} g por comida).`;
   return `${role}
@@ -94,7 +97,7 @@ ${schemas}
 Datos de ${ATH[me]}:
 ${athleteContext(me)}
 Músculos trabajados en los últimos 3 días: ${(() => { const r = recentMuscles(me, 3); const k = MUSCLE_ORDER.filter(x => r[x] === 2); return k.length ? musNames(k) : "ninguno"; })()}.
-${agent === "coach" ? `Ejercicios que no le gustan: ${dislikes().join(", ") || "ninguno apuntado"}.` : ""}
+${agent === "coach" ? `Ejercicios que no le gustan: ${dislikes().join(", ") || "ninguno apuntado"}.` : `Alimentos que no le gustan o no come (nunca se los pongas): ${foodDislikes().join(", ") || "ninguno apuntado"}.`}
 ${checkinText() ? "Cómo está hoy (check-in): " + checkinText() : ""}
 Plan de entreno actual: ${planSummary(trainPlan())}
 Puntos del duelo esta semana (deporte +1, faltar a un día del plan −1, comer bien +1 / regular 0 / mal −1, día de ${BINGE} UBE o más −1): ${KEYS.map(k => `${ATH[k]} ${scoreIn(k, ...periodRange("semana")).total}`).join(", ")}.
@@ -186,6 +189,9 @@ async function sendChat(agent, text, opts = {}){
       // missed days only count from the day the plan is made
       if (p) { msg.plan = p; await db?.doc(`planes/${me}_entreno`).set({ athlete: me, clase: "entreno", ...p, penalizaDesde: todayISO(), creado: Date.now() }); }
     } else {
+      const L = v => (Array.isArray(v) ? v : []).map(x => String(x).trim().slice(0, 40)).filter(Boolean).slice(0, 6);
+      const add = L(o && o.no_gusta), remove = L(o && o.si_gusta);
+      if ((add.length || remove.length) && await updateFoodDislikes({ add, remove })) { if (add.length) msg.noGusta = add; if (remove.length) msg.siGusta = remove; }
       const p = normalizeDietPlan(o && o.plan);
       if (p) { msg.plan = p; await db?.doc(`planes/${me}_dieta`).set({ athlete: me, clase: "dieta", ...p, comidas: freqOf(me), creado: Date.now() }); }
     }

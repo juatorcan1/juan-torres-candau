@@ -34,3 +34,5 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Comprobar
         run: node .github/comprobaciones/comprobar.mjs gym-app/index.html gym-app/web/index.html cuentas-app/index.html cuentas-app/web/index.html
+      - name: Las cuentas no pisan lo guardado desde otro móvil
+        run: node cuentas-app/pruebas/guardado.mjs

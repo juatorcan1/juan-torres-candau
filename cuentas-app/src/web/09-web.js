@@ -34,20 +34,43 @@ function makeDb(){
   // Mezcla como el `update` de Claude: los objetos se mezclan por dentro, lo demás se sustituye,
   // y un null borra la clave (así un movimiento borrado no deja rastro en el mes).
   const merge = (a, b) => { for (const [k, v] of Object.entries(b)) { if (v === null) delete a[k]; else if (v && typeof v === "object" && !Array.isArray(v) && a[k] && typeof a[k] === "object" && !Array.isArray(a[k])) merge(a[k], v); else a[k] = v; } return a; };
+  const stored = (col, id, obj) => {
+    (cache[col] ||= new Map()).set(id, { id, data: obj });
+    for (const f of listeners[col] || []) f(snap(col));
+  };
   async function write(col, id, obj){
     const { error } = await sb.from("cuentas_docs").upsert({ owner: uidNow, collection: col, id, data: obj, updated_at: new Date().toISOString() }, { onConflict: "owner,collection,id" });
     if (error) throw toErr(error);
-    (cache[col] ||= new Map()).set(id, { id, data: obj });
-    for (const f of listeners[col] || []) f(snap(col));
+    stored(col, id, obj);
+  }
+  // `update` mezcla el cambio con lo que hay en la base, no con lo de este móvil, que puede no tener todavía
+  // lo apuntado en otro (sin conexión, sin el aviso del cambio): un mes entero no se pisa con una copia vieja.
+  // Se escribe solo si nadie lo ha tocado desde que se leyó (mismo updated_at); si no, se lee y se mezcla otra vez.
+  async function patch(col, id, p){
+    for (let i = 0; i < 5; i++) {
+      const { data: row, error } = await sb.from("cuentas_docs").select("data,updated_at").eq("owner", uidNow).eq("collection", col).eq("id", id).maybeSingle();
+      if (error) throw toErr(error);
+      if (!row) throw { code: "invalid_argument", message: "No existe" };
+      const obj = merge(row.data, JSON.parse(JSON.stringify(p)));
+      const at = new Date(Math.max(Date.now(), (Date.parse(row.updated_at) || 0) + 1)).toISOString();
+      const { data: done, error: e2 } = await sb.from("cuentas_docs").update({ data: obj, updated_at: at })
+        .eq("owner", uidNow).eq("collection", col).eq("id", id).eq("updated_at", row.updated_at).select("id");
+      if (e2) throw toErr(e2);
+      if (done && done.length) { stored(col, id, obj); return; }
+    }
+    throw { code: "unavailable", message: "Otro móvil está guardando a la vez" };
+  }
+  // Crear sin pisar: si otro móvil lo acaba de crear, falla con already_exists y quien llama hace `update`.
+  async function create(col, id, obj){
+    const { error } = await sb.from("cuentas_docs").insert({ owner: uidNow, collection: col, id, data: obj, updated_at: new Date().toISOString() });
+    if (error) throw error.code === "23505" ? { code: "already_exists", message: "Ya existe" } : toErr(error);
+    stored(col, id, obj);
   }
   const ref = (col, id) => ({
     id, path: col + "/" + id,
     set: obj => write(col, id, JSON.parse(JSON.stringify(obj))),
-    async update(patch){
-      const cur = cache[col] && cache[col].get(id);
-      if (!cur) throw { code: "invalid_argument", message: "No existe" };
-      await write(col, id, merge(JSON.parse(JSON.stringify(cur.data)), JSON.parse(JSON.stringify(patch))));
-    },
+    update: p => patch(col, id, p),
+    create: obj => create(col, id, JSON.parse(JSON.stringify(obj))),
     async delete(){
       const { error } = await sb.from("cuentas_docs").delete().eq("collection", col).eq("id", id);
       if (error) throw toErr(error);
@@ -209,6 +232,8 @@ async function enter(session){
   uidNow = session.user.id;
   document.body.classList.remove("locked"); loginEl.innerHTML = "";
   webBar(); resolveReady();
+  // Copia de todo en Supabase si la última tiene una semana (cuentas_copia_semanal); si falla, ya tocará otro día.
+  sb.rpc("cuentas_copia_semanal").then(() => {}, () => {});
 }
 loginEl.addEventListener("submit", async e => {
   e.preventDefault();

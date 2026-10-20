@@ -1,0 +1,139 @@
+// Pruebas de que la web de las cuentas no pisa un mes entero de movimientos con lo que tiene el móvil: otro
+// móvil apunta algo que aquí no ha llegado (sin el aviso del cambio), y luego se guarda aquí. Abre la versión
+// web (cuentas-app/web/index.html, de ./build-web.sh) en Chromium con un Supabase de mentira en memoria: no usa
+// la red ni toca el Supabase de verdad.
+// Uso: cuentas-app/build-web.sh && node cuentas-app/pruebas/guardado.mjs   (necesita playwright: npm i --no-save playwright)
+import { createRequire } from "node:module";
+import { execSync } from "node:child_process";
+import { pathToFileURL, fileURLToPath } from "node:url";
+const require = createRequire(import.meta.url);
+const pw = (() => { for (const b of [process.cwd(), execSync("npm root -g").toString().trim()]) { try { return require(require.resolve("playwright", { paths: [b] })); } catch {} } throw new Error("Falta playwright (npm i --no-save playwright)"); })();
+const { chromium } = pw;
+const APP = pathToFileURL(fileURLToPath(new URL("../web/index.html", import.meta.url))).href;
+const UID = "11111111-1111-1111-1111-111111111111";
+const mes = new Date().toISOString().slice(0, 7);
+const mov = (id, total, comercio) => ({ id, tipo: "gasto", fecha: mes + "-01", total, cuenta: "banco", comercio, lineas: [{ concepto: "", cat: "", importe: total }], origen: "mano" });
+
+// supabase-js de mentira (lo que usa src/web/09-web.js), con cuentas_docs en memoria. Sin avisos en tiempo real,
+// como un móvil que no se ha enterado de un cambio. window.__antesDeCambiar(n) se llama antes de cada update.
+function fakeSupabase(UID, seed){
+  const rows = window.__rows = seed.map(r => ({ owner: UID, ...r }));
+  window.__rpc = [];
+  const clone = o => JSON.parse(JSON.stringify(o));
+  const key = r => [r.owner, r.collection, r.id].join("/");
+  let updates = 0;
+  class Q {
+    constructor(t){ this.t = t; this.f = []; this.op = null; }
+    select(){ this.op ||= "select"; return this; }
+    eq(k, v){ this.f.push([k, v]); return this; }
+    maybeSingle(){ this.one = true; return this; }
+    insert(v){ this.op = "insert"; this.v = v; return this; }
+    upsert(v){ this.op = "upsert"; this.v = v; return this; }
+    update(v){ this.op = "update"; this.v = v; return this; }
+    delete(){ this.op = "delete"; return this; }
+    then(ok, ko){ return Promise.resolve().then(() => this.run()).then(ok, ko); }
+    run(){
+      if (this.t === "cuentas_usuarios") return { data: { nombre: "Juan" }, error: null };
+      const hit = r => this.f.every(([k, v]) => r[k] === v);
+      if (this.op === "select") { const d = rows.filter(hit).map(clone); return { data: this.one ? d[0] || null : d, error: null }; }
+      if (this.op === "insert") {
+        if (rows.some(r => key(r) === key(this.v))) return { data: null, error: { code: "23505", message: "duplicate key" } };
+        rows.push(clone(this.v)); return { data: null, error: null };
+      }
+      if (this.op === "upsert") { const i = rows.findIndex(r => key(r) === key(this.v)); if (i >= 0) rows[i] = clone(this.v); else rows.push(clone(this.v)); return { data: null, error: null }; }
+      if (this.op === "update") {
+        if (window.__antesDeCambiar) window.__antesDeCambiar(++updates);
+        const d = rows.filter(hit); for (const r of d) Object.assign(r, clone(this.v));
+        return { data: d.map(r => ({ id: r.id })), error: null };
+      }
+      if (this.op === "delete") { for (const r of rows.filter(hit)) rows.splice(rows.indexOf(r), 1); return { data: null, error: null }; }
+    }
+  }
+  const session = { user: { id: UID }, access_token: "x" };
+  window.supabase = { createClient: () => ({
+    from: t => new Q(t),
+    rpc: n => { window.__rpc.push(n); return Promise.resolve({ data: 0, error: null }); },
+    channel: () => ({ on(){ return this; }, subscribe(){ return this; } }),
+    auth: { getSession: async () => ({ data: { session } }), onAuthStateChange(){}, signOut: async () => {}, updateUser: async () => ({}) },
+    storage: { from: () => ({ upload: async () => ({ error: { message: "sin red" } }), createSignedUrl: async () => ({ data: null }), remove: async () => ({}) }) }
+  }) };
+}
+// lo que hace otro móvil: escribe directamente en la base, sin que este se entere
+const otroMovil = (page, id, total, comercio) => page.evaluate(([mes, m]) => {
+  const r = window.__rows.find(r => r.collection === "movs" && r.id === mes);
+  if (r) { r.data.items[m.id] = m; r.updated_at = new Date().toISOString(); }
+  else window.__rows.push({ owner: window.__rows[0]?.owner || "11111111-1111-1111-1111-111111111111", collection: "movs", id: mes, data: { mes, items: { [m.id]: m } }, updated_at: new Date().toISOString() });
+}, [mes, mov(id, total, comercio)]);
+const items = page => page.evaluate(m => { const r = window.__rows.find(r => r.collection === "movs" && r.id === m); return r ? r.data.items : {}; }, mes);
+
+const browser = await chromium.launch(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {});
+let fallos = 0; const ok = (c, m) => { console.log((c ? "✓ " : "✗ ") + m); if (!c) fallos++; };
+async function abrir(seed){
+  const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  const errs = []; page.on("pageerror", e => errs.push(e.message));
+  await page.route("**/*", r => {
+    const u = r.request().url();
+    if (u.startsWith("file:")) return r.continue();
+    if (/supabase-js@[^/]+\/dist\/umd\/supabase\.js$/.test(u)) return r.fulfill({ contentType: "application/javascript", body: `(${fakeSupabase})(${JSON.stringify(UID)}, ${JSON.stringify(seed)});` });
+    return r.abort();
+  });
+  await page.goto(APP); await page.waitForTimeout(500);
+  return { page, errs };
+}
+async function apuntarAMano(page, total, comercio){
+  await page.click('.bnav [data-tab="apuntar"], .fab'); await page.click('[data-way="mano"]');
+  await page.fill('[data-k="total"]', String(total)); await page.fill('[data-k="comercio"]', comercio);
+  await page.click("[data-edsave]"); await page.waitForTimeout(300);
+}
+const base = [
+  { collection: "config", id: "cuentas", data: { items: [{ id: "banco", nombre: "Banco", tipo: "banco", saldo: 0 }] }, updated_at: "2026-10-05T10:44:13.956331+00:00" },
+  { collection: "movs", id: mes, data: { mes, items: { a: mov("a", 10, "Mercadona") } }, updated_at: "2026-10-19T15:41:36.752+00:00" }
+];
+
+// 1. otro móvil apunta «b» y aquí no llega; al apuntar «c» aquí, «b» sigue en la base
+{
+  const { page, errs } = await abrir(base);
+  ok(await page.evaluate(() => window.__rpc.includes("cuentas_copia_semanal")), "al entrar pide la copia semanal");
+  await otroMovil(page, "b", 20, "Repsol");
+  await apuntarAMano(page, 30, "Carrefour");
+  const it = await items(page);
+  ok(it.a && it.b, "no se pierde lo apuntado en el otro móvil (a y b siguen): " + Object.keys(it).join(", "));
+  ok(Object.values(it).some(m => m.comercio === "Carrefour" && m.total === 30), "y se guarda lo nuevo");
+  ok(Object.keys(it).length === 3, "tres movimientos, ni más ni menos");
+
+  // 2. dos móviles guardan a la vez: el otro escribe justo entre la lectura y la escritura de este
+  await page.evaluate(() => { window.__antesDeCambiar = n => { if (n === 1) { const r = window.__rows.find(r => r.collection === "movs"); r.data.items.d = { id: "d", tipo: "gasto", fecha: r.id + "-02", total: 5, cuenta: "banco", comercio: "Bar", lineas: [], origen: "mano" }; r.updated_at = new Date(Date.now() + 5).toISOString(); } }; });
+  await page.evaluate(async m => { const db = await window.claude.use("db"); await db.doc("movs/" + m).update({ items: { e: { id: "e", tipo: "gasto", fecha: m + "-03", total: 7, cuenta: "banco", comercio: "Kiosco", lineas: [], origen: "mano" } } }); }, mes);
+  const it2 = await items(page);
+  ok(it2.d && it2.e && it2.a && it2.b, "a la vez: se vuelve a leer y se quedan los dos (d y e): " + Object.keys(it2).join(", "));
+
+  // 3. borrar uno solo quita ese
+  await page.evaluate(() => { window.__antesDeCambiar = null; });
+  await page.evaluate(async m => { const db = await window.claude.use("db"); await db.doc("movs/" + m).update({ items: { e: null } }); }, mes);
+  const it3 = await items(page);
+  ok(!it3.e && it3.a && it3.b && it3.d, "borrar «e» deja los demás");
+  ok(!errs.length, "sin errores de JavaScript " + errs.join(" | "));
+  await page.close();
+}
+// 4. el mes no existe al abrir y otro móvil lo crea antes de guardar aquí: no se pisa
+{
+  const { page, errs } = await abrir([base[0]]);
+  await otroMovil(page, "b", 20, "Repsol");
+  await apuntarAMano(page, 30, "Carrefour");
+  const it = await items(page);
+  ok(it.b && Object.values(it).some(m => m.comercio === "Carrefour"), "mes nuevo creado a la vez en otro móvil: están los dos: " + Object.keys(it).join(", "));
+  ok(!errs.length, "sin errores de JavaScript " + errs.join(" | "));
+  await page.close();
+}
+// 5. mes nuevo de verdad: se crea
+{
+  const { page, errs } = await abrir([base[0]]);
+  await apuntarAMano(page, 30, "Carrefour");
+  const it = await items(page);
+  ok(Object.keys(it).length === 1 && Object.values(it)[0].comercio === "Carrefour", "un mes que no existía se crea con lo apuntado");
+  ok(!errs.length, "sin errores de JavaScript " + errs.join(" | "));
+  await page.close();
+}
+await browser.close();
+console.log(fallos ? `\n${fallos} fallo(s)` : "\ntodo bien");
+process.exit(fallos ? 1 : 0);

@@ -150,17 +150,23 @@ function draftToMov(d){
 const queues = {};
 function serial(path, fn){ const p = (queues[path] || Promise.resolve()).then(fn); queues[path] = p.catch(() => {}); return p; }
 let movsReady = false;
+// En la web (ref.create), update y create van contra lo que hay en la base: el mes se cambia aunque aquí no
+// haya llegado todavía y solo se crea si no existe; si otro móvil lo crea a la vez, se vuelve a cambiar.
 async function putItems(key, items){
   return serial("movs/" + key, async () => {
     const ref = db.doc("movs/" + key);
-    if (meses[key]) {
-      try { await ref.update({ items }); return; }
-      catch (e) { if (!e || e.code !== "invalid_argument") throw e; }
+    for (let i = 0; i < 3; i++) {
+      if (meses[key] || ref.create) {
+        try { await ref.update({ items }); return; }
+        catch (e) { if (!e || e.code !== "invalid_argument") throw e; }
+      }
+      const cur = (!ref.create && meses[key] && meses[key].items) || {};
+      const merged = Object.fromEntries(Object.entries({ ...cur, ...items }).filter(([, v]) => v !== null));
+      if (!ref.create) { await ref.set({ mes: key, items: merged }); meses[key] = { mes: key, items: merged }; return; }
+      try { await ref.create({ mes: key, items: merged }); return; }
+      catch (e) { if (!e || e.code !== "already_exists") throw e; }
     }
-    const cur = (meses[key] && meses[key].items) || {};
-    const merged = { ...cur, ...items };
-    await ref.set({ mes: key, items: merged });
-    meses[key] = { mes: key, items: merged };
+    throw { code: "unavailable" };
   });
 }
 async function saveMovs(list){

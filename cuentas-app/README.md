@@ -78,7 +78,36 @@ persona paga algo por ti (p. ej. la cuenta del bar), queda en negativo y aparece
   calcula con las que hay hoy, y así lo dice la pantalla.
 - **Como una aplicación en el móvil**: la web lleva su ficha (`src/web/manifest.json`) y sus iconos
   (`src/web/icons/`), así que Chrome la instala con su icono y sin la barra del navegador.
-- **Copia de seguridad**: en Dinero → Cuentas, «Descargar en Excel» y «Descargar la copia completa».
+- **Guardar sin pisar**: al apuntar, cambiar o borrar un movimiento, la web lee el mes tal y como está en
+  Supabase (no el que tiene el móvil, que puede no tener aún lo apuntado en otro), le mezcla el cambio y lo
+  escribe solo si nadie lo ha tocado desde que lo leyó (mismo `updated_at`); si lo han tocado, lo vuelve a leer.
+  Un mes nuevo se crea solo si no existe. Lo prueba `node pruebas/guardado.mjs` (después de `./build-web.sh`),
+  que también corre en «Comprobaciones».
+- **Copias de seguridad**:
+  - En Dinero → Cuentas, «Descargar en Excel» y «Descargar la copia completa», a mano.
+  - `cuentas_docs_historial`: cada vez que un documento pierde algo (se borra, o se cambia o quita un movimiento,
+    una cuenta, el presupuesto…), la versión de antes se guarda ahí. No se guarda cuando solo se añade algo, ni
+    la colección `tricount`. Lo hace un disparador (migración `…_cuentas_docs_historial.sql`).
+  - `cuentas_docs_copias`: una copia entera cada semana. La pide la web al entrar
+    (`cuentas_copia_semanal()`), y solo copia si la última tiene 7 días o más. No se borra ninguna.
+  - Las copias diarias de Supabase son de todo el proyecto (Senda incluida): no sirven para volver atrás solo
+    las cuentas.
+- **Recuperar algo** (antes de cambiar nada, enseñar a Juan qué se va a cambiar):
+  ```sql
+  -- versiones guardadas de un mes
+  select hid, op, updated_at, cambiado_en from cuentas_docs_historial
+  where collection = 'movs' and id = '2026-10' order by cambiado_en desc;
+  -- devolver un movimiento (<mov>) tal y como estaba en una versión (<hid>), sin tocar el resto del mes
+  update cuentas_docs d set data = jsonb_set(d.data, '{items,<mov>}', h.data->'items'->'<mov>'), updated_at = now()
+  from cuentas_docs_historial h
+  where h.hid = <hid> and d.owner = h.owner and d.collection = h.collection and d.id = h.id;
+  -- o un documento entero desde una copia semanal
+  update cuentas_docs d set data = c.data, updated_at = now() from cuentas_docs_copias c
+  where c.copia = '<AAAA-MM-DD>' and d.owner = c.owner and d.collection = c.collection and d.id = c.id
+    and d.collection = 'movs' and d.id = '2026-10';
+  ```
+- **Migraciones**: `supabase/migrations/`, con el número que les dio Supabase al aplicarlas
+  (`supabase_migrations.schema_migrations`). Si se aplica una nueva, el fichero se renombra con su número.
 - `./build-web.sh` genera `web/index.html`; el workflow `.github/workflows/gym-web.yml` lo publica en
   `/cuentas/` junto a la web del gimnasio en cada push a `main`, sólo si pasan las comprobaciones
   (`.github/workflows/comprobaciones.yml`: el JavaScript se lee bien y la web arranca sin errores), que también

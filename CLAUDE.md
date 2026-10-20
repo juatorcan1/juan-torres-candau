@@ -15,7 +15,7 @@ tablas, funciones y Edge Functions con el prefijo de cada app** (`gym_*`, `cuent
 2. Antes de subir: `<app>/build.sh` y `<app>/build-web.sh`, y que el JavaScript se lea sin errores. Si el cambio
    toca cómo se guardan los entrenos, `node gym-app/pruebas/guardado.mjs` tiene que salir «todo bien».
 3. Revisión: el agente `revisor-datos` (`.claude/agents/`) revisa el diff antes de pedir la fusión, y el workflow
-   «Comprobaciones» (pull request #69) corre en cada pull request.
+   «Comprobaciones» corre en cada pull request y antes de publicar (incluida la prueba del guardado).
 4. Al fusionar en `main`, `.github/workflows/gym-web.yml` construye las dos webs y las publica en `gh-pages`.
 5. Cambios en la base de datos: siempre como fichero en `<app>/supabase/migrations/AAAAMMDDHHMMSS_nombre.sql`
    en el mismo pull request, y se aplican en Supabase (MCP `apply_migration`) solo cuando Juan da el visto bueno.
@@ -35,5 +35,6 @@ tablas, funciones y Edge Functions con el prefijo de cada app** (`gym_*`, `cuent
 ## Agentes de Claude Code (`.claude/agents/`)
 
 - `guardian-gym`: revisa que los datos del gimnasio estén bien guardados (sesiones a medias, días sin apuntar,
-  duplicados, números raros, historial, uso de Claude) y da un informe. Solo lee.
+  duplicados, números raros, historial, uso de Claude) y da un informe. Solo lee, salvo la copia semanal. Corre
+  solo los lunes a las 7:53 (tarea programada «Guardián del gimnasio (lunes)»).
 - `revisor-datos`: revisa un diff buscando formas de perder o pisar datos antes de fusionar.

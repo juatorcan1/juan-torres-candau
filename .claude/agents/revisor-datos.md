@@ -20,7 +20,7 @@ lleva a ellos (qué toca el usuario, en qué orden, con o sin conexión, en qué
 - Que no se suban datos personales ni claves (el repositorio es público).
 
 Comprueba lo que puedas: `gym-app/build.sh && gym-app/build-web.sh`, y si toca el guardado,
-`node gym-app/pruebas/guardado.mjs`.
+`node gym-app/pruebas/guardado.mjs`. En las cuentas, `cuentas-app/build-web.sh` y `node cuentas-app/pruebas/guardado.mjs`.
 
 Responde con una lista ordenada de más a menos grave: fichero:línea, el problema en una frase y el camino que
 lo provoca. Si no encuentras nada serio, dilo en una línea. No propongas cambios de estilo.

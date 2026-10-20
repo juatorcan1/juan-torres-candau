@@ -13,7 +13,8 @@ tablas, funciones y Edge Functions con el prefijo de cada app** (`gym_*`, `cuent
 
 1. Cada cambio en una rama `claude/...` y un pull request en borrador contra `main`. Nunca directo a `main`.
 2. Antes de subir: `<app>/build.sh` y `<app>/build-web.sh`, y que el JavaScript se lea sin errores. Si el cambio
-   toca cómo se guardan los entrenos, `node gym-app/pruebas/guardado.mjs` tiene que salir «todo bien».
+   toca cómo se guardan los entrenos, `node gym-app/pruebas/guardado.mjs` tiene que salir «todo bien»; si toca
+   cómo se guardan las cuentas, `node cuentas-app/pruebas/guardado.mjs`.
 3. Revisión: el agente `revisor-datos` (`.claude/agents/`) revisa el diff antes de pedir la fusión, y el workflow
    «Comprobaciones» corre en cada pull request y antes de publicar (incluida la prueba del guardado).
 4. Al fusionar en `main`, `.github/workflows/gym-web.yml` construye las dos webs y las publica en `gh-pages`.

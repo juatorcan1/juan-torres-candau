@@ -2,7 +2,7 @@ name: Comprobaciones
 
 # Antes de fusionar (en cada pull request) y antes de publicar (lo llama gym-web.yml): se construyen las
 # cuatro webs (gimnasio y cuentas, en Artifact y en web) y se comprueba que su JavaScript se lee bien y que
-# arrancan en Chromium sin errores; y que el entreno guiado del gimnasio no pierde series (gym-app/pruebas). Sin filtro de rutas a propósito: si se marca como obligatoria en GitHub,
+# arrancan en Chromium sin errores; que el entreno guiado del gimnasio no pierde series (gym-app/pruebas) y que las cuentas no pisan un mes guardado desde otro móvil (cuentas-app/pruebas). Sin filtro de rutas a propósito: si se marca como obligatoria en GitHub,
 # un pull request que no toque las apps tiene que poder pasarla igual.
 on:
   pull_request:
@@ -36,3 +36,5 @@ jobs:
         run: node .github/comprobaciones/comprobar.mjs gym-app/index.html gym-app/web/index.html cuentas-app/index.html cuentas-app/web/index.html
       - name: El entreno guiado no pierde series
         run: node gym-app/pruebas/guardado.mjs
+      - name: Las cuentas no pisan lo guardado desde otro móvil
+        run: node cuentas-app/pruebas/guardado.mjs

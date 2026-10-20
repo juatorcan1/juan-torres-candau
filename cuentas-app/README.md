@@ -89,7 +89,10 @@ persona paga algo por ti (p. ej. la cuenta del bar), queda en negativo y aparece
     una cuenta, el presupuesto…), la versión de antes se guarda ahí. No se guarda cuando solo se añade algo, ni
     la colección `tricount`. Lo hace un disparador (migración `…_cuentas_docs_historial.sql`).
   - `cuentas_docs_copias`: una copia entera cada semana. La pide la web al entrar
-    (`cuentas_copia_semanal()`), y solo copia si la última tiene 7 días o más. No se borra ninguna.
+    (`cuentas_copia_semanal()`), y solo copia si la última tiene 7 días o más. No se borra ninguna. La primera,
+    del 20/10/2026, se hizo al aplicar la migración (62 de 62 documentos, idénticos). El aviso de Supabase
+    «authenticated puede ejecutar una función SECURITY DEFINER» por esta función es a propósito: solo copia lo
+    de quien está en `cuentas_usuarios`.
   - Las copias diarias de Supabase son de todo el proyecto (Senda incluida): no sirven para volver atrás solo
     las cuentas.
 - **Recuperar algo** (antes de cambiar nada, enseñar a Juan qué se va a cambiar):

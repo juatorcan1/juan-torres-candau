@@ -50,6 +50,8 @@ borrado. `gym_docs_copia_20261020`: copia de todo `gym_docs` justo antes de acti
 
 Si cambias algo de esto: `./build.sh && node pruebas/guardado.mjs` (Chromium, base de datos de mentira, sin red).
 Si tocas cómo se lee el plan: `node pruebas/plan-domingo.mjs`.
+Si tocas la pantalla del entreno guiado: `node pruebas/pantalla.mjs` (la serie y el descanso caben en un móvil de
+360 × 640 sin scroll; los estilos de móvil están al final de `src/style.css`).
 
 ## Revisar los datos (MCP de Supabase, proyecto `eqwhiguptakmuuihpjpu`)
 

@@ -180,7 +180,7 @@ function renderPlayer(){
     const mu = musclesOf(it);
     // while resting, the top of the screen already shows what comes next (the new exercise, or the next set)
     const dSt = resting && next ? next : st, dIt = itemOf(dSt), dMu = musclesOf(dIt), dCur = resting && next ? run.nextCur : cur;
-    body = `<div class="pl-body center">
+    body = `<div class="pl-body center${resting ? " resting" + (newEx || !next ? " newex" : "") : ""}">
       ${trackHTML(keyOf(dSt))}
       <div class="eyebrow">${esc(w.bloques[dSt.bi].nombre)} · ${resting && next ? "a continuación" : "trabajas"}</div>
       <h2 class="mus-title">${esc(musNames(dMu.main) || dIt.ejercicio)}</h2>

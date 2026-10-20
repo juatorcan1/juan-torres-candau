@@ -687,6 +687,67 @@ details.pl-edit[open] summary{margin-bottom:6px}
 .pweek-old[open] summary{margin-bottom:8px}
 .fix-sets .btn{align-self:center}
 .fix-always{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+
+/* entreno guiado en el móvil: todo en una pantalla, sin hacer scroll (los números que se tocan siguen grandes) */
+@media (max-width: 600px){
+  .pl-head{padding-block:4px 2px}
+  .pl-title b{font-size:14px}
+  .pl-title .muted{font-size:11px}
+  .pl-body{gap:6px;padding-block:6px}
+  .pl-body .eyebrow{font-size:10px}
+  .pl-goal{font-size:13px}
+  .pl-track{gap:2px}
+  .tk{width:28px}
+  .tk svg{width:24px;height:24px}
+  .tk.now svg{width:28px;height:28px;margin-top:-2px}
+  .tk span{font-size:10px}
+  .mus-title{font-size:24px}
+  .pl-how{gap:8px;padding:4px 8px 4px 4px;font-size:13.5px}
+  .pl-fig.small{width:56px}
+  .pl-prev{padding:4px 8px;font-size:13px}
+  .grips{gap:3px}
+  .grip-row{grid-template-columns:repeat(auto-fit,minmax(60px,1fr));gap:4px}
+  .grip{padding:2px;font-size:11px}
+  .grip-ico{width:40px;height:18px}
+  .grip-tip{font-size:11.5px}
+  .linkbtn.note-add{font-size:12px}
+  .pl-body.center > .pl-map{width:96px}
+  .pl-today{gap:4px;padding:8px}
+  .pl-today .pl-map,.pl-today .bmap{max-width:150px}
+  .pl-cue{font-size:13px}
+  .pl-best{font-size:12px;gap:10px}
+  .pl-next{font-size:13.5px}
+  .steppers{flex-wrap:nowrap;gap:10px}
+  .stepper{gap:2px}
+  .stepper > span{font-size:10.5px}
+  .stepper > div{gap:4px}
+  .stepper button{width:40px;height:40px;font-size:20px}
+  .stepper .stepin{font-size:26px;width:58px;min-width:0}
+  .steppers.sm .stepper button{width:36px;height:36px;font-size:18px}
+  .steppers.sm .stepin{font-size:22px;width:52px}
+  .pl-edit{padding:6px 8px;gap:4px}
+  .ring{width:min(48vw,170px)}
+  .ring.rest{width:min(36vw,130px)}
+  .ring-txt span{font-size:40px}
+  .ring.rest .ring-txt span{font-size:32px}
+  .ring-txt small{font-size:11px}
+  .pl-foot{gap:4px;padding-block:6px 10px}
+  .pl-foot .btn.big{padding:11px 16px}
+  .pl-foot .pl-aux{font-size:13px;gap:2px 10px}
+  .grip{grid-auto-flow:column;align-items:center;justify-content:center;gap:4px;padding:3px 6px}
+  .grip-ico{width:32px;height:14px}
+  .pl-fig.small{width:48px}
+  .pl-prev{padding:3px 8px;font-size:12.5px;line-height:1.25}
+  .ring.rest{width:min(28vw,100px)}
+  .ring.rest .ring-txt span{font-size:26px}
+  /* en el descanso: fuera agarres y nota (vuelven al empezar la serie) y el «cómo» si sigue el mismo ejercicio */
+  .pl-body.resting .grips,.pl-body.resting .note-add{display:none}
+  .pl-body.resting:not(.newex) .pl-how{display:none}
+}
+/* en pantallas bajas el muñeco del músculo sobra: el nombre ya va en grande y el ejercicio lleva su dibujo */
+@media (max-width: 600px) and (max-height: 820px){
+  .pl-body.center > .pl-map{display:none}
+}
 </style>
 <div class="wrap">
   <div class="brand">
@@ -3415,7 +3476,7 @@ function renderPlayer(){
     const mu = musclesOf(it);
     // while resting, the top of the screen already shows what comes next (the new exercise, or the next set)
     const dSt = resting && next ? next : st, dIt = itemOf(dSt), dMu = musclesOf(dIt), dCur = resting && next ? run.nextCur : cur;
-    body = `<div class="pl-body center">
+    body = `<div class="pl-body center${resting ? " resting" + (newEx || !next ? " newex" : "") : ""}">
       ${trackHTML(keyOf(dSt))}
       <div class="eyebrow">${esc(w.bloques[dSt.bi].nombre)} · ${resting && next ? "a continuación" : "trabajas"}</div>
       <h2 class="mus-title">${esc(musNames(dMu.main) || dIt.ejercicio)}</h2>

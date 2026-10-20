@@ -43,15 +43,47 @@ function makeDb(){
     if (error) throw toErr(error);
     stored(col, id, obj);
   }
-  // `update` mezcla el cambio con lo que hay en la base, no con lo de este móvil, que puede no tener todavía
-  // lo apuntado en otro (sin conexión, sin el aviso del cambio): un mes entero no se pisa con una copia vieja.
-  // Se escribe solo si nadie lo ha tocado desde que se leyó (mismo updated_at); si no, se lee y se mezcla otra vez.
-  async function patch(col, id, p){
+  // Mezcla a tres bandas: lo que había aquí cuando se cambió (base), lo nuevo de aquí (mine) y lo que hay ahora en
+  // la base (theirs). Se queda con lo que ha cambiado otro y encima pone lo que ha cambiado aquí; en las listas con
+  // id (cuentas, fijos, objetivos, categorías) elemento a elemento. Si los dos cambian lo mismo, gana lo de aquí.
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const isObj = v => !!v && typeof v === "object" && !Array.isArray(v);
+  const byId = a => Array.isArray(a) && a.every(x => isObj(x) && x.id != null);
+  function merge3(base, mine, theirs){
+    if (same(base, mine)) return theirs;
+    if (theirs === undefined || same(base, theirs)) return mine;
+    if (isObj(base) && isObj(mine) && isObj(theirs)) {
+      const out = { ...theirs };
+      for (const k of new Set([...Object.keys(base), ...Object.keys(mine)])) {
+        if (!(k in mine)) { if (same(base[k], theirs[k])) delete out[k]; }
+        else if (!same(base[k], mine[k])) out[k] = k in base ? merge3(base[k], mine[k], theirs[k]) : mine[k];
+      }
+      return out;
+    }
+    if (byId(base) && byId(mine) && byId(theirs)) {
+      const B = new Map(base.map(x => [x.id, x])), M = new Map(mine.map(x => [x.id, x])), T = new Set(theirs.map(x => x.id));
+      const out = [];
+      for (const t of theirs) {
+        if (M.has(t.id)) out.push(B.has(t.id) ? merge3(B.get(t.id), M.get(t.id), t) : M.get(t.id));
+        else if (!B.has(t.id) || !same(B.get(t.id), t)) out.push(t);   // nuevo del otro, o lo quité aquí pero él lo cambió
+      }
+      for (const m of mine) if (!T.has(m.id) && (!B.has(m.id) || !same(B.get(m.id), m))) out.push(m);   // nuevo de aquí, o él lo quitó y aquí se cambió
+      return out;
+    }
+    return mine;
+  }
+  // Leer de la base, cambiar y escribir solo si nadie lo ha tocado desde que se leyó (mismo updated_at); si no, se
+  // lee y se cambia otra vez. Así nada se pisa con lo que tiene este móvil, que puede no tener todavía lo hecho en
+  // otro (sin conexión, sin el aviso del cambio). Si no existe: `missing` se crea, o falla con invalid_argument.
+  async function rmw(col, id, fn, missing){
     for (let i = 0; i < 5; i++) {
       const { data: row, error } = await sb.from("cuentas_docs").select("data,updated_at").eq("owner", uidNow).eq("collection", col).eq("id", id).maybeSingle();
       if (error) throw toErr(error);
-      if (!row) throw { code: "invalid_argument", message: "No existe" };
-      const obj = merge(row.data, JSON.parse(JSON.stringify(p)));
+      if (!row) {
+        if (!missing) throw { code: "invalid_argument", message: "No existe" };
+        try { await create(col, id, missing); return; } catch (e) { if (!e || e.code !== "already_exists") throw e; continue; }
+      }
+      const obj = fn(row.data);
       const at = new Date(Math.max(Date.now(), (Date.parse(row.updated_at) || 0) + 1)).toISOString();
       const { data: done, error: e2 } = await sb.from("cuentas_docs").update({ data: obj, updated_at: at })
         .eq("owner", uidNow).eq("collection", col).eq("id", id).eq("updated_at", row.updated_at).select("id");
@@ -66,11 +98,16 @@ function makeDb(){
     if (error) throw error.code === "23505" ? { code: "already_exists", message: "Ya existe" } : toErr(error);
     stored(col, id, obj);
   }
+  const clone = o => JSON.parse(JSON.stringify(o));
   const ref = (col, id) => ({
     id, path: col + "/" + id,
-    set: obj => write(col, id, JSON.parse(JSON.stringify(obj))),
-    update: p => patch(col, id, p),
-    create: obj => create(col, id, JSON.parse(JSON.stringify(obj))),
+    set: obj => write(col, id, clone(obj)),
+    // `fix(cur)`, si se da, rehace el cambio con lo que hay en la base (p. ej. para no tocar un movimiento que ya no está)
+    update: (p, fix) => rmw(col, id, cur => merge(cur, clone(fix ? fix(cur) : p))),
+    create: obj => create(col, id, clone(obj)),
+    // lo que tiene este móvil ahora (la base de `save`), y guardar el documento entero mezclado a tres bandas
+    snapshot: () => { const r = cache[col] && cache[col].get(id); return r ? clone(r.data) : null; },
+    save: (base, obj) => { const mine = clone(obj); return rmw(col, id, cur => merge3(base, mine, cur), mine); },
     async delete(){
       const { error } = await sb.from("cuentas_docs").delete().eq("collection", col).eq("id", id);
       if (error) throw toErr(error);

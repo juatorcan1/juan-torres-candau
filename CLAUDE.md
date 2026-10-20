@@ -38,4 +38,7 @@ tablas, funciones y Edge Functions con el prefijo de cada app** (`gym_*`, `cuent
 - `guardian-gym`: revisa que los datos del gimnasio estén bien guardados (sesiones a medias, días sin apuntar,
   duplicados, números raros, historial, uso de Claude) y da un informe. Solo lee, salvo la copia semanal. Corre
   solo los lunes a las 7:53 (tarea programada «Guardián del gimnasio (lunes)»).
+- `guardian-cuentas`: lo mismo para «Las cuentas de Juan» (copias, historial, movimientos rotos o repetidos, tickets
+  sin Drive, cuentas que no existen). Solo lee. Corre solo los lunes a las 7:47 (tarea programada «Guardián de las
+  cuentas (lunes)»).
 - `revisor-datos`: revisa un diff buscando formas de perder o pisar datos antes de fusionar.

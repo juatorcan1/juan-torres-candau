@@ -15,7 +15,8 @@ const mes = new Date().toISOString().slice(0, 7);
 const mov = (id, total, comercio) => ({ id, tipo: "gasto", fecha: mes + "-01", total, cuenta: "banco", comercio, lineas: [{ concepto: "", cat: "", importe: total }], origen: "mano" });
 
 // supabase-js de mentira (lo que usa src/web/09-web.js), con cuentas_docs en memoria. Sin avisos en tiempo real,
-// como un móvil que no se ha enterado de un cambio. window.__antesDeCambiar(n) se llama antes de cada update.
+// como un móvil que no se ha enterado de un cambio. window.__antesDeCambiar(n) se llama antes de cada update, y
+// con window.__fallaEscritura = n falla la escritura número n (sin conexión a mitad).
 function fakeSupabase(UID, seed){
   const rows = window.__rows = seed.map(r => ({ owner: UID, ...r }));
   window.__rpc = [];
@@ -34,6 +35,7 @@ function fakeSupabase(UID, seed){
     then(ok, ko){ return Promise.resolve().then(() => this.run()).then(ok, ko); }
     run(){
       if (this.t === "cuentas_usuarios") return { data: { nombre: "Juan" }, error: null };
+      if (["insert", "upsert", "update"].includes(this.op) && window.__fallaEscritura && --window.__fallaEscritura === 0) return { data: null, error: { code: "08006", message: "sin conexión" } };
       const hit = r => this.f.every(([k, v]) => r[k] === v);
       if (this.op === "select") { const d = rows.filter(hit).map(clone); return { data: this.one ? d[0] || null : d, error: null }; }
       if (this.op === "insert") {
@@ -65,6 +67,10 @@ const otroMovil = (page, id, total, comercio) => page.evaluate(([mes, m]) => {
   else window.__rows.push({ owner: window.__rows[0]?.owner || "11111111-1111-1111-1111-111111111111", collection: "movs", id: mes, data: { mes, items: { [m.id]: m } }, updated_at: new Date().toISOString() });
 }, [mes, mov(id, total, comercio)]);
 const items = page => page.evaluate(m => { const r = window.__rows.find(r => r.collection === "movs" && r.id === m); return r ? r.data.items : {}; }, mes);
+const doc = (page, col, id) => page.evaluate(([c, i]) => { const r = window.__rows.find(r => r.collection === c && r.id === i); return r ? r.data : null; }, [col, id]);
+// otro móvil cambia un documento directamente en la base
+const otroCambia = (page, col, id, fn) => page.evaluate(([c, i, f]) => { const r = window.__rows.find(r => r.collection === c && r.id === i); (0, eval)("(" + f + ")")(r.data); r.updated_at = new Date().toISOString(); }, [col, id, fn.toString()]);
+const mesSig = (() => { const d = new Date(mes + "-15"); d.setMonth(d.getMonth() + 1); return d.toISOString().slice(0, 7); })();
 
 const browser = await chromium.launch(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {});
 let fallos = 0; const ok = (c, m) => { console.log((c ? "✓ " : "✗ ") + m); if (!c) fallos++; };
@@ -131,6 +137,63 @@ const base = [
   await apuntarAMano(page, 30, "Carrefour");
   const it = await items(page);
   ok(Object.keys(it).length === 1 && Object.values(it)[0].comercio === "Carrefour", "un mes que no existía se crea con lo apuntado");
+  ok(!errs.length, "sin errores de JavaScript " + errs.join(" | "));
+  await page.close();
+}
+// 6. el mismo movimiento cambiado a la vez: en otro móvil la nota, aquí el importe; se quedan los dos
+{
+  const { page, errs } = await abrir(base);
+  await otroCambia(page, "movs", mes, d => { d.items.a.nota = "del otro móvil"; });
+  await page.click('.bnav [data-tab="movs"]'); await page.click('[data-mov="a"]');
+  await page.fill("#edit-total", "15"); await page.click('[data-edsave="edit"]'); await page.waitForTimeout(300);
+  const a = (await items(page)).a;
+  ok(a && a.total === 15 && a.nota === "del otro móvil", "mismo movimiento a la vez: se quedan el importe de aquí y la nota del otro: " + JSON.stringify(a && { total: a.total, nota: a.nota }));
+  ok(!errs.length, "sin errores de JavaScript " + errs.join(" | "));
+  await page.close();
+}
+// 7. pasarlo a otro mes y que la conexión falle a mitad: no se pierde (como mucho queda en los dos meses)
+{
+  const { page, errs } = await abrir(base);
+  await page.click('.bnav [data-tab="movs"]'); await page.click('[data-mov="a"]');
+  await page.fill("#edit-fecha", mesSig + "-02");
+  await page.evaluate(() => { window.__fallaEscritura = 2; });
+  await page.click('[data-edsave="edit"]'); await page.waitForTimeout(300);
+  const viejo = await items(page), nuevo = (await doc(page, "movs", mesSig)) || { items: {} };
+  ok(!!(viejo.a || nuevo.items.a), "cambio de mes con un fallo entre medias: el movimiento sigue en algún mes");
+  await page.evaluate(() => { window.__fallaEscritura = 0; });
+  await page.click('[data-edsave="edit"]'); await page.waitForTimeout(300);
+  const v2 = await items(page), n2 = (await doc(page, "movs", mesSig)) || { items: {} };
+  ok(!v2.a && n2.items.a && n2.items.a.fecha === mesSig + "-02", "al volver a darle a Guardar queda solo en el mes nuevo");
+  ok(!errs.length, "sin errores de JavaScript " + errs.join(" | "));
+  await page.close();
+}
+// 8. preferencias: en otro móvil se elige la cuenta habitual y aquí se cambia la subida de precios; se quedan las dos
+{
+  const { page, errs } = await abrir(base.concat([{ collection: "config", id: "prefs", data: { subida: 2 }, updated_at: "2026-10-05T10:44:13.956331+00:00" }]));
+  await otroCambia(page, "config", "prefs", d => { d.cuentaHabitual = "banco"; });
+  await page.click('.bnav [data-tab="prevision"]'); await page.click('[data-psub="fijos"]');
+  await page.fill("#pref-subida", "3"); await page.dispatchEvent("#pref-subida", "change"); await page.waitForTimeout(300);
+  const pr = await doc(page, "config", "prefs");
+  ok(pr && pr.subida === 3 && pr.cuentaHabitual === "banco", "preferencias de los dos móviles: " + JSON.stringify(pr));
+  ok(!errs.length, "sin errores de JavaScript " + errs.join(" | "));
+  await page.close();
+}
+// 9. la lista de cuentas mezclada elemento a elemento
+{
+  const cs = { collection: "config", id: "cuentas", data: { items: [{ id: "banco", nombre: "Banco", tipo: "banco", saldo: 0 }, { id: "viejo", nombre: "Vieja", tipo: "banco" }, { id: "caja", nombre: "Caja", tipo: "efectivo" }] }, updated_at: "2026-10-05T10:44:13.956331+00:00" };
+  const { page, errs } = await abrir([cs, base[1]]);
+  // el otro: añade una cuenta, cambia el nombre del banco y toca «caja»
+  await otroCambia(page, "config", "cuentas", d => { d.items.push({ id: "kraken", nombre: "Kraken", tipo: "inversion" }); d.items[0].nombre = "Banco Uno"; d.items[2].nota = "la del cajón"; });
+  // aquí: el saldo del banco, quitar «viejo» y quitar «caja» (que el otro acaba de cambiar)
+  await page.evaluate(async () => {
+    const db = await window.claude.use("db"), ref = db.doc("config/cuentas"), base = ref.snapshot();
+    const mine = { items: base.items.filter(c => c.id !== "viejo" && c.id !== "caja").map(c => c.id === "banco" ? { ...c, saldo: 100 } : c) };
+    await ref.save(base, mine);
+  });
+  const it = (await doc(page, "config", "cuentas")).items, by = Object.fromEntries(it.map(c => [c.id, c]));
+  ok(by.banco && by.banco.saldo === 100 && by.banco.nombre === "Banco Uno", "la misma cuenta: el saldo de aquí y el nombre del otro");
+  ok(by.kraken && !by.viejo, "la cuenta nueva del otro se queda y la que quité aquí se va");
+  ok(by.caja && by.caja.nota === "la del cajón", "una cuenta quitada aquí pero cambiada en el otro se queda");
   ok(!errs.length, "sin errores de JavaScript " + errs.join(" | "));
   await page.close();
 }

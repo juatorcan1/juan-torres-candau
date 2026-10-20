@@ -3273,9 +3273,9 @@ async function openPlayer(w, opts = {}){
   saveRun(); showPlayer();
 }
 /* weights start from what you actually lifted last time on that exercise, set by set: each set is
-   compared with the same set last time. Reached the target reps → a step up in weight; fell short → same
-   weight and one rep more. it.prev keeps last time's sets and it.plan today's target for every set. */
-const BIG_LIFTS = new Set(["Prensa", "Hip thrust", "Sentadilla", "Peso muerto", "Peso muerto rumano", "Sentadilla búlgara"]);
+   compared with the same set last time. Reached the target reps → KG_STEP more; fell short → same weight
+   and one rep more. it.prev keeps last time's sets and it.plan today's target for every set. */
+const KG_STEP = 1; // kilos de uno en uno: lo que sube de una vez a otra y lo que mueven − / +
 function tuneFromHistory(w){
   let n = 0;
   for (const b of w.bloques) for (const it of b.items) {
@@ -3283,7 +3283,7 @@ function tuneFromHistory(w){
     const { last } = bestFor(me, it.ejercicio); if (!last || !last.sets.length) continue;
     const top = Math.max(...last.sets.map(x => num(x.kg)));
     if (!top) continue; // bodyweight: nothing to carry over
-    const step = BIG_LIFTS.has(canonicalName(it.ejercicio)) ? 5 : 2.5;
+    const step = KG_STEP;
     it.prev = { date: last.date, sets: last.sets.map(x => ({ kg: num(x.kg), reps: num(x.reps) })) };
     it.plan = Array.from({ length: it.series }, (_, i) => {
       const p = it.prev.sets[Math.min(i, it.prev.sets.length - 1)];
@@ -3457,7 +3457,7 @@ function stepper(k, label, v, stepv, tgt = "cur"){
 }
 function steppersFor(it, v, tgt, cls = ""){
   if (!v) return "";
-  return it.modo === "reps" ? `<div class="steppers ${cls}">${stepper("reps", "Reps", v.reps, 1, tgt)}${stepper("kg", "Kg", v.kg, 2.5, tgt)}</div>`
+  return it.modo === "reps" ? `<div class="steppers ${cls}">${stepper("reps", "Reps", v.reps, 1, tgt)}${stepper("kg", "Kg", v.kg, KG_STEP, tgt)}</div>`
     : it.modo === "distancia" ? `<div class="steppers ${cls}">${stepper("meters", "Metros", v.meters, 25, tgt)}</div>` : "";
 }
 const lastSum = (it, l) => it.modo === "reps" ? `${fmt(l.reps)} reps${l.kg ? " × " + fmt(l.kg, 2) + " kg" : ""}` : fmt(l.meters) + " m";

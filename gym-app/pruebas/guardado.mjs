@@ -130,5 +130,20 @@ for (const [enLaBase, nombre] of [[4, "con más series allí, lo del móvil no s
   ok(!errs.length, "sin errores de JavaScript " + errs.join(" | "));
   await page.close();
 }
+// 8. los kilos van de uno en uno: lo propuesto sube 1 kg sobre la última vez y − / + mueven 1 kg
+{
+  const ayer = iso(new Date(Date.now() - 864e5));
+  const { page, errs } = await abrir({ "gym.me": "juan", "gym.voice": false }, { planes: [plan], sesiones: [
+    { id: "antes", athlete: "juan", date: ayer, sport: "gym", exercises: [{ name: "Press banca", sets: [{ reps: 10, kg: 40 }, { reps: 10, kg: 42 }, { reps: 8, kg: 44 }] }] }] });
+  await page.click(`[data-plan-open="${iso(hoy)}"]`); await page.click('[data-pl="start"]'); await page.waitForTimeout(100);
+  const kg = () => page.evaluate(() => document.querySelector("#pl-cur-kg")?.value);
+  ok(await kg() === "41", "propone 41 kg (40 de la última vez + 1): " + await kg());
+  await page.click('#player [data-step="kg"][data-d="1"]');
+  ok(await kg() === "42", "el + sube 1 kg: " + await kg());
+  await page.click('#player [data-step="kg"][data-d="-1"]'); await page.click('#player [data-step="kg"][data-d="-1"]');
+  ok(await kg() === "40", "el − baja 1 kg: " + await kg());
+  ok(!errs.length, "sin errores de JavaScript " + errs.join(" | "));
+  await page.close();
+}
 await browser.close();
 console.log(fallos ? `${fallos} fallos` : "todo bien"); process.exit(fallos ? 1 : 0);

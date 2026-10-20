@@ -70,5 +70,9 @@ where collection = 'sesiones' and id = '<id>' order by cambiado_en desc;
 -- y se vuelve a escribir esa data en gym_docs con un upsert
 ```
 
-Copias: Supabase Pro hace una copia diaria de toda la base de datos (7 días); el historial guarda cada versión;
-y el botón «Copia» de la cabecera descarga todo en un JSON.
+Copias, de más a menos reciente:
+- `gym_docs_historial`: cada versión anterior de lo que se cambia o se borra, al momento.
+- `gym_docs_copias`: una copia entera cada lunes (`select public.gym_copia_semanal()`, la hace el guardián).
+- `gym_docs_copia_20261020`: la copia de antes de activar el historial.
+- Supabase Pro: copia diaria de toda la base de datos (7 días).
+- Fuera de Supabase: el botón «Copia» de la cabecera descarga todo en un JSON.

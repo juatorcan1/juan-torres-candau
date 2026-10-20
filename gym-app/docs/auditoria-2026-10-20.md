@@ -64,11 +64,16 @@ comprobaciones y esta las pasa todas.
 - [x] Botón «Copia» (descarga JSON de todo).
 - [x] Copia de `gym_docs` (45 documentos, comprobados) y historial aplicado en Supabase.
 - [x] Fusionar #69 («Comprobaciones»).
-- [ ] Añadir `gym-app/pruebas/guardado.mjs` a «Comprobaciones» y marcarla como obligatoria en `main`.
-- [ ] Datos de Ignacio, con su permiso: cerrar o continuar las sesiones del 9 y del 19 (a medias), borrar el
-      duplicado del 8 y corregir un peso mal tecleado del 29 de septiembre en elevaciones laterales.
+- [x] `gym-app/pruebas/guardado.mjs` dentro de «Comprobaciones» (en cada pull request y antes de publicar).
+- [ ] Marcar «Comprobaciones» como obligatoria en `main` (GitHub → Settings → Branches; solo Juan).
+- [x] Datos de Ignacio, con permiso de Juan: sesiones del 9 y del 19 cerradas tal cual (la del 9 con 36 min, sacados
+      de los registros, en vez de 240) y el peso mal tecleado del 29 de septiembre corregido. Lo de antes está en
+      `gym_docs_historial`.
+- [ ] Borrar la sesión duplicada de Ignacio del 8 (un primer intento de 1 minuto): desde la app, Plan → miércoles 8
+      → Borrar. Desde aquí la herramienta de la base de datos no deja borrar.
 - [ ] Juan: si entrenaste el viernes 16, apúntalo desde el plan («Te falta apuntar» → con el formulario).
-- [ ] Pedir al Entrenador el plan nuevo antes del 25 de octubre.
-- [x] Programar el guardián los lunes a las 7:53 (tarea «Guardián del gimnasio»), con informe y copia a Google Drive.
-- [ ] Darle a esa tarea acceso a Supabase y Google Drive (conectores, desde claude.ai).
-- [ ] Borrar la Edge Function `gym-ping`.
+- [ ] Pedir al Entrenador el plan nuevo antes del 25 de octubre (lo hace con vuestros datos, desde la app).
+- [x] Guardián los lunes a las 7:53 (tarea «Guardián del gimnasio (lunes)»): copia semanal en `gym_docs_copias`
+      (`gym_copia_semanal()`, la primera ya hecha, 45 de 45) e informe. La copia a Google Drive se descartó: el
+      agente tendría que reescribir los datos a mano y una copia así no es fiable.
+- [ ] Borrar la Edge Function `gym-ping` (desde el panel de Supabase).

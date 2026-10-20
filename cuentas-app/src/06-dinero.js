@@ -516,6 +516,6 @@ async function saveCatForm(){
   else if (f.gid && f.rename) { const g = list.find(g => g.id === f.gid); if (g) g.nombre = n; }
   else if (f.gid) { const g = list.find(g => g.id === f.gid); if (g) { let id = slug; while (g.cats.some(x => x[0] === id)) id += "2"; g.cats.push([id, n]); } }
   else { let id = slug; while (list.some(g => g.id === id) || c.gasto.concat(c.ingreso).some(g => g.id === id)) id += "2"; list.push({ id, nombre: n, cats: [["varios", "Varios"]] }); }
-  try { await saveCfg("categorias", c); cfg.cats = c; buildCatIdx(); catForm = null; toast("Guardado"); renderView(); }
+  try { await saveCfg("categorias", c); if (!WEB) { cfg.cats = c; buildCatIdx(); } catForm = null; toast("Guardado"); renderView(); }
   catch (e) { $("#cf-err").textContent = saveErr(e); }
 }

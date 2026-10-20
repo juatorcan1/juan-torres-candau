@@ -15,7 +15,8 @@ const mes = new Date().toISOString().slice(0, 7);
 const mov = (id, total, comercio) => ({ id, tipo: "gasto", fecha: mes + "-01", total, cuenta: "banco", comercio, lineas: [{ concepto: "", cat: "", importe: total }], origen: "mano" });
 
 // supabase-js de mentira (lo que usa src/web/09-web.js), con cuentas_docs en memoria. Sin avisos en tiempo real,
-// como un móvil que no se ha enterado de un cambio. window.__antesDeCambiar(n) se llama antes de cada update.
+// como un móvil que no se ha enterado de un cambio. window.__antesDeCambiar(n) se llama antes de cada update, y
+// con window.__fallaEscritura = n falla la escritura número n (sin conexión a mitad).
 function fakeSupabase(UID, seed){
   const rows = window.__rows = seed.map(r => ({ owner: UID, ...r }));
   window.__rpc = [];
@@ -34,6 +35,7 @@ function fakeSupabase(UID, seed){
     then(ok, ko){ return Promise.resolve().then(() => this.run()).then(ok, ko); }
     run(){
       if (this.t === "cuentas_usuarios") return { data: { nombre: "Juan" }, error: null };
+      if (["insert", "upsert", "update"].includes(this.op) && window.__fallaEscritura && --window.__fallaEscritura === 0) return { data: null, error: { code: "08006", message: "sin conexión" } };
       const hit = r => this.f.every(([k, v]) => r[k] === v);
       if (this.op === "select") { const d = rows.filter(hit).map(clone); return { data: this.one ? d[0] || null : d, error: null }; }
       if (this.op === "insert") {
@@ -65,6 +67,10 @@ const otroMovil = (page, id, total, comercio) => page.evaluate(([mes, m]) => {
   else window.__rows.push({ owner: window.__rows[0]?.owner || "11111111-1111-1111-1111-111111111111", collection: "movs", id: mes, data: { mes, items: { [m.id]: m } }, updated_at: new Date().toISOString() });
 }, [mes, mov(id, total, comercio)]);
 const items = page => page.evaluate(m => { const r = window.__rows.find(r => r.collection === "movs" && r.id === m); return r ? r.data.items : {}; }, mes);
+const doc = (page, col, id) => page.evaluate(([c, i]) => { const r = window.__rows.find(r => r.collection === c && r.id === i); return r ? r.data : null; }, [col, id]);
+// otro móvil cambia un documento directamente en la base
+const otroCambia = (page, col, id, fn) => page.evaluate(([c, i, f]) => { const r = window.__rows.find(r => r.collection === c && r.id === i); (0, eval)("(" + f + ")")(r.data); r.updated_at = new Date().toISOString(); }, [col, id, fn.toString()]);
+const mesSig = (() => { const d = new Date(mes + "-15"); d.setMonth(d.getMonth() + 1); return d.toISOString().slice(0, 7); })();
 
 const browser = await chromium.launch(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {});
 let fallos = 0; const ok = (c, m) => { console.log((c ? "✓ " : "✗ ") + m); if (!c) fallos++; };
@@ -131,6 +137,172 @@ const base = [
   await apuntarAMano(page, 30, "Carrefour");
   const it = await items(page);
   ok(Object.keys(it).length === 1 && Object.values(it)[0].comercio === "Carrefour", "un mes que no existía se crea con lo apuntado");
+  ok(!errs.length, "sin errores de JavaScript " + errs.join(" | "));
+  await page.close();
+}
+// 6. el mismo movimiento cambiado a la vez: en otro móvil la nota, aquí el importe; se quedan los dos
+{
+  const { page, errs } = await abrir(base);
+  await otroCambia(page, "movs", mes, d => { d.items.a.nota = "del otro móvil"; });
+  await page.click('.bnav [data-tab="movs"]'); await page.click('[data-mov="a"]');
+  await page.fill("#edit-total", "15"); await page.click('[data-edsave="edit"]'); await page.waitForTimeout(300);
+  const a = (await items(page)).a;
+  ok(a && a.total === 15 && a.nota === "del otro móvil", "mismo movimiento a la vez: se quedan el importe de aquí y la nota del otro: " + JSON.stringify(a && { total: a.total, nota: a.nota }));
+  ok(!errs.length, "sin errores de JavaScript " + errs.join(" | "));
+  await page.close();
+}
+// 7. pasarlo a otro mes y que la conexión falle a mitad: no se pierde (como mucho queda en los dos meses)
+{
+  const { page, errs } = await abrir(base);
+  await page.click('.bnav [data-tab="movs"]'); await page.click('[data-mov="a"]');
+  await page.fill("#edit-fecha", mesSig + "-02");
+  await page.evaluate(() => { window.__fallaEscritura = 2; });
+  await page.click('[data-edsave="edit"]'); await page.waitForTimeout(300);
+  const viejo = await items(page), nuevo = (await doc(page, "movs", mesSig)) || { items: {} };
+  ok(!!(viejo.a || nuevo.items.a), "cambio de mes con un fallo entre medias: el movimiento sigue en algún mes");
+  await page.evaluate(() => { window.__fallaEscritura = 0; });
+  await page.click('[data-edsave="edit"]'); await page.waitForTimeout(300);
+  const v2 = await items(page), n2 = (await doc(page, "movs", mesSig)) || { items: {} };
+  ok(!v2.a && n2.items.a && n2.items.a.fecha === mesSig + "-02", "al volver a darle a Guardar queda solo en el mes nuevo");
+  ok(!errs.length, "sin errores de JavaScript " + errs.join(" | "));
+  await page.close();
+}
+// 8. preferencias: en otro móvil se elige la cuenta habitual y aquí se cambia la subida de precios; se quedan las dos
+{
+  const { page, errs } = await abrir(base.concat([{ collection: "config", id: "prefs", data: { subida: 2 }, updated_at: "2026-10-05T10:44:13.956331+00:00" }]));
+  await otroCambia(page, "config", "prefs", d => { d.cuentaHabitual = "banco"; });
+  await page.click('.bnav [data-tab="prevision"]'); await page.click('[data-psub="fijos"]');
+  await page.fill("#pref-subida", "3"); await page.dispatchEvent("#pref-subida", "change"); await page.waitForTimeout(300);
+  const pr = await doc(page, "config", "prefs");
+  ok(pr && pr.subida === 3 && pr.cuentaHabitual === "banco", "preferencias de los dos móviles: " + JSON.stringify(pr));
+  ok(!errs.length, "sin errores de JavaScript " + errs.join(" | "));
+  await page.close();
+}
+// 9. la lista de cuentas mezclada elemento a elemento
+{
+  const cs = { collection: "config", id: "cuentas", data: { items: [{ id: "banco", nombre: "Banco", tipo: "banco", saldo: 0 }, { id: "viejo", nombre: "Vieja", tipo: "banco" }, { id: "caja", nombre: "Caja", tipo: "efectivo" }] }, updated_at: "2026-10-05T10:44:13.956331+00:00" };
+  const { page, errs } = await abrir([cs, base[1]]);
+  // el otro: añade una cuenta, cambia el nombre del banco y toca «caja»
+  await otroCambia(page, "config", "cuentas", d => { d.items.push({ id: "kraken", nombre: "Kraken", tipo: "inversion" }); d.items[0].nombre = "Banco Uno"; d.items[2].nota = "la del cajón"; });
+  // aquí: el saldo del banco, quitar «viejo» y quitar «caja» (que el otro acaba de cambiar)
+  await page.evaluate(async () => {
+    const db = await window.claude.use("db"), ref = db.doc("config/cuentas"), base = ref.snapshot();
+    const mine = { items: base.items.filter(c => c.id !== "viejo" && c.id !== "caja").map(c => c.id === "banco" ? { ...c, saldo: 100 } : c) };
+    await ref.save(base, mine);
+  });
+  const it = (await doc(page, "config", "cuentas")).items, by = Object.fromEntries(it.map(c => [c.id, c]));
+  ok(by.banco && by.banco.saldo === 100 && by.banco.nombre === "Banco Uno", "la misma cuenta: el saldo de aquí y el nombre del otro");
+  ok(by.kraken && !by.viejo, "la cuenta nueva del otro se queda y la que quité aquí se va");
+  ok(by.caja && by.caja.nota === "la del cajón", "una cuenta quitada aquí pero cambiada en el otro se queda");
+  ok(!errs.length, "sin errores de JavaScript " + errs.join(" | "));
+  await page.close();
+}
+// 10. lo de otro móvil llega con la hoja del movimiento abierta: al guardar no se deshace
+{
+  const { page, errs } = await abrir(base);
+  await page.click('.bnav [data-tab="movs"]'); await page.click('[data-mov="a"]');
+  await otroCambia(page, "movs", mes, d => { d.items.a.nota = "llegó con la hoja abierta"; d.items.a.drive = { fileId: "f1", nombre: "x.pdf", ruta: "r" }; });
+  await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange"))); await page.waitForTimeout(300);
+  await page.fill("#edit-total", "12"); await page.click('[data-edsave="edit"]'); await page.waitForTimeout(300);
+  const a = (await items(page)).a;
+  ok(a && a.total === 12 && a.nota === "llegó con la hoja abierta" && a.drive && a.drive.fileId === "f1", "lo llegado con la hoja abierta se queda (nota y Drive): " + JSON.stringify(a && { total: a.total, nota: a.nota, drive: !!a.drive }));
+  ok(!errs.length, "sin errores de JavaScript " + errs.join(" | "));
+  await page.close();
+}
+// 11. las líneas guardadas con las claves en otro orden (como las devuelve Postgres) no cuentan como cambiadas
+{
+  const pg = { ...mov("a", 10, "Mercadona"), lineas: [{ cat: "", importe: 10, concepto: "" }] };
+  const { page, errs } = await abrir([base[0], { ...base[1], data: { mes, items: { a: pg } } }]);
+  await page.click('.bnav [data-tab="movs"]'); await page.click('[data-mov="a"]');
+  await otroCambia(page, "movs", mes, d => { d.items.a.lineas[0].concepto = "Compra de la semana"; });
+  await page.fill("#edit-nota", "aquí solo la nota"); await page.click('[data-edsave="edit"]'); await page.waitForTimeout(300);
+  const a = (await items(page)).a;
+  ok(a && a.nota === "aquí solo la nota" && a.lineas[0].concepto === "Compra de la semana", "cambiar la nota no deshace la línea cambiada en el otro: " + JSON.stringify(a && a.lineas));
+  ok(!errs.length, "sin errores de JavaScript " + errs.join(" | "));
+  await page.close();
+}
+// 12. tricounts (con key), categorías ([id, nombre]), conjuntos, el ancla entera y un documento que aquí no estaba
+{
+  const tc = { collection: "config", id: "tricount", data: { items: [{ key: "t1", titulo: "Viaje", fuera: ["1"], pasados: [] }] }, updated_at: "2026-10-05T10:44:13.956331+00:00" };
+  const cat = { collection: "config", id: "categorias", data: { gasto: [{ id: "casa", nombre: "Casa", cats: [["luz", "Luz"]] }], ingreso: [] }, updated_at: "2026-10-05T10:44:13.956331+00:00" };
+  const cs = { collection: "config", id: "cuentas", data: { items: [{ id: "banco", nombre: "Banco", tipo: "banco", ancla: { fecha: "2026-10-20", saldo: 50, ts: 1 } }] }, updated_at: "2026-10-05T10:44:13.956331+00:00" };
+  const { page, errs } = await abrir([tc, cat, cs, base[1]]);
+  await otroCambia(page, "config", "tricount", d => { d.items.push({ key: "t2", titulo: "Cena" }); d.items[0].fuera.push("2"); });
+  await otroCambia(page, "config", "categorias", d => { d.gasto[0].cats.push(["agua", "Agua"]); });
+  await otroCambia(page, "config", "cuentas", d => { d.items[0].ancla = { fecha: "2026-09-01", saldo: 10, ts: 2 }; });
+  const r = await page.evaluate(async () => {
+    const db = await window.claude.use("db");
+    const go = async (path, f) => { const ref = db.doc(path), b = ref.snapshot(), m = JSON.parse(JSON.stringify(b)); f(m); await ref.save(b, m); };
+    await go("config/tricount", d => { d.items[0].pasados.push("3"); d.items[0].fuera = d.items[0].fuera.filter(x => x !== "1"); });
+    await go("config/categorias", d => { d.gasto[0].cats.push(["gas", "Gas"]); });
+    await go("config/cuentas", d => { d.items[0].ancla = { fecha: "2026-10-20", saldo: 99, ts: 3 }; });
+    // un año que aquí no estaba y otro móvil acaba de crear con un fijo
+    window.__rows.push({ owner: window.__rows[0].owner, collection: "anios", id: "2027", data: { recurrentes: [{ id: "r1", nombre: "Luz" }], presupuesto: {}, objetivos: [] }, updated_at: new Date().toISOString() });
+    const ref = db.doc("anios/2027"); await ref.save(ref.snapshot(), { recurrentes: [{ id: "r2", nombre: "Agua" }], presupuesto: {}, objetivos: [] });
+    const g = (c, i) => window.__rows.find(x => x.collection === c && x.id === i).data;
+    return { tc: g("config", "tricount"), cat: g("config", "categorias"), cs: g("config", "cuentas"), an: g("anios", "2027") };
+  });
+  ok(r.tc.items.map(x => x.key).join() === "t1,t2", "tricounts por su key: se quedan los dos");
+  ok(r.tc.items[0].fuera.join() === "2" && r.tc.items[0].pasados.join() === "3", "«fuera» y «pasados» como conjuntos: " + JSON.stringify(r.tc.items[0]));
+  ok(r.cat.gasto[0].cats.map(x => x[0]).join() === "luz,agua,gas", "categorías del mismo grupo en los dos: " + r.cat.gasto[0].cats.map(x => x[0]).join());
+  ok(r.cs.items[0].ancla.fecha === "2026-10-20" && r.cs.items[0].ancla.saldo === 99, "el ancla va entera (fecha y saldo de aquí): " + JSON.stringify(r.cs.items[0].ancla));
+  ok(r.an.recurrentes.map(x => x.id).join() === "r1,r2", "un año creado a la vez en otro móvil: se quedan los dos fijos");
+  ok(!errs.length, "sin errores de JavaScript " + errs.join(" | "));
+  await page.close();
+}
+// 13. lo que la pantalla apunta en lo que recibe (el «¿seguro?» de quitar un tricount) no cambia la base de la mezcla
+{
+  const tc = { collection: "config", id: "tricount", data: { items: [{ key: "t1", titulo: "Viaje" }, { key: "t2", titulo: "Cena" }] }, updated_at: "2026-10-05T10:44:13.956331+00:00" };
+  const { page, errs } = await abrir([base[0], tc, base[1]]);
+  const it = await page.evaluate(async () => {
+    const db = await window.claude.use("db");
+    const items = await new Promise(r => db.collection("config").onSnapshot(s => { const d = s.docs.find(x => x.id === "tricount"); if (d) r(d.data().items); }));
+    items[0].confirmDel = true;   // como el primer toque de «Quitar»
+    const ref = db.doc("config/tricount");
+    await ref.save(ref.snapshot(), { items: items.filter(x => x.key !== "t1").map(({ confirmDel, ...x }) => x) });
+    return window.__rows.find(x => x.collection === "config" && x.id === "tricount").data.items.map(x => x.key);
+  });
+  ok(it.join() === "t2", "quitar un tricount lo quita: " + it.join());
+  ok(!errs.length, "sin errores de JavaScript " + errs.join(" | "));
+  await page.close();
+}
+// 14. la misma categoría renombrada en los dos: gana el nombre de aquí y la pareja sigue siendo [id, nombre]
+{
+  const cat = { collection: "config", id: "categorias", data: { gasto: [{ id: "casa", nombre: "Casa", cats: [["luz", "Luz"]] }], ingreso: [] }, updated_at: "2026-10-05T10:44:13.956331+00:00" };
+  const { page, errs } = await abrir([base[0], cat, base[1]]);
+  await otroCambia(page, "config", "categorias", d => { d.gasto[0].cats[0][1] = "Electricidad"; });
+  const cs = await page.evaluate(async () => {
+    const db = await window.claude.use("db"), ref = db.doc("config/categorias"), b = ref.snapshot(), m = JSON.parse(JSON.stringify(b));
+    m.gasto[0].cats[0][1] = "Luz eléctrica"; await ref.save(b, m);
+    return window.__rows.find(x => x.collection === "config" && x.id === "categorias").data.gasto[0].cats;
+  });
+  ok(JSON.stringify(cs) === JSON.stringify([["luz", "Luz eléctrica"]]), "renombrada en los dos: " + JSON.stringify(cs));
+  ok(!errs.length, "sin errores de JavaScript " + errs.join(" | "));
+  await page.close();
+}
+// 15. un movimiento viejo cuyas líneas no suman el total: cambiar aquí solo la nota no deshace el importe del otro
+{
+  const viejo = { ...mov("a", 10, "Mercadona"), lineas: [] };
+  const { page, errs } = await abrir([base[0], { ...base[1], data: { mes, items: { a: viejo } } }]);
+  await page.click('.bnav [data-tab="movs"]'); await page.click('[data-mov="a"]');
+  await otroCambia(page, "movs", mes, d => { d.items.a.total = 20; d.items.a.lineas = [{ concepto: "", cat: "", importe: 20 }]; d.items.a.comercio = "Carrefour"; });
+  await page.fill("#edit-nota", "solo la nota"); await page.click('[data-edsave="edit"]'); await page.waitForTimeout(300);
+  const a = (await items(page)).a;
+  ok(a && a.nota === "solo la nota" && a.total === 20 && a.comercio === "Carrefour", "el importe y el sitio del otro se quedan: " + JSON.stringify(a && { total: a.total, comercio: a.comercio, nota: a.nota }));
+  ok(!errs.length, "sin errores de JavaScript " + errs.join(" | "));
+  await page.close();
+}
+// 16. «Copiar los fijos del año anterior» en un móvil que no se ha enterado de que el otro ya los copió: no se duplican
+{
+  const Y = new Date().getFullYear();
+  const fijo = { id: "r1", nombre: "Luz", tipo: "gasto", importe: 50, cada: 1, mes: 1, hasta: null, cat: "" };
+  const { page, errs } = await abrir([base[0], base[1], { collection: "anios", id: String(Y - 1), data: { recurrentes: [fijo], presupuesto: {}, objetivos: [] }, updated_at: "2026-10-05T10:44:13.956331+00:00" }]);
+  await page.click('.bnav [data-tab="prevision"]'); await page.click('[data-psub="fijos"]');
+  // el otro móvil ya los copió (con el código nuevo, mismo id)
+  await page.evaluate(([Y, f]) => window.__rows.push({ owner: window.__rows[0].owner, collection: "anios", id: String(Y), data: { recurrentes: [{ ...f, id: "r1~" + Y }], presupuesto: {}, objetivos: [] }, updated_at: new Date().toISOString() }), [Y, fijo]);
+  await page.click("#rec-copy"); await page.waitForTimeout(300);
+  const an = await doc(page, "anios", String(Y));
+  ok(an && an.recurrentes.length === 1, "copiados en los dos: un solo fijo: " + (an && an.recurrentes.map(r => r.id).join()));
   ok(!errs.length, "sin errores de JavaScript " + errs.join(" | "));
   await page.close();
 }

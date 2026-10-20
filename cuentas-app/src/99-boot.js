@@ -196,8 +196,8 @@ document.addEventListener("click", async e => {
     try { await saveAnio(Y, { recurrentes: anio(Y).recurrentes.filter(r => r.id !== recForm.id) }); recForm = null; toast("Quitado"); renderView(); } catch (err) { $("#rf-err").textContent = saveErr(err); }
     return;
   }
-  if (t.id === "rec-copy") { try { await saveAnio(Y, { recurrentes: anio(Y - 1).recurrentes.map(r => ({ ...r, id: uid() })) }); toast(`Copiados los fijos de ${Y - 1}`); renderView(); } catch (err) { toast(saveErr(err)); } return; }
-  if (t.id === "rec-copyfrom") { try { await saveAnio(Y, { recurrentes: forecast(Y).recs.map(r => ({ ...r, id: uid(), importe: r2(num(r.importe)) })) }); toast(`Fijos copiados a ${Y}: cámbialos a tu gusto`); renderView(); } catch (err) { toast(saveErr(err)); } return; }
+  if (t.id === "rec-copy") { try { await saveAnio(Y, { recurrentes: anio(Y - 1).recurrentes.map(r => ({ ...r, id: String(r.id).replace(/~\d{4}$/, "") + "~" + Y })) }); toast(`Copiados los fijos de ${Y - 1}`); renderView(); } catch (err) { toast(saveErr(err)); } return; }
+  if (t.id === "rec-copyfrom") { try { await saveAnio(Y, { recurrentes: forecast(Y).recs.map(r => ({ ...r, id: String(r.id).replace(/~\d{4}$/, "") + "~" + Y, importe: r2(num(r.importe)) })) }); toast(`Fijos copiados a ${Y}: cámbialos a tu gusto`); renderView(); } catch (err) { toast(saveErr(err)); } return; }
   if (t.id === "pres-prop") {
     const prev = yearStats(Y - 1), p = { ...anio(Y).presupuesto };
     for (const [g, a] of Object.entries(prev.byGroupMonth.gasto)) { if (g === "_sin") continue; const v = sum(a); if (v > 0 && !p[g]) p[g] = Math.ceil(v * 1.03 / 10) * 10; }

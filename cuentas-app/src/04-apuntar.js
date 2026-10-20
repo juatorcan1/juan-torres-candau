@@ -152,16 +152,26 @@ function serial(path, fn){ const p = (queues[path] || Promise.resolve()).then(fn
 let movsReady = false;
 // En la web (ref.create), update y create van contra lo que hay en la base: el mes se cambia aunque aquí no
 // haya llegado todavía y solo se crea si no existe; si otro móvil lo crea a la vez, se vuelve a cambiar.
-async function putItems(key, items){
+// `entero[id]` es lo que se escribe si ese movimiento ya no está en el mes (borrado en otro sitio): el movimiento
+// entero al editarlo, o null para no escribir nada (un retoque, como el enlace de Drive, no deja medio movimiento).
+async function putItems(key, items, entero = {}){
+  const fix = cur => {
+    const ex = (cur && cur.items) || {}, it = {};
+    for (const [id, v] of Object.entries(items)) {
+      if (v === null || ex[id] || !(id in entero)) it[id] = v;
+      else if (entero[id]) it[id] = entero[id];
+    }
+    return { items: it };
+  };
   return serial("movs/" + key, async () => {
     const ref = db.doc("movs/" + key);
     for (let i = 0; i < 3; i++) {
       if (meses[key] || ref.create) {
-        try { await ref.update({ items }); return; }
+        try { await (ref.create ? ref.update(fix(meses[key]), fix) : ref.update(fix(meses[key]))); return; }
         catch (e) { if (!e || e.code !== "invalid_argument") throw e; }
       }
       const cur = (!ref.create && meses[key] && meses[key].items) || {};
-      const merged = Object.fromEntries(Object.entries({ ...cur, ...items }).filter(([, v]) => v !== null));
+      const merged = Object.fromEntries(Object.entries({ ...cur, ...fix(ref.create ? null : meses[key]).items }).filter(([, v]) => v !== null));
       if (!ref.create) { await ref.set({ mes: key, items: merged }); meses[key] = { mes: key, items: merged }; return; }
       try { await ref.create({ mes: key, items: merged }); return; }
       catch (e) { if (!e || e.code !== "already_exists") throw e; }
@@ -169,20 +179,54 @@ async function putItems(key, items){
     throw { code: "unavailable" };
   });
 }
-async function saveMovs(list){
+// Lo que cambia de un movimiento a otro, campo a campo (los que no trae el nuevo se quedan como estén; vacío
+// frente a no estar no cuenta como cambio: el editor pone "" en lo que no se ha rellenado).
+// Se compara sin mirar el orden de las claves (Postgres las devuelve ordenadas a su manera). El importe y las
+// líneas van juntos: si cambia uno se mandan los dos, para que no queden un total de un móvil y unas líneas de otro.
+const isObjM = v => !!v && typeof v === "object" && !Array.isArray(v);
+const igual = (a, b) => { const c = v => JSON.stringify(v, (k, x) => isObjM(x) ? Object.fromEntries(Object.keys(x).sort().map(y => [y, x[y]])) : x); return c(a) === c(b); };
+const vacio = v => v == null || v === "" || v === false || (Array.isArray(v) && !v.length);
+function cambios(a, b){
+  const out = {};
+  for (const [k, v] of Object.entries(b)) {
+    if (v === undefined || igual(a[k], v) || (vacio(a[k]) && vacio(v))) continue;
+    out[k] = isObjM(a[k]) && isObjM(v) ? cambios(a[k], v) : v;
+  }
+  if ("total" in out || "lineas" in out || "ticketTotal" in out) for (const k of ["total", "lineas", "ticketTotal"]) if (b[k] !== undefined) out[k] = b[k];
+  return out;
+}
+// Un movimiento que ya estaba se manda como lo que ha cambiado: si en otro móvil se ha cambiado otra cosa del
+// mismo movimiento a la vez, se quedan las dos.
+// `bases[id]`, si se da, es cómo estaba el movimiento cuando se empezó a cambiar (el editor); si no, el de este móvil.
+async function saveMovs(list, bases = {}){
   if (!db || !movsReady) throw { code: "nodb" };
   const by = {};
-  for (const m of list) (by[m.fecha.slice(0, 7)] ||= {})[m.id] = m;
-  for (const [k, items] of Object.entries(by)) await putItems(k, items);
+  for (const m of list) {
+    const k = m.fecha.slice(0, 7), prev = bases[m.id] || (meses[k] && meses[k].items && meses[k].items[m.id]);
+    const b = by[k] ||= { items: {}, entero: {} };
+    b.items[m.id] = prev ? cambios(prev, m) : m;
+    if (prev) b.entero[m.id] = m;
+  }
+  for (const [k, b] of Object.entries(by)) await putItems(k, b.items, b.entero);
 }
 async function deleteMov(m){ if (!db) throw { code: "nodb" }; await putItems(m.fecha.slice(0, 7), { [m.id]: null }); }
-async function saveCfg(name, data){ if (!db) throw { code: "nodb" }; return serial("config/" + name, () => db.doc("config/" + name).set(data)); }
+// Un documento entero (config, anios): en la web se mezcla a tres bandas con lo que haya en la base, así que lo
+// cambiado en otro móvil (una cuenta nueva, el saldo de Kraken o de Tricount) no se deshace. La base es lo que
+// tiene este móvil al llamar, que es de donde ha salido `data`.
+function saveDoc(path, data){
+  const ref = db.doc(path);
+  if (!ref.save) return serial(path, () => ref.set(data));
+  const base = ref.snapshot();
+  return serial(path, () => ref.save(base, data));
+}
+async function saveCfg(name, data){ if (!db) throw { code: "nodb" }; return saveDoc("config/" + name, data); }
 async function saveAnio(y, patch){
   if (!db) throw { code: "nodb" };
   const cur = anio(y);
   const doc = { recurrentes: cur.recurrentes, presupuesto: cur.presupuesto, objetivos: cur.objetivos, ...patch };
+  const p = saveDoc("anios/" + y, doc);
   anios[String(y)] = doc; FC = {};
-  return serial("anios/" + y, () => db.doc("anios/" + y).set(doc));
+  return p;
 }
 const saveErr = e => e && e.code === "nodb" ? (WEB ? "No hay conexión con la base de datos: revisa internet y vuelve a entrar." : "Aquí no se puede guardar: abre la página desde tu cuenta de Claude.") : e && e.code === "quota_exceeded" ? "Se ha llenado el espacio de la app." : "No se ha podido guardar. Prueba otra vez.";
 
@@ -199,11 +243,14 @@ async function saveDraft(key){
     if (d.blob && !m.ticket && assets) {
       try { const up = await assets.upload(d.blob); m.ticket = up.id; d.ticket = up.id; } catch { /* sin foto, pero el gasto se guarda igual */ }
     }
-    if (d.id && d.origFecha && d.origFecha.slice(0, 7) !== m.fecha.slice(0, 7)) await deleteMov({ id: d.id, fecha: d.origFecha });
     const antes = d.id ? MOVS.find(x => x.id === d.id) : null;
     // si cambias dónde fue, el nombre de Drive sale de lo que pones tú, no de la razón social que leyó la IA
     if (antes && m.factura && norm(m.comercio) !== norm(antes.comercio)) m.factura = { ...m.factura, proveedor: "", cif: "" };
-    await saveMovs([m]);
+    await saveMovs([m], d.base ? { [m.id]: d.base } : {});
+    // si cambia de mes, se quita del de antes solo cuando ya está en el nuevo: si algo falla, sale repetido, no se pierde
+    if (d.id && d.origFecha && d.origFecha.slice(0, 7) !== m.fecha.slice(0, 7)) await deleteMov({ id: d.id, fecha: d.origFecha });
+    // el enlace de Drive puede haber llegado con la hoja abierta (la subida seguía): se usa el que hay ahora
+    if (!m.drive && antes && antes.drive) m.drive = antes.drive;
     if ((m.ticket || d.pdf) && !m.drive) driveUp(m, d.pdf);
     else if (m.drive && antes && (antes.fecha !== m.fecha || num(antes.total) !== num(m.total) || norm(antes.comercio) !== norm(m.comercio))) driveUp(m, null, false, true);
     if (d.onSaved) d.onSaved(m);
@@ -233,13 +280,13 @@ function driveUp(m, pdf, quiet, renombrar){
       const [r] = await driveApi.subir([it]);
       if (!r || !r.ok) throw { message: (r && r.error) || "" };
       const drive = { fileId: r.fileId, nombre: r.nombre, ruta: r.ruta, enlace: r.enlace || "" };
-      await putItems(m.fecha.slice(0, 7), { [m.id]: { drive, driveError: null } });
+      await putItems(m.fecha.slice(0, 7), { [m.id]: { drive, driveError: null } }, { [m.id]: null });
       driveErr = "";
       return true;
     } catch (e) {
       driveErr = e && e.code === "no_drive" ? "Falta el permiso de Google Drive (mira «Tickets en Drive», en Dinero)." : "No se ha podido subir a Drive" + (e && e.message ? ": " + e.message : ".");
       // el porqué se queda en el movimiento: así se puede mirar después y se reintenta solo más tarde
-      try { await putItems(m.fecha.slice(0, 7), { [m.id]: { driveError: { msg: String(driveErr).slice(0, 300), code: (e && e.code) || "", at: Date.now() } } }); } catch {}
+      try { await putItems(m.fecha.slice(0, 7), { [m.id]: { driveError: { msg: String(driveErr).slice(0, 300), code: (e && e.code) || "", at: Date.now() } } }, { [m.id]: null }); } catch {}
       if (!quiet) toast(e && e.code === "no_drive" ? "Guardado, pero falta el permiso de Google Drive" : "Guardado, pero no se ha podido subir a Drive");
       return false;
     }
@@ -264,7 +311,11 @@ async function driveAuto(){
 /* ================= hoja para ver o cambiar un movimiento ================= */
 function openMov(id){
   const m = MOVS.find(x => x.id === id); if (!m) return;
-  DRAFTS.edit = { ...JSON.parse(JSON.stringify(m)), origFecha: m.fecha, lineas: m.lineas.length ? JSON.parse(JSON.stringify(m.lineas)) : [{ concepto: "", cat: "", importe: "" }] };
+  // `base`: cómo estaba al abrirlo; al guardar solo se manda lo cambiado desde entonces (lo que llegue de otro
+  // móvil con la hoja abierta no se deshace). cleanMov deja fuera base y origFecha al guardar.
+  const d = DRAFTS.edit = { ...JSON.parse(JSON.stringify(m)), origFecha: m.fecha, lineas: m.lineas.length ? JSON.parse(JSON.stringify(m.lineas)) : [{ concepto: "", cat: "", importe: "" }] };
+  // la base pasa por draftToMov como lo que se guarde (que completa las líneas que no suman, «Resto del ticket»…)
+  d.base = draftToMov(JSON.parse(JSON.stringify(d))).mov || cleanMov(JSON.parse(JSON.stringify(m)));
   openSheet(`<div class="sheet-h"><h2>${esc(movTitle(m))}</h2><button class="x" data-close="1" aria-label="Cerrar">×</button></div>
     <p class="small muted" style="margin:0">${longDate(m.fecha)} · ${m.origen === "ticket" ? "leído de un ticket" : m.origen === "extracto" ? "del extracto del banco" : m.origen === "texto" ? "dictado" : m.origen === "cuota" ? "cuota de una deuda" : m.origen === "prestado" ? "dinero que te deben" : "apuntado a mano"}${m.banco ? " · ya visto en el banco" : ""}${m.revisar ? ` · <span class="flag">por revisar</span>` : ""}</p>
     ${m.drive ? `<p class="small muted" style="margin:0">En Drive: ${m.drive.enlace ? `<a href="${esc(m.drive.enlace)}" target="_blank" rel="noopener">${esc(m.drive.nombre)}</a>` : esc(m.drive.nombre)} <span class="muted">(${esc(m.drive.ruta)})</span></p>` : ""}

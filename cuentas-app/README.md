@@ -78,11 +78,21 @@ persona paga algo por ti (p. ej. la cuenta del bar), queda en negativo y aparece
   calcula con las que hay hoy, y así lo dice la pantalla.
 - **Como una aplicación en el móvil**: la web lleva su ficha (`src/web/manifest.json`) y sus iconos
   (`src/web/icons/`), así que Chrome la instala con su icono y sin la barra del navegador.
-- **Guardar sin pisar**: al apuntar, cambiar o borrar un movimiento, la web lee el mes tal y como está en
-  Supabase (no el que tiene el móvil, que puede no tener aún lo apuntado en otro), le mezcla el cambio y lo
-  escribe solo si nadie lo ha tocado desde que lo leyó (mismo `updated_at`); si lo han tocado, lo vuelve a leer.
-  Un mes nuevo se crea solo si no existe. Lo prueba `node pruebas/guardado.mjs` (después de `./build-web.sh`),
-  que también corre en «Comprobaciones».
+- **Guardar sin pisar** (lo que hay en `src/web/09-web.js` y `putItems`/`saveMovs`/`saveDoc` de `src/04-apuntar.js`):
+  - Todo se escribe contra lo que hay en Supabase, no contra lo que tiene el móvil (que puede no tener aún lo hecho
+    en otro): se lee, se cambia y se escribe solo si nadie lo ha tocado desde que se leyó (mismo `updated_at`); si
+    lo han tocado, se vuelve a leer. Un mes nuevo se crea solo si no existe.
+  - Un movimiento que ya estaba se manda como lo que ha cambiado, campo a campo: si en otro móvil se cambia otra
+    cosa del mismo movimiento a la vez, se quedan las dos. Un retoque (el enlace de Drive) de un movimiento que ya
+    no está no se escribe; uno editado aquí y borrado en otro sitio vuelve entero, como antes.
+  - Al pasar un movimiento a otro mes, primero se guarda en el nuevo y luego se quita del viejo: si se corta a
+    mitad, sale repetido, no se pierde.
+  - `config/*` y `anios/*` se guardan enteros pero mezclados a tres bandas (lo que tenía el móvil, lo nuevo y lo que
+    hay en la base): lo cambiado en otro móvil (una cuenta nueva, el saldo que pone Kraken o Tricount) se queda, y
+    en las listas con `id` (cuentas, fijos, objetivos, categorías) se mezcla elemento a elemento. Si los dos
+    cambian lo mismo, gana el último.
+  - Lo prueba `node pruebas/guardado.mjs` (después de `./build-web.sh`), que también corre en «Comprobaciones».
+  - El Artifact de Claude guarda como siempre (su base de datos es aparte y de un solo sitio).
 - **Copias de seguridad**:
   - En Dinero → Cuentas, «Descargar en Excel» y «Descargar la copia completa», a mano.
   - `cuentas_docs_historial`: cada vez que un documento pierde algo (se borra, o se cambia o quita un movimiento,

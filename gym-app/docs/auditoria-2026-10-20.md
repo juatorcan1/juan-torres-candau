@@ -35,8 +35,12 @@ Juan tenía la sensación de que los últimos entrenos no se habían guardado. S
 5. **«Descartar» borra lo ya subido sin vuelta atrás** (el 9 a las 21:18 se descartó un entreno de Ignacio
    empezado a las 20:51, con lo que llevaba). → Con el historial (abajo) se puede recuperar.
 
-`gym-app/pruebas/guardado.mjs` reproduce 1–4 en Chromium: la versión anterior falla 9 de 14 comprobaciones y
-esta las pasa todas.
+6. **(Encontrado por el agente revisor)** Las subidas de cada serie iban en paralelo y sin mirar la base: una
+   lenta podía llegar después de otra más nueva, dar por subido lo que faltaba o pisar lo apuntado en otro
+   móvil. → Ahora van en cola, y nunca se escribe encima de una versión cambiada en otro sitio.
+
+`gym-app/pruebas/guardado.mjs` reproduce todo esto en Chromium: la versión de `main` falla 12 de 26
+comprobaciones y esta las pasa todas.
 
 ## Lo que faltaba en el montaje
 
@@ -54,7 +58,7 @@ esta las pasa todas.
 
 ## Plan de acción
 
-- [x] Arreglar el guardado del entreno guiado (fallos 1–4) con su prueba.
+- [x] Arreglar el guardado del entreno guiado (fallos 1–4 y 6) con su prueba.
 - [x] Esquema en el repositorio, `CLAUDE.md`, agentes guardián y revisor.
 - [x] Botón «Copia» (descarga JSON de todo).
 - [ ] **Aplicar la migración del historial** en Supabase (necesita el visto bueno de Juan).

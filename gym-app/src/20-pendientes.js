@@ -70,7 +70,7 @@ document.addEventListener("click", e => {
   const s = real.find(x => x.id === t.dataset.dayDel); if (!s || s.athlete !== me) return;
   if (!confirm(`¿Borrar ${SPORTS[s.sport] || "la sesión"} del ${dayName(s.date)}? No se puede deshacer.`)) return;
   if (run && run.sid === s.id) { run = null; store.del("gym.run"); }
-  db.collection("sesiones").doc(s.id).delete().then(() => toast("Sesión borrada")).catch(() => toast("No se ha podido borrar"));
+  queueWrite(() => db.collection("sesiones").doc(s.id).delete()).then(() => toast("Sesión borrada")).catch(() => toast("No se ha podido borrar"));
 });
 
 /* ---------- "we trained together": copy the other one's gym sessions ----------

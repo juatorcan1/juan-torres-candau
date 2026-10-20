@@ -22,9 +22,22 @@ create policy "gym: los dos leen el historial" on public.gym_docs_historial
   for select to authenticated
   using (exists (select 1 from public.gym_usuarios u where u.user_id = (select auth.uid())));
 
--- Un entreno guiado se sube serie a serie (enCurso): esas versiones intermedias, seguidas y de hace menos de
--- 30 minutos, no se guardan (serían decenas por entreno). Todo lo demás sí: cualquier borrado, cualquier
--- cambio de un documento terminado y cualquier entreno a medias pisado más tarde.
+-- Un entreno guiado se sube serie a serie (enCurso): no se guarda una versión a medias cuando la siguiente
+-- también va a medias y tiene al menos las mismas series (serían decenas por entreno sin nada que recuperar).
+-- Todo lo demás sí: cualquier borrado, cualquier cambio de un documento terminado y cualquier entreno a medias
+-- pisado por una versión con menos series (otro móvil, una copia vieja que se quedó abierta).
+create or replace function public.gym_docs_series(d jsonb)
+returns integer
+language sql
+immutable
+set search_path = ''
+as $$
+  select count(*)::integer
+  from jsonb_array_elements(case when jsonb_typeof(d->'exercises') = 'array' then d->'exercises' else '[]'::jsonb end) e,
+       jsonb_array_elements(case when jsonb_typeof(e->'sets') = 'array' then e->'sets' else '[]'::jsonb end) s
+$$;
+comment on function public.gym_docs_series(jsonb) is 'App de gimnasio: cuántas series tiene una sesión de gym_docs.';
+
 create or replace function public.gym_docs_guardar_historial()
 returns trigger
 language plpgsql
@@ -34,7 +47,8 @@ as $$
 begin
   if tg_op = 'UPDATE' and (
        old.data = new.data
-    or (old.data->>'enCurso' = 'true' and new.data->>'enCurso' = 'true' and old.updated_at > now() - interval '30 minutes')
+    or (old.data->>'enCurso' = 'true' and new.data->>'enCurso' = 'true'
+        and public.gym_docs_series(new.data) >= public.gym_docs_series(old.data))
   ) then
     return new;
   end if;

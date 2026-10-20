@@ -22,7 +22,7 @@ function mock(seed){
   for (const [c, docs] of Object.entries(seed)) cols[c] = new Map(docs.map(d => [d.id, d]));
   const snap = c => ({ docs: [...(cols[c] || new Map()).values()].map(d => ({ id: d.id, data: () => d })) });
   const emit = c => setTimeout(() => (ls[c] || []).forEach(f => f(snap(c))), 0);
-  const ref = (c, id) => ({ id, async set(o){ if (window.__fail) throw { code: "unavailable" }; (cols[c] ||= new Map()).set(id, { ...o, id }); window.__writes = (window.__writes || 0) + 1; emit(c); },
+  const ref = (c, id) => ({ id, async set(o){ if (window.__fail) throw { code: "unavailable" }; const ms = (window.__delays || []).shift(); if (ms) await new Promise(r => setTimeout(r, ms)); (cols[c] ||= new Map()).set(id, { ...o, id }); window.__writes = (window.__writes || 0) + 1; emit(c); },
     async delete(){ if (window.__fail) throw { code: "unavailable" }; cols[c]?.delete(id); emit(c); } });
   const db = { collection: c => ({ doc: id => ref(c, id || crypto.randomUUID()), onSnapshot(n){ (ls[c] ||= []).push(n); setTimeout(() => n(snap(c)), 50); return () => {}; } }),
     doc: p => { const [c, i] = p.split("/"); return ref(c, i); } };
@@ -84,6 +84,49 @@ const local = page => page.evaluate(() => JSON.parse(localStorage.getItem("gym.r
   ok(s && s.minutes === 40 && s.enCurso && s.exercises[0].sets.length === 2, `se guarda con 40 min (no 240) y sus 2 series: ${s && s.minutes} min`);
   ok((await local(page)) === null, "y sale del móvil");
   ok(/quedó abierto/.test(await toasts(page)), "avisa: " + await toasts(page));
+  ok(!errs.length, "sin errores de JavaScript " + errs.join(" | "));
+  await page.close();
+}
+// 4. una escritura lenta que acaba bien después de otra que falla no da por subido lo que falta
+{
+  const { page, errs } = await abrir({ "gym.me": "juan", "gym.voice": false }, { planes: [plan], sesiones: [] });
+  await page.click(`[data-plan-open="${iso(hoy)}"]`); await page.click('[data-pl="start"]');
+  await page.evaluate(() => window.__delays = [400]);
+  await page.click('[data-pl="done"]');
+  await page.evaluate(() => window.__fail = true);
+  await page.click('[data-pl="done"]'); await page.waitForTimeout(700);
+  ok((await local(page)).unsynced === true, "la serie que no se subió sigue pendiente aunque la anterior acabara bien después");
+  await page.evaluate(() => { window.__fail = false; window.dispatchEvent(new Event("online")); }); await page.waitForTimeout(300);
+  ok((await sesiones(page))[0].exercises[0].sets.length === 2, "y al volver la conexión se suben las 2");
+  ok(!errs.length, "sin errores de JavaScript " + errs.join(" | "));
+  await page.close();
+}
+// 5 y 6. otro móvil cambió el entreno después: nunca se pisa
+for (const [enLaBase, nombre] of [[4, "con más series allí, lo del móvil no se sube encima"], [1, "con menos series allí, tampoco: se avisa y lo del móvil se queda"]]) {
+  const t0 = Date.now() - 30 * 60000, sid = `run-juan-${t0}`;
+  const movil = { w: entreno("Entreno de hoy"), steps: [1, 2, 3].map(s => ({ bi: 0, ii: 0, s })), i: 2, phase: "set", startedAt: t0, lastAt: Date.now() - 60000,
+    until: null, log: { "0.0": [{ reps: 10, kg: 40 }, { reps: 10, kg: 40 }] }, cur: null, athlete: "juan", rpe: null, extra: "", swapped: [], tuned: 0,
+    sid, syncedAt: t0 + 60000, unsynced: true };
+  const base = { id: sid, athlete: "juan", date: iso(hoy), sport: "gym", enCurso: true, updatedAt: Date.now() - 120000,
+    exercises: [{ name: "Press banca", sets: Array.from({ length: enLaBase }, () => ({ reps: 10, kg: 50 })) }] };
+  const { page, errs } = await abrir({ "gym.me": "juan", "gym.voice": false, "gym.run": movil }, { planes: [plan], sesiones: [base] });
+  await page.evaluate(() => window.dispatchEvent(new Event("online"))); await page.waitForTimeout(400);
+  const s = (await sesiones(page))[0];
+  ok(s.exercises[0].sets.length === enLaBase && s.exercises[0].sets[0].kg === 50, nombre);
+  if (enLaBase < 2) ok(/otro móvil/.test(await toasts(page)) && (await local(page)).log["0.0"].length === 2, "aviso: " + await toasts(page));
+  ok(!errs.length, "sin errores de JavaScript " + errs.join(" | "));
+  await page.close();
+}
+// 7. el camino normal: tres series, «Guardar entreno», sesión terminada y nada en el móvil
+{
+  const { page, errs } = await abrir({ "gym.me": "juan", "gym.voice": false }, { planes: [plan], sesiones: [] });
+  await page.click(`[data-plan-open="${iso(hoy)}"]`); await page.click('[data-pl="start"]');
+  for (let i = 0; i < 3; i++) { await page.click('[data-pl="done"]'); await page.waitForTimeout(80); }
+  await page.click('[data-pl="save"]'); await page.waitForTimeout(300);
+  const ss = await sesiones(page);
+  ok(ss.length === 1 && !ss[0].enCurso && ss[0].exercises[0].sets.length === 3, "se guarda terminada, con sus 3 series y sin duplicar");
+  ok((await local(page)) === null && await page.evaluate(() => document.querySelector("#player").hidden), "y se cierra el reproductor");
+  ok(/Guardado|guardado/.test(await toasts(page)), "aviso: " + await toasts(page));
   ok(!errs.length, "sin errores de JavaScript " + errs.join(" | "));
   await page.close();
 }

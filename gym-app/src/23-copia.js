@@ -1,6 +1,6 @@
 /* ---------- copia de seguridad ----------
-   «Copia» in the header downloads everything of both, as it is in the database right now (sessions, weights,
-   drinks, profiles, plans, chats and meals), in one JSON file. The database also keeps every earlier version
+   «Copia» in the header downloads everything the app shows of both (sessions, weights, drinks, profiles,
+   plans, chats and meals) in one JSON file. The database also keeps every earlier version
    of each document (gym_docs_historial), so this is the copy that lives outside Supabase. */
 function downloadBackup(){
   if (dbState !== "ready") { toast("Espera a que carguen los datos"); return; }

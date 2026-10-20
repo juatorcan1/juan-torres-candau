@@ -32,15 +32,20 @@ Row Level Security: los dos leen todo; cada uno solo escribe lo suyo.
 
 ## Cómo se guarda un entreno guiado (`src/11-player.js`)
 
-1. El entreno vive en el móvil (`localStorage["gym.run"]`) y se sube **serie a serie** (`syncRun`) como
-   `sesiones/run-<atleta>-<inicio>` con `enCurso: true`.
+1. El entreno vive en el móvil (`localStorage["gym.run"]`) y se sube **serie a serie** como
+   `sesiones/run-<atleta>-<inicio>` con `enCurso: true`. Todas las escrituras del entreno van **en cola**
+   (`queueWrite` → `writeRun`), así que una vieja nunca llega después de una nueva; `run.rev` cuenta los cambios
+   del móvil y `run.syncedRev` el último que tiene la base de datos.
 2. Si no hay conexión, `run.unsynced` queda marcado y se reintenta al volver la conexión, al volver a la app y
    cada 30 s (`retrySync`). Se avisa una vez al quedarse sin conexión y otra al subirlo.
-3. «Guardar entreno» escribe la versión final (sin `enCurso`) en el mismo id.
-4. Nunca se tira un entreno con series apuntadas: empezar otro lo guarda antes tal cual (`parkRun`), y uno
-   olvidado hace más de 6 h se guarda solo al abrir la app (`parkOldRun`) en vez de quedarse días en el móvil.
-5. Los minutos acaban en la última serie si se dejó abierto más de 20 min (`idleEnd`), no al guardar.
-6. Una sesión a medias se continúa desde el plan o Hoy (`src/21-continuar.js`) con el mismo id.
+3. **Nunca se pisa** una versión cambiada en otro sitio después de la última escritura de este móvil
+   (`changedElsewhere`): si allí hay tantas series o más, la copia del móvil es la vieja y se deja; si hay menos,
+   lo del móvil no se sube y se avisa.
+4. «Guardar entreno» escribe la versión final (sin `enCurso`) en el mismo id, también por la cola.
+5. Nunca se tira un entreno con series apuntadas: empezar otro lo guarda antes tal cual (`parkRun`), y uno
+   olvidado hace más de 6 h se guarda solo al abrir la app (`parkOldRun`). Si mientras tanto se continúa, se queda.
+6. Los minutos acaban en la última serie si se dejó abierto más de 20 min (`idleEnd`), no al guardar.
+7. Una sesión a medias se continúa desde el plan o Hoy (`src/21-continuar.js`) con el mismo id.
 
 Si cambias algo de esto: `./build.sh && node pruebas/guardado.mjs` (Chromium, base de datos de mentira, sin red).
 

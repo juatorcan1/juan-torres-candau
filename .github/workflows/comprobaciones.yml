@@ -1,0 +1,36 @@
+name: Comprobaciones
+
+# Antes de fusionar (en cada pull request) y antes de publicar (lo llama gym-web.yml): se construyen las
+# cuatro webs (gimnasio y cuentas, en Artifact y en web) y se comprueba que su JavaScript se lee bien y que
+# arrancan en Chromium sin errores. Sin filtro de rutas a propósito: si se marca como obligatoria en GitHub,
+# un pull request que no toque las apps tiene que poder pasarla igual.
+on:
+  pull_request:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  webs:
+    name: Las webs se construyen y arrancan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Construir las cuatro webs
+        run: |
+          gym-app/build.sh
+          gym-app/build-web.sh
+          cuentas-app/build.sh
+          cuentas-app/build-web.sh
+      - name: Instalar Chromium y supabase-js (el mismo que piden las webs)
+        run: |
+          SB=$(grep -oh 'supabase-js@[0-9.]*' gym-app/build-web.sh cuentas-app/build-web.sh | sort -uV | tail -1)
+          npm i --no-save --no-package-lock playwright@1.56.1 "@supabase/$SB"
+          npx playwright install --with-deps chromium
+      - name: Comprobar
+        run: node .github/comprobaciones/comprobar.mjs gym-app/index.html gym-app/web/index.html cuentas-app/index.html cuentas-app/web/index.html

@@ -38,3 +38,5 @@ jobs:
         run: node gym-app/pruebas/guardado.mjs
       - name: Las cuentas no pisan lo guardado desde otro móvil
         run: node cuentas-app/pruebas/guardado.mjs
+      - name: El plan elige la semana que toca (si se nadó el domingo)
+        run: node gym-app/pruebas/plan-domingo.mjs

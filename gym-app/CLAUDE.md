@@ -24,7 +24,7 @@ Row Level Security: los dos leen todo; cada uno solo escribe lo suyo.
 | `pesajes` | `<atleta>_<fecha>` | peso, cintura, grasa |
 | `bebidas` | `<atleta>_<fecha>` | copas del día |
 | `perfiles` | `<atleta>` | datos, preferencias, agarres, notas, series extra |
-| `planes` | `<atleta>_entreno`, `<atleta>_dieta` | el plan del Entrenador (semanas con días y entreno) y del Dietista |
+| `planes` | `<atleta>_entreno`, `<atleta>_dieta` | el plan del Entrenador (semanas con días y entreno; una semana puede traer `diasDomingo`, la versión que vale si nadó el domingo de antes: la elige `trainPlan`) y del Dietista |
 | `chats` | `<atleta>_coach`, `<atleta>_nutri` | los últimos 30 mensajes con cada agente |
 | `comidas` | `<atleta>_<fecha>` | lo comido |
 
@@ -49,6 +49,7 @@ borrado. `gym_docs_copia_20261020`: copia de todo `gym_docs` justo antes de acti
 7. Una sesión a medias se continúa desde el plan o Hoy (`src/21-continuar.js`) con el mismo id.
 
 Si cambias algo de esto: `./build.sh && node pruebas/guardado.mjs` (Chromium, base de datos de mentira, sin red).
+Si tocas cómo se lee el plan: `node pruebas/plan-domingo.mjs`.
 
 ## Revisar los datos (MCP de Supabase, proyecto `eqwhiguptakmuuihpjpu`)
 

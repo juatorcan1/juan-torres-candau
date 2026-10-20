@@ -197,6 +197,59 @@ const base = [
   ok(!errs.length, "sin errores de JavaScript " + errs.join(" | "));
   await page.close();
 }
+// 10. lo de otro móvil llega con la hoja del movimiento abierta: al guardar no se deshace
+{
+  const { page, errs } = await abrir(base);
+  await page.click('.bnav [data-tab="movs"]'); await page.click('[data-mov="a"]');
+  await otroCambia(page, "movs", mes, d => { d.items.a.nota = "llegó con la hoja abierta"; d.items.a.drive = { fileId: "f1", nombre: "x.pdf", ruta: "r" }; });
+  await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange"))); await page.waitForTimeout(300);
+  await page.fill("#edit-total", "12"); await page.click('[data-edsave="edit"]'); await page.waitForTimeout(300);
+  const a = (await items(page)).a;
+  ok(a && a.total === 12 && a.nota === "llegó con la hoja abierta" && a.drive && a.drive.fileId === "f1", "lo llegado con la hoja abierta se queda (nota y Drive): " + JSON.stringify(a && { total: a.total, nota: a.nota, drive: !!a.drive }));
+  ok(!errs.length, "sin errores de JavaScript " + errs.join(" | "));
+  await page.close();
+}
+// 11. las líneas guardadas con las claves en otro orden (como las devuelve Postgres) no cuentan como cambiadas
+{
+  const pg = { ...mov("a", 10, "Mercadona"), lineas: [{ cat: "", importe: 10, concepto: "" }] };
+  const { page, errs } = await abrir([base[0], { ...base[1], data: { mes, items: { a: pg } } }]);
+  await page.click('.bnav [data-tab="movs"]'); await page.click('[data-mov="a"]');
+  await otroCambia(page, "movs", mes, d => { d.items.a.lineas[0].concepto = "Compra de la semana"; });
+  await page.fill("#edit-nota", "aquí solo la nota"); await page.click('[data-edsave="edit"]'); await page.waitForTimeout(300);
+  const a = (await items(page)).a;
+  ok(a && a.nota === "aquí solo la nota" && a.lineas[0].concepto === "Compra de la semana", "cambiar la nota no deshace la línea cambiada en el otro: " + JSON.stringify(a && a.lineas));
+  ok(!errs.length, "sin errores de JavaScript " + errs.join(" | "));
+  await page.close();
+}
+// 12. tricounts (con key), categorías ([id, nombre]), conjuntos, el ancla entera y un documento que aquí no estaba
+{
+  const tc = { collection: "config", id: "tricount", data: { items: [{ key: "t1", titulo: "Viaje", fuera: ["1"], pasados: [] }] }, updated_at: "2026-10-05T10:44:13.956331+00:00" };
+  const cat = { collection: "config", id: "categorias", data: { gasto: [{ id: "casa", nombre: "Casa", cats: [["luz", "Luz"]] }], ingreso: [] }, updated_at: "2026-10-05T10:44:13.956331+00:00" };
+  const cs = { collection: "config", id: "cuentas", data: { items: [{ id: "banco", nombre: "Banco", tipo: "banco", ancla: { fecha: "2026-10-20", saldo: 50, ts: 1 } }] }, updated_at: "2026-10-05T10:44:13.956331+00:00" };
+  const { page, errs } = await abrir([tc, cat, cs, base[1]]);
+  await otroCambia(page, "config", "tricount", d => { d.items.push({ key: "t2", titulo: "Cena" }); d.items[0].fuera.push("2"); });
+  await otroCambia(page, "config", "categorias", d => { d.gasto[0].cats.push(["agua", "Agua"]); });
+  await otroCambia(page, "config", "cuentas", d => { d.items[0].ancla = { fecha: "2026-09-01", saldo: 10, ts: 2 }; });
+  const r = await page.evaluate(async () => {
+    const db = await window.claude.use("db");
+    const go = async (path, f) => { const ref = db.doc(path), b = ref.snapshot(), m = JSON.parse(JSON.stringify(b)); f(m); await ref.save(b, m); };
+    await go("config/tricount", d => { d.items[0].pasados.push("3"); d.items[0].fuera = d.items[0].fuera.filter(x => x !== "1"); });
+    await go("config/categorias", d => { d.gasto[0].cats.push(["gas", "Gas"]); });
+    await go("config/cuentas", d => { d.items[0].ancla = { fecha: "2026-10-20", saldo: 99, ts: 3 }; });
+    // un año que aquí no estaba y otro móvil acaba de crear con un fijo
+    window.__rows.push({ owner: window.__rows[0].owner, collection: "anios", id: "2027", data: { recurrentes: [{ id: "r1", nombre: "Luz" }], presupuesto: {}, objetivos: [] }, updated_at: new Date().toISOString() });
+    const ref = db.doc("anios/2027"); await ref.save(ref.snapshot(), { recurrentes: [{ id: "r2", nombre: "Agua" }], presupuesto: {}, objetivos: [] });
+    const g = (c, i) => window.__rows.find(x => x.collection === c && x.id === i).data;
+    return { tc: g("config", "tricount"), cat: g("config", "categorias"), cs: g("config", "cuentas"), an: g("anios", "2027") };
+  });
+  ok(r.tc.items.map(x => x.key).join() === "t1,t2", "tricounts por su key: se quedan los dos");
+  ok(r.tc.items[0].fuera.join() === "2" && r.tc.items[0].pasados.join() === "3", "«fuera» y «pasados» como conjuntos: " + JSON.stringify(r.tc.items[0]));
+  ok(r.cat.gasto[0].cats.map(x => x[0]).join() === "luz,agua,gas", "categorías del mismo grupo en los dos: " + r.cat.gasto[0].cats.map(x => x[0]).join());
+  ok(r.cs.items[0].ancla.fecha === "2026-10-20" && r.cs.items[0].ancla.saldo === 99, "el ancla va entera (fecha y saldo de aquí): " + JSON.stringify(r.cs.items[0].ancla));
+  ok(r.an.recurrentes.map(x => x.id).join() === "r1,r2", "un año creado a la vez en otro móvil: se quedan los dos fijos");
+  ok(!errs.length, "sin errores de JavaScript " + errs.join(" | "));
+  await page.close();
+}
 await browser.close();
 console.log(fallos ? `\n${fallos} fallo(s)` : "\ntodo bien");
 process.exit(fallos ? 1 : 0);

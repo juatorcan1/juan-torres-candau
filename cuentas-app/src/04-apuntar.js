@@ -181,23 +181,28 @@ async function putItems(key, items, entero = {}){
 }
 // Lo que cambia de un movimiento a otro, campo a campo (los que no trae el nuevo se quedan como estén; vacío
 // frente a no estar no cuenta como cambio: el editor pone "" en lo que no se ha rellenado).
+// Se compara sin mirar el orden de las claves (Postgres las devuelve ordenadas a su manera). El importe y las
+// líneas van juntos: si cambia uno se mandan los dos, para que no queden un total de un móvil y unas líneas de otro.
 const isObjM = v => !!v && typeof v === "object" && !Array.isArray(v);
+const igual = (a, b) => { const c = v => JSON.stringify(v, (k, x) => isObjM(x) ? Object.fromEntries(Object.keys(x).sort().map(y => [y, x[y]])) : x); return c(a) === c(b); };
 const vacio = v => v == null || v === "" || v === false || (Array.isArray(v) && !v.length);
 function cambios(a, b){
   const out = {};
   for (const [k, v] of Object.entries(b)) {
-    if (v === undefined || JSON.stringify(a[k]) === JSON.stringify(v) || (vacio(a[k]) && vacio(v))) continue;
+    if (v === undefined || igual(a[k], v) || (vacio(a[k]) && vacio(v))) continue;
     out[k] = isObjM(a[k]) && isObjM(v) ? cambios(a[k], v) : v;
   }
+  if ("total" in out || "lineas" in out || "ticketTotal" in out) for (const k of ["total", "lineas", "ticketTotal"]) if (b[k] !== undefined) out[k] = b[k];
   return out;
 }
 // Un movimiento que ya estaba se manda como lo que ha cambiado: si en otro móvil se ha cambiado otra cosa del
 // mismo movimiento a la vez, se quedan las dos.
-async function saveMovs(list){
+// `bases[id]`, si se da, es cómo estaba el movimiento cuando se empezó a cambiar (el editor); si no, el de este móvil.
+async function saveMovs(list, bases = {}){
   if (!db || !movsReady) throw { code: "nodb" };
   const by = {};
   for (const m of list) {
-    const k = m.fecha.slice(0, 7), prev = meses[k] && meses[k].items && meses[k].items[m.id];
+    const k = m.fecha.slice(0, 7), prev = bases[m.id] || (meses[k] && meses[k].items && meses[k].items[m.id]);
     const b = by[k] ||= { items: {}, entero: {} };
     b.items[m.id] = prev ? cambios(prev, m) : m;
     if (prev) b.entero[m.id] = m;
@@ -241,9 +246,11 @@ async function saveDraft(key){
     const antes = d.id ? MOVS.find(x => x.id === d.id) : null;
     // si cambias dónde fue, el nombre de Drive sale de lo que pones tú, no de la razón social que leyó la IA
     if (antes && m.factura && norm(m.comercio) !== norm(antes.comercio)) m.factura = { ...m.factura, proveedor: "", cif: "" };
-    await saveMovs([m]);
+    await saveMovs([m], d.base ? { [m.id]: d.base } : {});
     // si cambia de mes, se quita del de antes solo cuando ya está en el nuevo: si algo falla, sale repetido, no se pierde
     if (d.id && d.origFecha && d.origFecha.slice(0, 7) !== m.fecha.slice(0, 7)) await deleteMov({ id: d.id, fecha: d.origFecha });
+    // el enlace de Drive puede haber llegado con la hoja abierta (la subida seguía): se usa el que hay ahora
+    if (!m.drive && antes && antes.drive) m.drive = antes.drive;
     if ((m.ticket || d.pdf) && !m.drive) driveUp(m, d.pdf);
     else if (m.drive && antes && (antes.fecha !== m.fecha || num(antes.total) !== num(m.total) || norm(antes.comercio) !== norm(m.comercio))) driveUp(m, null, false, true);
     if (d.onSaved) d.onSaved(m);
@@ -304,7 +311,9 @@ async function driveAuto(){
 /* ================= hoja para ver o cambiar un movimiento ================= */
 function openMov(id){
   const m = MOVS.find(x => x.id === id); if (!m) return;
-  DRAFTS.edit = { ...JSON.parse(JSON.stringify(m)), origFecha: m.fecha, lineas: m.lineas.length ? JSON.parse(JSON.stringify(m.lineas)) : [{ concepto: "", cat: "", importe: "" }] };
+  // `base`: cómo estaba al abrirlo; al guardar solo se manda lo cambiado desde entonces (lo que llegue de otro
+  // móvil con la hoja abierta no se deshace). cleanMov deja fuera base y origFecha al guardar.
+  DRAFTS.edit = { ...JSON.parse(JSON.stringify(m)), origFecha: m.fecha, base: cleanMov(JSON.parse(JSON.stringify(m))), lineas: m.lineas.length ? JSON.parse(JSON.stringify(m.lineas)) : [{ concepto: "", cat: "", importe: "" }] };
   openSheet(`<div class="sheet-h"><h2>${esc(movTitle(m))}</h2><button class="x" data-close="1" aria-label="Cerrar">×</button></div>
     <p class="small muted" style="margin:0">${longDate(m.fecha)} · ${m.origen === "ticket" ? "leído de un ticket" : m.origen === "extracto" ? "del extracto del banco" : m.origen === "texto" ? "dictado" : m.origen === "cuota" ? "cuota de una deuda" : m.origen === "prestado" ? "dinero que te deben" : "apuntado a mano"}${m.banco ? " · ya visto en el banco" : ""}${m.revisar ? ` · <span class="flag">por revisar</span>` : ""}</p>
     ${m.drive ? `<p class="small muted" style="margin:0">En Drive: ${m.drive.enlace ? `<a href="${esc(m.drive.enlace)}" target="_blank" rel="noopener">${esc(m.drive.nombre)}</a>` : esc(m.drive.nombre)} <span class="muted">(${esc(m.drive.ruta)})</span></p>` : ""}

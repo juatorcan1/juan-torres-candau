@@ -44,31 +44,43 @@ function makeDb(){
     stored(col, id, obj);
   }
   // Mezcla a tres bandas: lo que había aquí cuando se cambió (base), lo nuevo de aquí (mine) y lo que hay ahora en
-  // la base (theirs). Se queda con lo que ha cambiado otro y encima pone lo que ha cambiado aquí; en las listas con
-  // id (cuentas, fijos, objetivos, categorías) elemento a elemento. Si los dos cambian lo mismo, gana lo de aquí.
-  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  // la base (theirs). Se queda con lo que ha cambiado otro y encima pone lo que ha cambiado aquí. Las listas se
+  // mezclan elemento a elemento cuando cada uno tiene su clave (id, key o el primero de [id, nombre]: cuentas,
+  // fijos, objetivos, categorías, tricounts), y las de valores sueltos como conjuntos (los «fuera» de Tricount).
+  // Lo que va junto (el ancla: fecha y saldo) no se parte. Si los dos cambian lo mismo, gana lo de aquí.
   const isObj = v => !!v && typeof v === "object" && !Array.isArray(v);
-  const byId = a => Array.isArray(a) && a.every(x => isObj(x) && x.id != null);
+  const canon = v => JSON.stringify(v, (k, x) => isObj(x) ? Object.fromEntries(Object.keys(x).sort().map(y => [y, x[y]])) : x);
+  const same = (a, b) => canon(a) === canon(b);
+  const kid = x => isObj(x) ? (x.id ?? x.key) : Array.isArray(x) ? x[0] : undefined;
+  const keyed = a => Array.isArray(a) && a.every(x => kid(x) != null && typeof kid(x) !== "object");
+  const plain = a => Array.isArray(a) && a.every(x => x === null || typeof x !== "object");
+  const JUNTOS = new Set(["ancla"]);
   function merge3(base, mine, theirs){
+    if (base == null && theirs !== undefined) base = isObj(mine) ? {} : Array.isArray(mine) ? [] : base;   // no estaba aquí
     if (same(base, mine)) return theirs;
     if (theirs === undefined || same(base, theirs)) return mine;
     if (isObj(base) && isObj(mine) && isObj(theirs)) {
       const out = { ...theirs };
       for (const k of new Set([...Object.keys(base), ...Object.keys(mine)])) {
         if (!(k in mine)) { if (same(base[k], theirs[k])) delete out[k]; }
-        else if (!same(base[k], mine[k])) out[k] = k in base ? merge3(base[k], mine[k], theirs[k]) : mine[k];
+        else if (!same(base[k], mine[k])) out[k] = (k in base || k in theirs) && !JUNTOS.has(k) ? merge3(base[k], mine[k], theirs[k]) : mine[k];
       }
       return out;
     }
-    if (byId(base) && byId(mine) && byId(theirs)) {
-      const B = new Map(base.map(x => [x.id, x])), M = new Map(mine.map(x => [x.id, x])), T = new Set(theirs.map(x => x.id));
+    if (keyed(base) && keyed(mine) && keyed(theirs)) {
+      const B = new Map(base.map(x => [kid(x), x])), M = new Map(mine.map(x => [kid(x), x])), T = new Set(theirs.map(kid));
       const out = [];
       for (const t of theirs) {
-        if (M.has(t.id)) out.push(B.has(t.id) ? merge3(B.get(t.id), M.get(t.id), t) : M.get(t.id));
-        else if (!B.has(t.id) || !same(B.get(t.id), t)) out.push(t);   // nuevo del otro, o lo quité aquí pero él lo cambió
+        const k = kid(t);
+        if (M.has(k)) out.push(B.has(k) ? merge3(B.get(k), M.get(k), t) : M.get(k));
+        else if (!B.has(k) || !same(B.get(k), t)) out.push(t);   // nuevo del otro, o lo quité aquí pero él lo cambió
       }
-      for (const m of mine) if (!T.has(m.id) && (!B.has(m.id) || !same(B.get(m.id), m))) out.push(m);   // nuevo de aquí, o él lo quitó y aquí se cambió
+      for (const m of mine) { const k = kid(m); if (!T.has(k) && (!B.has(k) || !same(B.get(k), m))) out.push(m); }   // nuevo de aquí, o él lo quitó y aquí se cambió
       return out;
+    }
+    if (plain(base) && plain(mine) && plain(theirs)) {
+      const quitados = base.filter(x => !mine.includes(x)), nuevos = mine.filter(x => !base.includes(x) && !theirs.includes(x));
+      return theirs.filter(x => !quitados.includes(x)).concat(nuevos);
     }
     return mine;
   }

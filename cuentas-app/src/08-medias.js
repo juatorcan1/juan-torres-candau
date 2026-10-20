@@ -416,7 +416,7 @@ async function tcPasarSave(){
     const fuera = new Set((it.fuera || []).map(String)), pasados = new Set((it.pasados || []).map(String));
     for (const r of P.rows) { if (r.sel) { fuera.delete(r.id); pasados.add(r.id); } else fuera.add(r.id); }
     const items = tcItems().map(({ confirmDel, ...x }) => x.key === it.key ? { ...x, yo, fuera: [...fuera], pasados: [...pasados] } : x);
-    await saveCfg("tricount", { items }); cfg.tricount = items;
+    await saveCfg("tricount", { items }); if (!WEB) cfg.tricount = items;   // en la web ya lo pone la base (mezclado)
     TCP = null; toast(movs.length ? `Pasados ${movs.length} gastos a tus cuentas` : "Guardado"); renderView();
   } catch (e) { if (err) err.textContent = saveErr(e); if (btn) { btn.disabled = false; btn.textContent = `Pasar ${sel.length} gastos`; } }
 }
@@ -502,7 +502,7 @@ document.addEventListener("change", async e => {
   }
   if (el.dataset.tcyo) {
     const list = tcItems().map(({ confirmDel, ...x }) => x.key === el.dataset.tcyo ? { ...x, yo: el.value || null } : x);
-    try { await saveCfg("tricount", { items: list }); cfg.tricount = list; renderView(); } catch (err) { toast(saveErr(err)); }
+    try { await saveCfg("tricount", { items: list }); if (!WEB) cfg.tricount = list; renderView(); } catch (err) { toast(saveErr(err)); }
     return;
   }
   const k = { "sp-pagador": "pagador", "sp-cuenta": "cuenta", "sp-fecha": "fecha", "sp-cat": "cat" }[el.id];

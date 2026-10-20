@@ -2863,7 +2863,14 @@ const AGENTS = {
 let chatBusy = {}, chatErr = {}, chatCtl = {};
 const chatId = (agent, who = me) => `${who}_${agent}`;
 const chatMsgs = agent => (chats[chatId(agent)] && Array.isArray(chats[chatId(agent)].mensajes)) ? chats[chatId(agent)].mensajes : [];
-const trainPlan = (who = me) => plans[`${who}_entreno`] || null;
+/* a week of the plan can come in two versions: "dias", and "diasDomingo" for when you swam on the Sunday
+   before it (the whole week moves one day earlier). The plan everyone reads is the version that applies. */
+const swamOn = (who, date) => real.some(s => s.athlete === who && s.date === date && s.sport === "natacion");
+function weekFor(w, who){
+  if (!w || !Array.isArray(w.diasDomingo) || !w.diasDomingo.length || !(w.dias || [])[0]) return w;
+  return swamOn(who, toISO(addDays(parseISO(w.dias[0].fecha), -1))) ? { ...w, dias: w.diasDomingo, domingo: true } : w;
+}
+const trainPlan = (who = me) => { const p = plans[`${who}_entreno`]; return p && Array.isArray(p.semanas) ? { ...p, semanas: p.semanas.map(w => weekFor(w, who)) } : p || null; };
 const dietPlan = (who = me) => plans[`${who}_dieta`] || null;
 const todayISO = () => toISO(today());
 function planDay(plan, date = todayISO()){
@@ -2907,8 +2914,8 @@ const WORKOUT_SCHEMA = `ENTRENO = {"titulo": str, "tipo": "gym"|"calistenia"|"na
  "nota": str}
 Lo importante es el músculo, no el ejercicio: organiza el entreno por los músculos que toca trabajar y elige para cada uno el ejercicio que mejor encaje con el lugar y el material. "musculos": los que trabaja, el principal primero, con estas claves: ${Object.keys(MUSCLES).join(", ")}.
 Reglas del ENTRENO: que quepa en la duración pedida contando descansos; "reps" para fuerza (kg 0 si es peso corporal), "tiempo" para planchas, intervalos o cardio por tiempo, "distancia" para natación (metros por serie). En "reto" pon cómo superar su última vez o su récord (por ejemplo "Tu mejor: 80 kg × 8. Hoy 82,5 × 8") o cómo ganar a ${"${RIVAL}"}. Progresión prudente: +2,5 kg o +1 rep si la última vez completó todo; nunca más de un 5 %. Para "ejercicio" usa exactamente estos nombres cuando encajen (tienen dibujo): ${Object.keys(GUIDE).join(", ")}. Para natación usa nombres como "Crol", "Braza", "Espalda", "Patada con tabla", "Pull buoy", en metros por serie, y monta una sesión completa: calentamiento variado, técnica, bloque con aletas, bloque con palas (y pull buoy), series de crol concentrado a ritmo fuerte y vuelta a la calma; en "indicacion" di el material y el ritmo.`;
-const TRAIN_PLAN_SCHEMA = `PLAN_ENTRENO = {"tipo": "semana"|"mes", "titulo": str, "semanas": [{"objetivo": str, "dias": [{"fecha": "YYYY-MM-DD", "dia": "lunes"…, "actividad": "gym"|"calistenia"|"natacion"|"cinta"|"bici"|"descanso"|"otro", "duracion_min": n, "foco": str, "detalle": str}]}], "nota": str}
-Reglas del PLAN_ENTRENO: empieza hoy; semana = 7 días, mes = 4 semanas; cada semana con su objetivo y progresión; incluye descansos; "detalle" en una frase.`;
+const TRAIN_PLAN_SCHEMA = `PLAN_ENTRENO = {"tipo": "semana"|"mes", "titulo": str, "semanas": [{"objetivo": str, "dias": [{"fecha": "YYYY-MM-DD", "dia": "lunes"…, "actividad": "gym"|"calistenia"|"natacion"|"cinta"|"bici"|"descanso"|"otro", "duracion_min": n, "foco": str, "detalle": str}], "diasDomingo": [mismo formato que "dias"]|null}], "nota": str}
+Reglas del PLAN_ENTRENO: empieza hoy; semana = 7 días, mes = 4 semanas; cada semana con su objetivo y progresión; incluye descansos; "detalle" en una frase. "diasDomingo" (opcional) es la misma semana para cuando nadó el domingo de antes: si sus preferencias dicen que entonces la semana se adelanta, ponla también.`;
 const DIET_PLAN_SCHEMA = `SITIO = {"bocadillo": [str], "bar": [str], "oficina": [str]}
 PLAN_DIETA = {"titulo": str, "dias": [{"fecha": "YYYY-MM-DD", "dia": "lunes"…, "desayuno": SITIO, "media": SITIO, "comida": SITIO, "merienda": SITIO, "cena": [str], "kcal": n}], "consejos": [str]}
 Reglas del PLAN_DIETA: 7 días desde hoy; cantidades en gramos ajustadas a su objetivo de kcal; desayuno, media mañana, comida y merienda con 3 versiones distintas de verdad: "bocadillo" = obra sin cocina (sale temprano, todo va en la mochila: bocadillos, tortitas de maíz, táper frío), "bar" = en un bar o restaurante (qué pedir en un menú del día o de tapas) y "oficina" = oficina con microondas y nevera; la cena es en casa, una sola versión; comida española normal y barata.`;
@@ -2981,11 +2988,12 @@ function normalizeWorkout(o){
 function normalizeTrainPlan(o){
   if (!o || !Array.isArray(o.semanas)) return null;
   const acts = ["gym", "calistenia", "natacion", "cinta", "bici", "descanso", "otro"];
-  const semanas = o.semanas.slice(0, 5).map(w => ({ objetivo: String((w && w.objetivo) || "").slice(0, 160),
-    dias: (Array.isArray(w && w.dias) ? w.dias : []).slice(0, 7).filter(d => d && /^\d{4}-\d{2}-\d{2}$/.test(d.fecha)).map(d => ({
-      fecha: d.fecha, dia: String(d.dia || DIA[parseISO(d.fecha).getDay()]), actividad: acts.includes(d.actividad) ? d.actividad : "otro",
-      duracion_min: clampN(d.duracion_min, 0, 300) || 0, foco: String(d.foco || "").slice(0, 80), detalle: String(d.detalle || "").slice(0, 240),
-      ...(normalizeWorkout(d.entreno) ? { entreno: normalizeWorkout(d.entreno) } : {}) })) }))
+  const days = list => (Array.isArray(list) ? list : []).slice(0, 7).filter(d => d && /^\d{4}-\d{2}-\d{2}$/.test(d.fecha)).map(d => ({
+    fecha: d.fecha, dia: String(d.dia || DIA[parseISO(d.fecha).getDay()]), actividad: acts.includes(d.actividad) ? d.actividad : "otro",
+    duracion_min: clampN(d.duracion_min, 0, 300) || 0, foco: String(d.foco || "").slice(0, 80), detalle: String(d.detalle || "").slice(0, 240),
+    ...(normalizeWorkout(d.entreno) ? { entreno: normalizeWorkout(d.entreno) } : {}) }));
+  const semanas = o.semanas.slice(0, 5).map(w => ({ objetivo: String((w && w.objetivo) || "").slice(0, 160), dias: days(w && w.dias),
+    ...(days(w && w.diasDomingo).length ? { diasDomingo: days(w.diasDomingo) } : {}) }))
     .filter(w => w.dias.length);
   if (!semanas.length) return null;
   return { tipo: o.tipo === "mes" ? "mes" : "semana", titulo: String(o.titulo || "Plan de entreno").slice(0, 80), semanas, nota: String(o.nota || "").slice(0, 400) };
@@ -3120,7 +3128,7 @@ function renderPlan(){
     ${p ? `<div class="panel"><div class="panel-head"><div><h2>${esc(p.titulo)}</h2><div class="muted" style="font-size:13px;margin-top:2px">Plan ${p.tipo === "mes" ? "mensual" : "semanal"} de ${ATH[me]}${p.nota ? " · " + esc(p.nota) : ""}</div></div>
         <div class="row-btns"><button type="button" class="btn sm" data-say="coach" data-text="Hazme un plan semanal nuevo">Nuevo semanal</button><button type="button" class="btn sm" data-say="coach" data-text="Hazme un plan de un mes">Nuevo mensual</button></div></div>
       ${(() => { // weeks already over fold away, so the plan opens on this week
-        const mon = toISO(mondayOf(today())), wk = (w, i) => `<div class="pweek"><div class="eyebrow">Semana ${i + 1}${w.objetivo ? " · " + esc(w.objetivo) : ""}</div>${w.dias.map(dayRow).join("")}</div>`;
+        const mon = toISO(mondayOf(today())), wk = (w, i) => `<div class="pweek"><div class="eyebrow">Semana ${i + 1}${w.objetivo ? " · " + esc(w.objetivo) : ""}${w.domingo ? " · se adelanta un día: nadaste el domingo" : ""}</div>${w.dias.map(dayRow).join("")}</div>`;
         const over = p.semanas.map((w, i) => [w, i]).filter(([w]) => (w.dias || []).every(d => d.fecha < mon));
         return (over.length ? `<details class="pweek-old"><summary>Semanas anteriores (${over.length})</summary>${over.map(([w, i]) => wk(w, i)).join("")}</details>` : "")
           + p.semanas.map((w, i) => [w, i]).filter(([w]) => !(w.dias || []).every(d => d.fecha < mon)).map(([w, i]) => wk(w, i)).join(""); })()}</div>`

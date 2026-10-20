@@ -46,7 +46,8 @@ comprobaciones y esta las pasa todas.
 
 - **Copias de seguridad**: solo la copia diaria de Supabase Pro (7 días). Nada guardaba versiones anteriores:
   un borrado o una sobrescritura eran definitivos. → Tabla `gym_docs_historial` con disparador (migración
-  `20261020090000`, **pendiente de aplicar**) y botón «Copia» que descarga todo en JSON.
+  `20261020092814`, aplicada el 20/10 después de copiar todo `gym_docs` en `gym_docs_copia_20261020`) y botón
+  «Copia» que descarga todo en JSON.
 - **Esquema fuera del repositorio**: las cuatro migraciones del gimnasio solo estaban en Supabase. → Traídas a
   `gym-app/supabase/migrations/`.
 - **Sin guía para Claude ni revisores**: no había `CLAUDE.md` ni agentes. → `CLAUDE.md`, `gym-app/CLAUDE.md` y
@@ -61,11 +62,13 @@ comprobaciones y esta las pasa todas.
 - [x] Arreglar el guardado del entreno guiado (fallos 1–4 y 6) con su prueba.
 - [x] Esquema en el repositorio, `CLAUDE.md`, agentes guardián y revisor.
 - [x] Botón «Copia» (descarga JSON de todo).
-- [ ] **Aplicar la migración del historial** en Supabase (necesita el visto bueno de Juan).
-- [ ] Fusionar #69 y añadir `gym-app/pruebas/guardado.mjs` a «Comprobaciones»; marcarla como obligatoria en `main`.
+- [x] Copia de `gym_docs` (45 documentos, comprobados) y historial aplicado en Supabase.
+- [x] Fusionar #69 («Comprobaciones»).
+- [ ] Añadir `gym-app/pruebas/guardado.mjs` a «Comprobaciones» y marcarla como obligatoria en `main`.
 - [ ] Datos de Ignacio, con su permiso: cerrar o continuar las sesiones del 9 y del 19 (a medias), borrar el
       duplicado del 8 y corregir un peso mal tecleado del 29 de septiembre en elevaciones laterales.
 - [ ] Juan: si entrenaste el viernes 16, apúntalo desde el plan («Te falta apuntar» → con el formulario).
 - [ ] Pedir al Entrenador el plan nuevo antes del 25 de octubre.
-- [ ] Programar el `guardian-gym` cada semana (lunes) con un informe y una copia a Google Drive.
+- [x] Programar el guardián los lunes a las 7:53 (tarea «Guardián del gimnasio»), con informe y copia a Google Drive.
+- [ ] Darle a esa tarea acceso a Supabase y Google Drive (conectores, desde claude.ai).
 - [ ] Borrar la Edge Function `gym-ping`.

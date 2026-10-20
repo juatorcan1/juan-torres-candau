@@ -28,7 +28,8 @@ Row Level Security: los dos leen todo; cada uno solo escribe lo suyo.
 | `chats` | `<atleta>_coach`, `<atleta>_nutri` | los últimos 30 mensajes con cada agente |
 | `comidas` | `<atleta>_<fecha>` | lo comido |
 
-`gym_docs_historial` (migración `20261020090000`): cada versión anterior de un documento cambiado o borrado.
+`gym_docs_historial` (migraciones `20261020092814` y `…92917`): cada versión anterior de un documento cambiado o
+borrado. `gym_docs_copia_20261020`: copia de todo `gym_docs` justo antes de activar el historial. No se borra.
 
 ## Cómo se guarda un entreno guiado (`src/11-player.js`)
 

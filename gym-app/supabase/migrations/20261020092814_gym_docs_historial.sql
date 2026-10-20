@@ -59,7 +59,3 @@ end
 $$;
 comment on function public.gym_docs_guardar_historial() is 'App de gimnasio: guarda en gym_docs_historial la versión anterior de cada documento cambiado o borrado.';
 revoke all on function public.gym_docs_guardar_historial() from public, anon, authenticated;
-
-create trigger gym_docs_historial
-  after update or delete on public.gym_docs
-  for each row execute function public.gym_docs_guardar_historial();

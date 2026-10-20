@@ -250,6 +250,62 @@ const base = [
   ok(!errs.length, "sin errores de JavaScript " + errs.join(" | "));
   await page.close();
 }
+// 13. lo que la pantalla apunta en lo que recibe (el «¿seguro?» de quitar un tricount) no cambia la base de la mezcla
+{
+  const tc = { collection: "config", id: "tricount", data: { items: [{ key: "t1", titulo: "Viaje" }, { key: "t2", titulo: "Cena" }] }, updated_at: "2026-10-05T10:44:13.956331+00:00" };
+  const { page, errs } = await abrir([base[0], tc, base[1]]);
+  const it = await page.evaluate(async () => {
+    const db = await window.claude.use("db");
+    const items = await new Promise(r => db.collection("config").onSnapshot(s => { const d = s.docs.find(x => x.id === "tricount"); if (d) r(d.data().items); }));
+    items[0].confirmDel = true;   // como el primer toque de «Quitar»
+    const ref = db.doc("config/tricount");
+    await ref.save(ref.snapshot(), { items: items.filter(x => x.key !== "t1").map(({ confirmDel, ...x }) => x) });
+    return window.__rows.find(x => x.collection === "config" && x.id === "tricount").data.items.map(x => x.key);
+  });
+  ok(it.join() === "t2", "quitar un tricount lo quita: " + it.join());
+  ok(!errs.length, "sin errores de JavaScript " + errs.join(" | "));
+  await page.close();
+}
+// 14. la misma categoría renombrada en los dos: gana el nombre de aquí y la pareja sigue siendo [id, nombre]
+{
+  const cat = { collection: "config", id: "categorias", data: { gasto: [{ id: "casa", nombre: "Casa", cats: [["luz", "Luz"]] }], ingreso: [] }, updated_at: "2026-10-05T10:44:13.956331+00:00" };
+  const { page, errs } = await abrir([base[0], cat, base[1]]);
+  await otroCambia(page, "config", "categorias", d => { d.gasto[0].cats[0][1] = "Electricidad"; });
+  const cs = await page.evaluate(async () => {
+    const db = await window.claude.use("db"), ref = db.doc("config/categorias"), b = ref.snapshot(), m = JSON.parse(JSON.stringify(b));
+    m.gasto[0].cats[0][1] = "Luz eléctrica"; await ref.save(b, m);
+    return window.__rows.find(x => x.collection === "config" && x.id === "categorias").data.gasto[0].cats;
+  });
+  ok(JSON.stringify(cs) === JSON.stringify([["luz", "Luz eléctrica"]]), "renombrada en los dos: " + JSON.stringify(cs));
+  ok(!errs.length, "sin errores de JavaScript " + errs.join(" | "));
+  await page.close();
+}
+// 15. un movimiento viejo cuyas líneas no suman el total: cambiar aquí solo la nota no deshace el importe del otro
+{
+  const viejo = { ...mov("a", 10, "Mercadona"), lineas: [] };
+  const { page, errs } = await abrir([base[0], { ...base[1], data: { mes, items: { a: viejo } } }]);
+  await page.click('.bnav [data-tab="movs"]'); await page.click('[data-mov="a"]');
+  await otroCambia(page, "movs", mes, d => { d.items.a.total = 20; d.items.a.lineas = [{ concepto: "", cat: "", importe: 20 }]; d.items.a.comercio = "Carrefour"; });
+  await page.fill("#edit-nota", "solo la nota"); await page.click('[data-edsave="edit"]'); await page.waitForTimeout(300);
+  const a = (await items(page)).a;
+  ok(a && a.nota === "solo la nota" && a.total === 20 && a.comercio === "Carrefour", "el importe y el sitio del otro se quedan: " + JSON.stringify(a && { total: a.total, comercio: a.comercio, nota: a.nota }));
+  ok(!errs.length, "sin errores de JavaScript " + errs.join(" | "));
+  await page.close();
+}
+// 16. «Copiar los fijos del año anterior» en un móvil que no se ha enterado de que el otro ya los copió: no se duplican
+{
+  const Y = new Date().getFullYear();
+  const fijo = { id: "r1", nombre: "Luz", tipo: "gasto", importe: 50, cada: 1, mes: 1, hasta: null, cat: "" };
+  const { page, errs } = await abrir([base[0], base[1], { collection: "anios", id: String(Y - 1), data: { recurrentes: [fijo], presupuesto: {}, objetivos: [] }, updated_at: "2026-10-05T10:44:13.956331+00:00" }]);
+  await page.click('.bnav [data-tab="prevision"]'); await page.click('[data-psub="fijos"]');
+  // el otro móvil ya los copió (con el código nuevo, mismo id)
+  await page.evaluate(([Y, f]) => window.__rows.push({ owner: window.__rows[0].owner, collection: "anios", id: String(Y), data: { recurrentes: [{ ...f, id: "r1~" + Y }], presupuesto: {}, objetivos: [] }, updated_at: new Date().toISOString() }), [Y, fijo]);
+  await page.click("#rec-copy"); await page.waitForTimeout(300);
+  const an = await doc(page, "anios", String(Y));
+  ok(an && an.recurrentes.length === 1, "copiados en los dos: un solo fijo: " + (an && an.recurrentes.map(r => r.id).join()));
+  ok(!errs.length, "sin errores de JavaScript " + errs.join(" | "));
+  await page.close();
+}
 await browser.close();
 console.log(fallos ? `\n${fallos} fallo(s)` : "\ntodo bien");
 process.exit(fallos ? 1 : 0);

@@ -167,7 +167,7 @@ async function putItems(key, items, entero = {}){
     const ref = db.doc("movs/" + key);
     for (let i = 0; i < 3; i++) {
       if (meses[key] || ref.create) {
-        try { await ref.update(fix(meses[key]), fix); return; }
+        try { await (ref.create ? ref.update(fix(meses[key]), fix) : ref.update(fix(meses[key]))); return; }
         catch (e) { if (!e || e.code !== "invalid_argument") throw e; }
       }
       const cur = (!ref.create && meses[key] && meses[key].items) || {};
@@ -313,7 +313,9 @@ function openMov(id){
   const m = MOVS.find(x => x.id === id); if (!m) return;
   // `base`: cómo estaba al abrirlo; al guardar solo se manda lo cambiado desde entonces (lo que llegue de otro
   // móvil con la hoja abierta no se deshace). cleanMov deja fuera base y origFecha al guardar.
-  DRAFTS.edit = { ...JSON.parse(JSON.stringify(m)), origFecha: m.fecha, base: cleanMov(JSON.parse(JSON.stringify(m))), lineas: m.lineas.length ? JSON.parse(JSON.stringify(m.lineas)) : [{ concepto: "", cat: "", importe: "" }] };
+  const d = DRAFTS.edit = { ...JSON.parse(JSON.stringify(m)), origFecha: m.fecha, lineas: m.lineas.length ? JSON.parse(JSON.stringify(m.lineas)) : [{ concepto: "", cat: "", importe: "" }] };
+  // la base pasa por draftToMov como lo que se guarde (que completa las líneas que no suman, «Resto del ticket»…)
+  d.base = draftToMov(JSON.parse(JSON.stringify(d))).mov || cleanMov(JSON.parse(JSON.stringify(m)));
   openSheet(`<div class="sheet-h"><h2>${esc(movTitle(m))}</h2><button class="x" data-close="1" aria-label="Cerrar">×</button></div>
     <p class="small muted" style="margin:0">${longDate(m.fecha)} · ${m.origen === "ticket" ? "leído de un ticket" : m.origen === "extracto" ? "del extracto del banco" : m.origen === "texto" ? "dictado" : m.origen === "cuota" ? "cuota de una deuda" : m.origen === "prestado" ? "dinero que te deben" : "apuntado a mano"}${m.banco ? " · ya visto en el banco" : ""}${m.revisar ? ` · <span class="flag">por revisar</span>` : ""}</p>
     ${m.drive ? `<p class="small muted" style="margin:0">En Drive: ${m.drive.enlace ? `<a href="${esc(m.drive.enlace)}" target="_blank" rel="noopener">${esc(m.drive.nombre)}</a>` : esc(m.drive.nombre)} <span class="muted">(${esc(m.drive.ruta)})</span></p>` : ""}

@@ -13,7 +13,8 @@ const ready = new Promise(r => { resolveReady = r; });
 
 function makeDb(){
   const cache = {}, listeners = {};
-  const snap = col => ({ docs: [...(cache[col] || new Map()).values()].map(r => ({ id: r.id, exists: true, data: () => r.data })) });
+  // La app recibe copias: lo que apunte en ellas (p. ej. confirmDel) no cambia la caché, que es la base de `save`.
+  const snap = col => ({ docs: [...(cache[col] || new Map()).values()].map(r => ({ id: r.id, exists: true, data: () => JSON.parse(JSON.stringify(r.data)) })) });
   const toErr = e => ({ code: e && (e.code === "42501" || /row-level security|violates check/i.test(e.message || "")) ? "invalid_argument" : "unavailable", message: (e && e.message) || "" });
   async function load(col){
     const { data, error } = await sb.from("cuentas_docs").select("id,data").eq("collection", col);
@@ -72,7 +73,7 @@ function makeDb(){
       const out = [];
       for (const t of theirs) {
         const k = kid(t);
-        if (M.has(k)) out.push(B.has(k) ? merge3(B.get(k), M.get(k), t) : M.get(k));
+        if (M.has(k)) out.push(B.has(k) && !Array.isArray(t) ? merge3(B.get(k), M.get(k), t) : M.get(k));   // [id, nombre] va entero
         else if (!B.has(k) || !same(B.get(k), t)) out.push(t);   // nuevo del otro, o lo quité aquí pero él lo cambió
       }
       for (const m of mine) { const k = kid(m); if (!T.has(k) && (!B.has(k) || !same(B.get(k), m))) out.push(m); }   // nuevo de aquí, o él lo quitó y aquí se cambió

@@ -4,9 +4,9 @@
 const MUSCLES = {
   pectoral: "Pectoral", deltoides: "Hombro", biceps: "Bíceps", triceps: "Tríceps", antebrazo: "Antebrazo",
   abdomen: "Abdomen", oblicuos: "Oblicuos", trapecio: "Trapecio", dorsal: "Dorsal", lumbar: "Lumbar",
-  gluteo: "Glúteo", cuadriceps: "Cuádriceps", isquios: "Isquiotibiales", gemelos: "Gemelos"
+  gluteo: "Glúteo", cuadriceps: "Cuádriceps", aductores: "Aductores", isquios: "Isquiotibiales", gemelos: "Gemelos"
 };
-const MUSCLE_ORDER = ["pectoral", "dorsal", "deltoides", "trapecio", "biceps", "triceps", "antebrazo", "abdomen", "oblicuos", "lumbar", "gluteo", "cuadriceps", "isquios", "gemelos"];
+const MUSCLE_ORDER = ["pectoral", "dorsal", "deltoides", "trapecio", "biceps", "triceps", "antebrazo", "abdomen", "oblicuos", "lumbar", "gluteo", "cuadriceps", "aductores", "isquios", "gemelos"];
 // [main muscles, helper muscles]
 const EX_MUS = {
   "Sentadilla": [["cuadriceps", "gluteo"], ["lumbar", "isquios", "abdomen"]], "Press banca": [["pectoral"], ["triceps", "deltoides"]],
@@ -24,6 +24,17 @@ const EX_MUS = {
   "Flexiones": [["pectoral"], ["triceps", "deltoides", "abdomen"]], "Remo invertido": [["dorsal"], ["biceps", "trapecio"]], "Mountain climbers": [["abdomen"], ["cuadriceps", "deltoides"]],
   "Sentadilla sin peso": [["cuadriceps", "gluteo"], []], "Pike push-up": [["deltoides"], ["triceps"]], "Burpee": [["cuadriceps", "pectoral"], ["deltoides", "abdomen"]],
   "Puente de glúteo": [["gluteo"], ["isquios"]], "Fondos en banco": [["triceps"], ["deltoides", "pectoral"]],
+  "Press declinado": [["pectoral"], ["triceps", "deltoides"]], "Press banca con mancuernas": [["pectoral"], ["triceps", "deltoides"]], "Contractor de pecho": [["pectoral"], ["deltoides"]],
+  "Pullover con mancuerna": [["dorsal", "pectoral"], ["triceps", "abdomen"]], "Pullover en polea": [["dorsal"], ["triceps", "abdomen"]], "Remo en máquina": [["dorsal"], ["biceps", "trapecio"]],
+  "Hiperextensiones": [["lumbar"], ["gluteo", "isquios"]], "Encogimientos": [["trapecio"], ["antebrazo"]],
+  "Press Arnold": [["deltoides"], ["triceps"]], "Press de hombro con mancuernas": [["deltoides"], ["triceps", "trapecio"]], "Elevaciones frontales": [["deltoides"], ["pectoral"]],
+  "Pájaros en máquina": [["deltoides", "trapecio"], ["dorsal"]], "Remo al mentón": [["deltoides", "trapecio"], ["biceps"]],
+  "Extensión sobre la cabeza en polea": [["triceps"], []], "Patada de tríceps": [["triceps"], []], "Press cerrado": [["triceps"], ["pectoral", "deltoides"]],
+  "Curl con mancuernas": [["biceps"], ["antebrazo"]], "Curl concentrado": [["biceps"], []],
+  "Sentadilla goblet": [["cuadriceps", "gluteo"], ["aductores", "abdomen"]], "Sentadilla hack": [["cuadriceps"], ["gluteo", "aductores"]], "Subida al banco": [["cuadriceps", "gluteo"], ["isquios"]],
+  "Curl femoral sentado": [["isquios"], ["gemelos"]], "Gemelos sentado": [["gemelos"], []],
+  "Aductores en máquina": [["aductores"], []], "Abductores en máquina": [["gluteo"], []], "Patada de glúteo en polea": [["gluteo"], ["isquios", "lumbar"]],
+  "Crunch en polea": [["abdomen"], ["oblicuos"]], "Plancha lateral": [["oblicuos"], ["abdomen", "deltoides"]], "Giro ruso": [["oblicuos"], ["abdomen"]],
   "Crol": [["dorsal", "deltoides"], ["triceps", "abdomen"]], "Braza": [["pectoral", "cuadriceps"], ["gluteo"]], "Espalda": [["dorsal", "deltoides"], ["gluteo"]],
   "Mariposa": [["pectoral", "deltoides"], ["dorsal", "abdomen"]], "Patada con tabla": [["cuadriceps", "gluteo"], ["gemelos"]], "Pull buoy": [["dorsal", "deltoides"], ["triceps"]],
   "Carrera en cinta": [["cuadriceps", "gemelos"], ["gluteo", "isquios"]], "Bici": [["cuadriceps", "gluteo"], ["gemelos", "isquios"]], "Elíptica": [["cuadriceps", "gluteo"], ["deltoides", "gemelos"]],
@@ -82,6 +93,7 @@ function bodyMap(levels = {}, opts = {}){
     ${R("abdomen", 51, 76, 18, 40, 6)}<path class="abs-lines" d="M51 89 H69 M51 102 H69 M60 76 V116"/>
     ${E("oblicuos", 43, 97, 5, 14)}${E("oblicuos", 77, 97, 5, 14)}
     ${E("cuadriceps", 48, 162, 8.5, 21)}${E("cuadriceps", 72, 162, 8.5, 21)}
+    ${E("aductores", 54.5, 152, 3, 12, -5)}${E("aductores", 65.5, 152, 3, 12, 5)}
     <text x="60" y="251" class="ml">Delante</text></g>`;
   const back = `<g transform="translate(130 0)">${body}
     ${Pth("trapecio", "M60 31 L79 46 L60 76 L41 46 Z")}

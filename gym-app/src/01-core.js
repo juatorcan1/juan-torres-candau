@@ -45,7 +45,15 @@ const CATALOG = {
   "Extensión en polea":"Tríceps","Press francés":"Tríceps",
   "Plancha":"Core","Crunch":"Core","Crunch en banco":"Core","Rueda abdominal":"Core","Elevación de piernas":"Core",
   "Flexiones":"Pecho","Remo invertido":"Espalda","Mountain climbers":"Core","Sentadilla sin peso":"Piernas","Pike push-up":"Hombro",
-  "Burpee":"Full body","Puente de glúteo":"Glúteo","Fondos en banco":"Tríceps"
+  "Burpee":"Full body","Puente de glúteo":"Glúteo","Fondos en banco":"Tríceps",
+  "Press declinado":"Pecho","Press banca con mancuernas":"Pecho","Contractor de pecho":"Pecho","Pullover con mancuerna":"Pecho",
+  "Pullover en polea":"Espalda","Remo en máquina":"Espalda","Hiperextensiones":"Espalda","Encogimientos":"Espalda",
+  "Press Arnold":"Hombro","Press de hombro con mancuernas":"Hombro","Elevaciones frontales":"Hombro","Pájaros en máquina":"Hombro","Remo al mentón":"Hombro",
+  "Extensión sobre la cabeza en polea":"Tríceps","Patada de tríceps":"Tríceps","Press cerrado":"Tríceps",
+  "Curl con mancuernas":"Bíceps","Curl concentrado":"Bíceps",
+  "Sentadilla goblet":"Piernas","Sentadilla hack":"Piernas","Subida al banco":"Piernas","Curl femoral sentado":"Piernas","Gemelos sentado":"Piernas","Aductores en máquina":"Piernas",
+  "Abductores en máquina":"Glúteo","Patada de glúteo en polea":"Glúteo",
+  "Crunch en polea":"Core","Plancha lateral":"Core","Giro ruso":"Core"
 };
 const normName = s => String(s || "").trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 

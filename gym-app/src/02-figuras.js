@@ -34,8 +34,9 @@ function solveSide(p){
   return { hip, sh, head, knee, ank, toe, knee2, ank2, toe2, el, wr, el2, wr2 };
 }
 // Front view: body centred on x = 100; the right arm's wrist target is mirrored for the left.
+// Optional: sh lifts the shoulders (shrugs), lg spreads the legs (adductor / abductor machines).
 function solveFront(p){
-  const sc = p.sc ?? 1, R = [116, 54], L = [84, 54];
+  const sc = p.sc ?? 1, R = [116, 54 - (p.sh || 0)], L = [84, 54 - (p.sh || 0)];
   const [elR, wrR] = ik(R, p.wr, FL.ua * sc, FL.fa * sc, "out");
   const wl = [200 - p.wr[0], p.wr[1]];
   const [elL0, wrL0] = ik([200 - L[0], L[1]], [200 - wl[0], wl[1]], FL.ua * sc, FL.fa * sc, "out");
@@ -79,11 +80,12 @@ function drawSide(ex, u, ghost){
   return ghost ? `<g class="ghost">${body}</g>` : drawProps(ex.props, J, "back") + body + drawProps(ex.props, J, "front");
 }
 function drawFront(ex, u, ghost){
-  const p = lerpPose(ex.a, ex.b, u), J = solveFront(p), hl = new Set(ex.hl || []);
+  const p = lerpPose(ex.a, ex.b, u), J = solveFront(p), hl = new Set(ex.hl || []), lg = p.lg || 0;
   const c = k => hl.has(k) ? "hl" : "";
+  const kneeR = [110 + lg * .5, 146], kneeL = [90 - lg * .5, 146];
   const body = [
-    bone([[92, 106], [90, 146], [89, 186], [80, 188]], c("legs")), bone([[108, 106], [110, 146], [111, 186], [120, 188]], c("legs")),
-    bone([[100, 48], [100, 104]], c("torso")), bone([[84, 54], [116, 54]], c("torso")), bone([[92, 106], [108, 106]]),
+    bone([[92, 106], kneeL, [89 - lg, 186], [80 - lg, 188]], c("legs")), bone([[108, 106], kneeR, [111 + lg, 186], [120 + lg, 188]], c("legs")),
+    bone([[100, 48], [100, 104]], c("torso")), bone([J.L, J.R], c("torso")), bone([[92, 106], [108, 106]]),
     bone([J.R, J.elR], c("ua")), bone([J.elR, J.wrR], c("fa")), bone([J.L, J.elL], c("ua")), bone([J.elL, J.wrL], c("fa")),
     `<circle class="headc" cx="100" cy="34" r="10"/>`
   ].join("");
@@ -93,6 +95,9 @@ function drawFront(ex, u, ghost){
     if (q.t === "bench") back += `<rect class="prop2" x="86" y="20" width="28" height="104" rx="4"/>`;
     if (q.t === "cables") back += [[q.from, J.wrR], [[200 - q.from[0], q.from[1]], J.wrL]].map(([f, w]) => `<circle class="prop" cx="${f[0]}" cy="${f[1]}" r="4"/><line class="cable" x1="${f[0]}" y1="${f[1]}" x2="${w[0].toFixed(1)}" y2="${w[1].toFixed(1)}"/>`).join("");
     if (q.t === "db") front += [J.wrR, J.wrL].map(w => `<rect class="prop fill" x="${(w[0] - 4).toFixed(1)}" y="${(w[1] - 8).toFixed(1)}" width="8" height="16" rx="3"/>`).join("");
+    if (q.t === "seat") back += `<rect class="prop2" x="80" y="100" width="40" height="12" rx="3"/>`;
+    // knee pads of the adductor (side "in") or abductor (side "out") machine
+    if (q.t === "kpads") { const d = q.side === "in" ? 1 : -1; front += [[kneeR[0] - 7 * d, kneeR[1]], [kneeL[0] + 7 * d, kneeL[1]]].map(k => `<circle class="prop fill" cx="${k[0].toFixed(1)}" cy="${k[1]}" r="5"/>`).join(""); }
   }
   return back + body + front;
 }
@@ -203,5 +208,63 @@ const GUIDE = {
   "Remo con mancuerna": { m: "Dorsal y romboides", steps: ["Rodilla y mano del mismo lado apoyadas en el banco, espalda plana.", "Tira de la mancuerna hacia la cadera con el codo pegado.", "Baja estirando el brazo."], ojo: "Girar el tronco para subir más peso.",
     fig: { a: { hip: [70, 106], to: 80, ank: [70, 186], ank2: [30, 146], kb2: "down", ft2: 180, wr: [121, 150], wr2: [124, 150], eb2: "back" }, b: { hip: [70, 106], to: 80, ank: [70, 186], ank2: [30, 146], kb2: "down", ft2: 180, wr: [100, 132], eb: "up", wr2: [124, 150], eb2: "back" }, hl: ["torso", "ua"], props: [{ t: "bench", x: 18, y: 152, w: 120 }, { t: "db", j: "wr" }] } },
   "Remo en polea baja": { m: "Espalda media y dorsal", steps: ["Sentado con los pies en la plataforma y la espalda recta.", "Tira del agarre hacia el abdomen llevando los codos atrás.", "Estira los brazos sin encorvarte."], ojo: "Balancear el tronco adelante y atrás.",
-    fig: { a: { hip: [80, 160], to: 0, ank: [156, 166], kb: "up", ft: 10, wr: [133, 110] }, b: { hip: [80, 160], to: 0, ank: [156, 166], kb: "up", ft: 10, wr: [96, 128], eb: "back" }, hl: ["torso", "ua"], props: [{ t: "bench", x: 58, y: 165, w: 44 }, { t: "line", x1: 168, y1: 144, x2: 168, y2: 188, w: 5 }, { t: "cable", from: [192, 150] }, { t: "handle", j: "wr" }] } }
+    fig: { a: { hip: [80, 160], to: 0, ank: [156, 166], kb: "up", ft: 10, wr: [133, 110] }, b: { hip: [80, 160], to: 0, ank: [156, 166], kb: "up", ft: 10, wr: [96, 128], eb: "back" }, hl: ["torso", "ua"], props: [{ t: "bench", x: 58, y: 165, w: 44 }, { t: "line", x1: 168, y1: 144, x2: 168, y2: 188, w: 5 }, { t: "cable", from: [192, 150] }, { t: "handle", j: "wr" }] } },
+  "Press declinado": { m: "Pectoral inferior, tríceps y hombro", steps: ["Banco declinado con los pies sujetos bajo el rodillo.", "Baja la barra controlada a la parte baja del pecho.", "Empuja hasta estirar los brazos sin rebotar."], ojo: "Levantarte sin ayuda al acabar: pide que te ayuden o sal despacio.",
+    fig: { a: { hip: [112, 140], to: -110, ank: [148, 166], kb: "up", wr: [66, 104] }, b: { hip: [112, 140], to: -110, ank: [148, 166], kb: "up", wr: [72, 142] }, hl: ["torso", "fa"], props: [{ t: "line", x1: 124, y1: 146, x2: 44, y2: 172, w: 7 }, { t: "line", x1: 100, y1: 152, x2: 100, y2: 188, w: 4 }, { t: "pad", j: "ank" }, { t: "plate", j: "wr" }] } },
+  "Press banca con mancuernas": { m: "Pectoral, tríceps y hombro anterior", steps: ["Tumbado en banco plano, mancuernas a los lados del pecho y escápulas juntas.", "Empuja hacia arriba juntándolas un poco.", "Baja controlado hasta notar el estiramiento del pecho."], ojo: "Dejar caer las mancuernas abajo o chocarlas arriba.",
+    fig: { a: { hip: [112, 140], to: -90, ank: [152, 184], kb: "up", wr: [60, 86] }, b: { hip: [112, 140], to: -90, ank: [152, 184], kb: "up", wr: [77, 125] }, hl: ["torso", "fa"], props: [{ t: "bench", x: 22, y: 146, w: 100 }, { t: "db", j: "wr" }] } },
+  "Contractor de pecho": { m: "Pectoral", steps: ["Sentado con la espalda pegada al respaldo y los agarres a la altura del pecho.", "Junta los brazos delante en arco, con los codos un poco doblados.", "Aprieta el pecho un segundo y abre despacio."], ojo: "Abrir tanto que se estire el hombro.",
+    fig: { v: "front", a: { wr: [170, 56], sc: 1 }, b: { wr: [106, 60], sc: .6 }, hl: ["torso"], props: [{ t: "bench" }] } },
+  "Pullover con mancuerna": { m: "Dorsal y pectoral", steps: ["Tumbado en el banco, una mancuerna sujeta con las dos manos sobre el pecho.", "Llévala en arco por detrás de la cabeza con los codos un poco doblados.", "Vuelve tirando con el dorsal hasta tenerla sobre el pecho."], ojo: "Doblar los codos y convertirlo en un press francés.",
+    fig: { a: { hip: [112, 140], to: -90, ank: [152, 184], kb: "up", wr: [60, 86] }, b: { hip: [112, 140], to: -90, ank: [152, 184], kb: "up", wr: [8, 132], eb: "up" }, hl: ["ua", "torso"], props: [{ t: "bench", x: 22, y: 146, w: 100 }, { t: "db", j: "wr" }] } },
+  "Pullover en polea": { m: "Dorsal", steps: ["De pie frente a la polea alta, tronco un poco inclinado y brazos estirados.", "Baja la barra en arco hasta los muslos sin doblar los codos.", "Sube despacio hasta notar el estiramiento del dorsal."], ojo: "Doblar los codos: pasa a ser una extensión de tríceps.",
+    fig: { a: { hip: [96, 106], to: 25, ank: [96, 186], wr: [160, 22] }, b: { hip: [96, 106], to: 25, ank: [96, 186], wr: [124, 112] }, hl: ["ua", "torso"], props: [{ t: "cable", from: [196, -10] }, { t: "handle", j: "wr" }] } },
+  "Remo en máquina": { m: "Dorsal y espalda media", steps: ["Sentado con el pecho apoyado en el respaldo.", "Tira de los agarres hacia el abdomen llevando los codos atrás.", "Junta las escápulas y vuelve estirando los brazos."], ojo: "Despegar el pecho del apoyo para tirar con el cuerpo.",
+    fig: { a: { hip: [80, 150], to: 5, ank: [132, 180], kb: "up", wr: [136, 104] }, b: { hip: [80, 150], to: 5, ank: [132, 180], kb: "up", wr: [98, 118], eb: "back" }, hl: ["torso", "ua"], props: [{ t: "bench", x: 58, y: 155, w: 44 }, { t: "line", x1: 96, y1: 84, x2: 96, y2: 124, w: 6 }, { t: "line", x1: 160, y1: 60, x2: 160, y2: 188, w: 5 }, { t: "handle", j: "wr" }] } },
+  "Hiperextensiones": { m: "Lumbar, glúteo e isquios", steps: ["Cadera apoyada en el cojín y los tobillos bajo el rodillo.", "Baja el tronco con la espalda recta.", "Sube hasta alinear tronco y piernas, apretando el glúteo."], ojo: "Subir de más y arquear la zona lumbar.",
+    fig: { a: { hip: [92, 112], to: 172, ank: [36, 150], kb: "down", ft: 180, wr: [104, 150] }, b: { hip: [92, 112], to: 92, ank: [36, 150], kb: "down", ft: 180, wr: [134, 104] }, hl: ["torso"], props: [{ t: "bench", x: 76, y: 116, w: 30, legs: false }, { t: "line", x1: 90, y1: 122, x2: 70, y2: 188, w: 5 }, { t: "pad", j: "ank" }] } },
+  "Encogimientos": { m: "Trapecio", steps: ["De pie con una mancuerna en cada mano y los brazos estirados.", "Sube los hombros hacia las orejas sin doblar los codos.", "Aguanta un segundo arriba y baja despacio."], ojo: "Girar los hombros en círculo o doblar los codos.",
+    fig: { v: "front", a: { wr: [120, 110], sc: 1, sh: 0 }, b: { wr: [120, 100], sc: 1, sh: 8 }, hl: ["torso"], props: [{ t: "db" }] } },
+  "Press Arnold": { m: "Hombro (las tres partes) y tríceps", steps: ["Sentado, mancuernas delante de la cara con las palmas hacia ti.", "Empuja hacia arriba girando las palmas hasta que miren al frente.", "Baja deshaciendo el giro."], ojo: "Arquear la espalda para empujar.",
+    fig: { v: "front", a: { wr: [110, 58], sc: 1 }, b: { wr: [120, 2], sc: 1 }, hl: ["ua"], props: [{ t: "db" }] } },
+  "Press de hombro con mancuernas": { m: "Hombro y tríceps", steps: ["Sentado con la espalda apoyada, mancuernas a la altura de las orejas.", "Empuja hacia arriba hasta casi juntarlas.", "Baja controlado hasta la altura de las orejas."], ojo: "Bajar demasiado o arquear la zona lumbar.",
+    fig: { v: "front", a: { wr: [138, 40], sc: 1 }, b: { wr: [118, 2], sc: 1 }, hl: ["ua"], props: [{ t: "db" }] } },
+  "Elevaciones frontales": { m: "Hombro anterior", steps: ["De pie, mancuernas delante de los muslos.", "Sube los brazos estirados al frente hasta la altura de los hombros.", "Baja despacio."], ojo: "Balancear el cuerpo para subir.",
+    fig: { a: { hip: [100, 106], to: 0, ank: [100, 186], wr: [102, 106], eb: "fwd" }, b: { hip: [100, 106], to: 0, ank: [100, 186], wr: [154, 52] }, hl: ["ua"], props: [{ t: "db", j: "wr" }] } },
+  "Pájaros en máquina": { m: "Hombro posterior y espalda alta", steps: ["Sentado mirando al respaldo, agarres delante a la altura de los hombros.", "Abre los brazos hacia atrás en arco, con los codos un poco doblados.", "Junta las escápulas y vuelve despacio."], ojo: "Tirar con los brazos doblados: es un remo.",
+    fig: { v: "front", a: { wr: [106, 60], sc: .6 }, b: { wr: [170, 56], sc: 1 }, hl: ["ua"], props: [{ t: "bench" }] } },
+  "Remo al mentón": { m: "Hombro y trapecio", steps: ["De pie, barra o mancuernas delante de los muslos, agarre a la anchura de hombros.", "Sube pegado al cuerpo hasta el pecho, con los codos más altos que las manos.", "Baja controlado."], ojo: "Subir por encima del pecho si molesta el hombro.",
+    fig: { v: "front", a: { wr: [106, 108], sc: 1 }, b: { wr: [108, 50], sc: 1 }, hl: ["ua"], props: [{ t: "db" }] } },
+  "Extensión sobre la cabeza en polea": { m: "Tríceps (cabeza larga)", steps: ["De espaldas a la polea, cuerda detrás de la cabeza y un pie adelantado.", "Estira los codos llevando las manos hacia delante y arriba.", "Vuelve doblando solo los codos."], ojo: "Abrir los codos o mover los brazos.",
+    fig: { a: { hip: [96, 108], to: 20, ank: [122, 186], ank2: [70, 186], wr: [106, 40], eb: "up" }, b: { hip: [96, 108], to: 20, ank: [122, 186], ank2: [70, 186], wr: [158, 22] }, hl: ["fa"], props: [{ t: "cable", from: [30, 40] }, { t: "handle", j: "wr" }] } },
+  "Patada de tríceps": { m: "Tríceps", steps: ["Rodilla y mano apoyadas en el banco, brazo pegado al cuerpo.", "Estira el codo llevando la mancuerna hacia atrás.", "Vuelve doblando solo el codo."], ojo: "Mover el hombro: el brazo no se mueve, solo el antebrazo.",
+    fig: { a: { hip: [70, 106], to: 80, ank: [70, 186], ank2: [30, 146], kb2: "down", ft2: 180, wr: [100, 122], eb: "up", wr2: [124, 150], eb2: "back" }, b: { hip: [70, 106], to: 80, ank: [70, 186], ank2: [30, 146], kb2: "down", ft2: 180, wr: [70, 100], eb: "up", wr2: [124, 150], eb2: "back" }, hl: ["fa"], props: [{ t: "bench", x: 18, y: 152, w: 120 }, { t: "db", j: "wr" }] } },
+  "Press cerrado": { m: "Tríceps y pectoral", steps: ["Tumbado en banco plano, agarre a la anchura de los hombros.", "Baja la barra a la parte baja del pecho con los codos pegados.", "Empuja hasta estirar los brazos."], ojo: "Agarre demasiado estrecho: castiga las muñecas.",
+    fig: { a: { hip: [112, 140], to: -90, ank: [152, 184], kb: "up", wr: [62, 86] }, b: { hip: [112, 140], to: -90, ank: [152, 184], kb: "up", wr: [72, 124] }, hl: ["ua", "fa"], props: [{ t: "bench", x: 22, y: 146, w: 100 }, { t: "plate", j: "wr" }] } },
+  "Curl con mancuernas": { m: "Bíceps", steps: ["De pie, mancuernas a los lados con las palmas hacia delante.", "Sube doblando solo el codo.", "Aprieta arriba y baja despacio."], ojo: "Balancear el cuerpo; adelantar los codos.",
+    fig: { a: { hip: [100, 106], to: 0, ank: [100, 186], wr: [102, 106], eb: "fwd" }, b: { hip: [100, 106], to: 0, ank: [100, 186], wr: [112, 58] }, hl: ["fa"], props: [{ t: "db", j: "wr" }] } },
+  "Curl concentrado": { m: "Bíceps", steps: ["Sentado, codo apoyado en la cara interna del muslo.", "Sube la mancuerna hacia el hombro sin mover el brazo.", "Baja despacio hasta estirar."], ojo: "Separar el codo del muslo.",
+    fig: { a: { hip: [80, 140], to: 40, ank: [124, 186], kb: "up", wr: [118, 152] }, b: { hip: [80, 140], to: 40, ank: [124, 186], kb: "up", wr: [124, 108], eb: "fwd" }, hl: ["fa"], props: [{ t: "bench", x: 60, y: 145, w: 40 }, { t: "db", j: "wr" }] } },
+  "Sentadilla goblet": { m: "Cuádriceps, glúteo y aductores", steps: ["Mancuerna o kettlebell sujeta pegada al pecho, pies algo más abiertos que los hombros.", "Baja con el pecho alto y las rodillas hacia fuera.", "Sube empujando con todo el pie."], ojo: "Separar el peso del pecho o redondear la espalda.",
+    fig: { a: { hip: [92, 106], to: 3, ank: [92, 186], wr: [104, 72] }, b: { hip: [66, 141], to: 45, ank: [92, 186], wr: [114, 116] }, hl: ["thigh"], props: [{ t: "db", j: "wr" }] } },
+  "Sentadilla hack": { m: "Cuádriceps", steps: ["Espalda apoyada en el respaldo y hombros bajo los cojines.", "Baja controlado hasta que los muslos queden paralelos a la plataforma.", "Sube empujando sin bloquear las rodillas."], ojo: "Despegar la cadera del respaldo abajo.",
+    fig: { a: { hip: [92, 104], to: -20, ank: [130, 186], wr: [80, 58] }, b: { hip: [106, 142], to: -20, ank: [130, 186], wr: [94, 96] }, hl: ["thigh"], props: [{ t: "line", x1: 66, y1: 54, x2: 101, y2: 150, w: 7 }] } },
+  "Subida al banco": { m: "Cuádriceps y glúteo", steps: ["De pie frente a un banco o cajón, una mancuerna en cada mano.", "Apoya un pie entero arriba y sube empujando con esa pierna.", "Baja despacio con la misma pierna."], ojo: "Impulsarte con la pierna de abajo.",
+    fig: { a: { hip: [94, 122], to: 5, ank: [124, 148], ank2: [80, 186], wr: [97, 122] }, b: { hip: [114, 72], to: 0, ank: [124, 148], ank2: [104, 124], ft2: 100, wr: [115, 72] }, hl: ["thigh"], props: [{ t: "bench", x: 104, y: 150, w: 54 }, { t: "db", j: "wr" }] } },
+  "Curl femoral sentado": { m: "Isquiotibiales", steps: ["Sentado con el rodillo detrás de los tobillos y el de arriba sobre los muslos.", "Dobla las rodillas llevando los talones hacia abajo y atrás.", "Vuelve despacio sin dejar que el peso choque."], ojo: "Despegar la espalda del respaldo.",
+    fig: { a: { hip: [80, 140], to: -8, ank: [158, 138], kb: "up", wr: [82, 146], eb: "back" }, b: { hip: [80, 140], to: -8, ank: [114, 182], kb: "up", wr: [82, 146], eb: "back" }, hl: ["thigh"], props: [{ t: "bench", x: 60, y: 145, w: 64 }, { t: "line", x1: 68, y1: 146, x2: 62, y2: 84, w: 7 }, { t: "pad", j: "ank" }] } },
+  "Gemelos sentado": { m: "Gemelos y sóleo", steps: ["Sentado con las puntas en la plataforma y el cojín sobre las rodillas.", "Sube los talones todo lo que puedas.", "Baja lento hasta notar el estiramiento."], ojo: "Rebotar abajo.",
+    fig: { a: { hip: [80, 140], to: 0, ank: [120, 186], kb: "up", ft: 90, wr: [108, 134] }, b: { hip: [80, 140], to: 0, ank: [120, 178], kb: "up", ft: 128, wr: [108, 128] }, hl: ["shin"], props: [{ t: "bench", x: 60, y: 145, w: 44 }, { t: "pad", j: "knee" }] } },
+  "Aductores en máquina": { m: "Aductores (cara interna del muslo)", steps: ["Sentado con la espalda apoyada y los cojines por dentro de las rodillas.", "Cierra las piernas despacio hasta juntarlas.", "Aguanta un segundo y abre controlado."], ojo: "Abrir de golpe: deja que el peso vuelva despacio.",
+    fig: { v: "front", a: { wr: [118, 112], sc: 1, lg: 16 }, b: { wr: [118, 112], sc: 1, lg: 0 }, hl: ["legs"], props: [{ t: "seat" }, { t: "kpads", side: "in" }] } },
+  "Abductores en máquina": { m: "Glúteo medio (cara externa de la cadera)", steps: ["Sentado con la espalda apoyada y los cojines por fuera de las rodillas.", "Abre las piernas empujando con el glúteo.", "Aguanta un segundo y cierra despacio."], ojo: "Echarte hacia delante para ayudarte.",
+    fig: { v: "front", a: { wr: [118, 112], sc: 1, lg: 0 }, b: { wr: [118, 112], sc: 1, lg: 16 }, hl: ["legs"], props: [{ t: "seat" }, { t: "kpads", side: "out" }] } },
+  "Patada de glúteo en polea": { m: "Glúteo", steps: ["Tobillera enganchada a la polea baja, agarrado a la máquina.", "Lleva la pierna estirada hacia atrás apretando el glúteo.", "Vuelve despacio sin dejar que el peso choque."], ojo: "Arquear la zona lumbar para subir más la pierna.",
+    fig: { a: { hip: [100, 108], to: 15, ank: [96, 186], ank2: [106, 186], wr: [150, 96] }, b: { hip: [100, 108], to: 15, ank: [34, 140], kb: "down", ft: 150, ank2: [106, 186], wr: [150, 96] }, hl: ["thigh"], props: [{ t: "line", x1: 156, y1: 40, x2: 156, y2: 188, w: 5 }, { t: "cable", from: [8, 184], j: "ank" }] } },
+  "Crunch en polea": { m: "Abdomen", steps: ["De rodillas frente a la polea alta, cuerda junto a la cabeza.", "Encoge el tronco llevando los codos hacia los muslos.", "Vuelve despacio sin sentarte sobre los talones."], ojo: "Tirar con los brazos o mover la cadera.",
+    fig: { a: { hip: [90, 140], to: 15, ank: [46, 184], kb: "down", ft: 180, wr: [112, 80], eb: "up" }, b: { hip: [90, 140], to: 80, ank: [46, 184], kb: "down", ft: 180, wr: [150, 128], eb: "up" }, hl: ["torso"], props: [{ t: "cable", from: [126, -12] }, { t: "handle", j: "wr" }] } },
+  "Plancha lateral": { m: "Oblicuos y core", steps: ["De lado, apoyado en un antebrazo con el codo bajo el hombro.", "Sube la cadera hasta tener el cuerpo recto de la cabeza a los pies.", "Aguanta el tiempo marcado y cambia de lado."], ojo: "Dejar caer la cadera.",
+    fig: { a: { hip: [95, 166], to: 82, hd: 90, ank: [16, 176], ft: 180, wr: [172, 184] }, b: { hip: [95, 158], to: 86, hd: 90, ank: [16, 176], ft: 180, wr: [172, 184] }, hl: ["torso"], props: [] } },
+  "Giro ruso": { m: "Oblicuos y abdomen", steps: ["Sentado con el tronco inclinado atrás y los pies apoyados o en el aire.", "Gira el tronco llevando el peso a un lado de la cadera y luego al otro.", "Mantén la espalda recta durante todo el giro."], ojo: "Mover solo los brazos sin girar el tronco.",
+    fig: { a: { hip: [100, 176], to: -35, ank: [146, 160], kb: "up", ft: 70, wr: [124, 140] }, b: { hip: [100, 176], to: -35, ank: [146, 160], kb: "up", ft: 70, wr: [104, 150] }, hl: ["torso"], props: [{ t: "plate", j: "wr", r: 9 }] } }
 };

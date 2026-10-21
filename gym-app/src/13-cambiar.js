@@ -4,9 +4,9 @@
    (perfiles/<who>.noGusta) and are replaced on their own whenever a workout opens. */
 const SWIM = ["Crol", "Espalda", "Braza", "Mariposa", "Patada con tabla", "Pull buoy"];
 const CARDIO = ["Carrera en cinta", "Bici", "Elíptica", "Remo ergómetro", "Comba", "Caminar en cinta inclinada"];
-const TIMED = new Set(["Plancha", "Mountain climbers"]);
+const TIMED = new Set(["Plancha", "Plancha lateral", "Mountain climbers"]);
 const BODYWEIGHT = new Set(["Dominadas", "Fondos", "Flexiones", "Remo invertido", "Mountain climbers", "Sentadilla sin peso", "Pike push-up", "Burpee",
-  "Puente de glúteo", "Fondos en banco", "Plancha", "Crunch", "Elevación de piernas", "Zancadas", "Sentadilla búlgara", "Gemelos"]);
+  "Puente de glúteo", "Fondos en banco", "Plancha", "Plancha lateral", "Crunch", "Elevación de piernas", "Zancadas", "Sentadilla búlgara", "Gemelos", "Hiperextensiones", "Giro ruso"]);
 let swap = null; // the open "Cambiar" sheet: { bi, ii, list, ai, aiErr, dislike }
 
 const dislikes = (who = me) => { const l = profiles[who] && profiles[who].noGusta; return Array.isArray(l) ? l.map(String) : []; };

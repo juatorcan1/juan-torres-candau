@@ -486,8 +486,11 @@ async function shrink(file){
   c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
   return await new Promise(r => c.toBlob(b => r(b || file), "image/jpeg", 0.85));
 }
+// El prompt va en tres trozos para que la caché de Anthropic sirva de un ticket a otro: lo que no
+// cambia nunca (instrucciones y categorías), lo que cambia poco (lo aprendido de Juan) y, al final,
+// lo de este ticket (la fecha de hoy y el texto del PDF). `text` es todo junto, para quien no lo trocea.
 function ticketPrompt(extraText){
-  return `Eres el contable personal de Juan (España). Te paso ${extraText ? "el texto de una factura o ticket" : "la foto de un ticket o factura"} de sus cuentas PERSONALES. Léelo y devuelve SOLO un objeto JSON, sin nada más:
+  const fijo = [`Eres el contable personal de Juan (España). Te paso un ticket o una factura (en foto o en texto) de sus cuentas PERSONALES. Léelo y devuelve SOLO un objeto JSON, sin nada más:
 {"tipo":"gasto"|"ingreso","comercio":texto o null,"razon_social":texto o null,"cif":texto o null,"numero":texto o null,"fecha":"AAAA-MM-DD" o null,"total":número o null,"pago":"tarjeta"|"efectivo"|"bizum"|"transferencia"|"domiciliado"|null,"tarjeta_final":"4 cifras" o null,"lineas":[{"concepto":texto,"cat":id,"importe":número}],"confianza":número de 0 a 1,"dudas":texto o null,"manuscrito":texto o null,"pagos":[{"forma":"tarjeta"|"efectivo"|"bizum"|"otro","importe":número}],"pregunta":null o {"linea":número de línea empezando en 0,"texto":texto,"opciones":[{"etiqueta":texto,"cat":id}]}}
 
 Reglas:
@@ -501,7 +504,7 @@ Reglas:
 - Categorías: NO uses «compras.otras», «otros.varios» ni «otrosi.varios» salvo que de verdad no encaje en ninguna otra. Si dudas entre dos o tres categorías porque depende de algo que sólo sabe Juan (p. ej. si algo es un regalo o para él, si una cena es de ocio o de trabajo), pon en "cat" la más probable y rellena "pregunta": una pregunta corta y directa a Juan sobre esa línea, con 2 a 4 opciones, cada una con su categoría. Si no hay dudas, "pregunta" es null.
 - "cat" tiene que ser uno de estos ids, exactamente:
 ${catListForIA()}
-- Así ha clasificado Juan otras veces (úsalo como guía, manda sobre tu criterio; pero si el producto es claramente de otra cosa, como cartuchos en una tienda de deporte, manda el producto):
+`, `- Así ha clasificado Juan otras veces (úsalo como guía, manda sobre tu criterio; pero si el producto es claramente de otra cosa, como cartuchos en una tienda de deporte, manda el producto):
 ${learnedForIA()}
 - Clasifica por lo que es cada producto, no por la tienda: unos cartuchos comprados en Decathlon son caza, no deporte. Cartuchos y munición (calibre, gramos, nº de perdigón, marcas como RIO, Saga, Fenix, Trust, Mirage; «SP RIO 50 34G/09» = cartuchos RIO de 34 g del nº 9), licencias de caza o de armas, coto, monterías, armero, ropa de caza y perros de caza van a las categorías «caza.*».
 - Si la misma línea sale repetida varias veces, súmalas en una sola.
@@ -510,7 +513,11 @@ ${learnedForIA()}
 - "manuscrito": todo lo que esté ESCRITO A MANO en el papel (con bolígrafo, lápiz o rotulador, no lo impreso), copiado tal cual y en el orden en que aparece: para qué fue, con quién, una obra, un nombre, «pagado», una cuenta hecha a mano… Si es difícil de leer, pon lo que se entienda y marca lo dudoso con «(?)». Si no hay nada escrito a mano, null. Si a mano se ha añadido una propina, súmala al total en una línea aparte «Propina» con la categoría del resto y dilo en "dudas".
 - "pagos": cada pago que sale al pie del ticket, por separado (si se pagó con varias tarjetas y efectivo, uno por cada uno). Al efectivo réstale el cambio: «Efectivo 20,00 / Cambio 1,30» es un pago de 18,70 en efectivo. Si sólo hay un pago o no se ve, [].
 - En una «factura simplificada» el "numero" es su número (p. ej. V2026036400100040626).
-- Fechas de España: 03/09/26 es el 3 de septiembre de 2026; 21/8/2026 es el 21 de agosto. Hoy es ${toISO(NOW)}.${extraText ? "\n\nTexto del papel:\n" + extraText.slice(0, 40000) : ""}`;
+- Fechas de España: 03/09/26 es el 3 de septiembre de 2026; 21/8/2026 es el 21 de agosto.
+
+`];
+  const resto = `Hoy es ${toISO(NOW)}.${extraText ? "\n\nTexto del papel:\n" + extraText.slice(0, 40000) : ""}`;
+  return { fijo, text: fijo.join("") + resto };
 }
 async function readTicket(key, files){
   const j = JOBS.find(x => x.key === key); if (!j) return;
@@ -530,7 +537,8 @@ async function readTicket(key, files){
     if (images.length && !maxImg && !text) throw { mine: "Este aparato no deja mandar fotos a la IA. Apúntalo a mano o sube la factura en PDF." };
     images = images.slice(0, maxImg || 0);
     jobUpdate(key, { msg: "La IA está leyendo el papel…" });
-    const o = await sample.json(ticketPrompt(text), { images: images.length ? images : undefined, cache: false });
+    const p = ticketPrompt(text);
+    const o = await sample.json(p.text, { images: images.length ? images : undefined, cache: false, fijo: p.fijo, tarea: "ticket" });
     if (!o || typeof o !== "object") throw { mine: "La IA no ha devuelto nada que se pueda usar." };
     const d = iaToDraft(o, "ticket");
     d.blob = thumb; d.ticketUrl = thumb ? URL.createObjectURL(thumb) : ""; d.pdf = pdf;
@@ -574,7 +582,7 @@ ${accountsForIA()}
 ${learnedForIA()}
 
 Lo que cuenta Juan:
-${t.slice(0, 6000)}`, { cache: false });
+${t.slice(0, 6000)}`, { cache: false, tarea: "dictado" });
     const list = Array.isArray(o && o.movimientos) ? o.movimientos : [];
     removeJob(key);
     if (!list.length) { addJob("texto", null, {}); JOBS[0].state = "error"; JOBS[0].err = "No he sacado ningún movimiento de lo que has escrito."; JOBS[0].name = "Lo que has contado"; }

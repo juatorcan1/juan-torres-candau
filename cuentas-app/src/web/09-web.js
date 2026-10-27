@@ -151,6 +151,8 @@ function parseLoose(text){
 function makeSample(){
   const call = async (input, opts = {}) => {
     const prompt = typeof input === "string" ? input : input.map(m => m.content).join("\n\n");
+    // El prompt va entero; "fijo" dice qué trozos del principio no cambian, para la caché de Anthropic.
+    const fijo = Array.isArray(opts.fijo) ? opts.fijo : [];
     const imgs = opts.images ? Array.from(opts.images.length != null ? opts.images : [opts.images]).slice(0, 4) : [];
     const images = [];
     for (const b of imgs) images.push({ type: b.type || "image/jpeg", data: await toB64(b) });
@@ -161,7 +163,7 @@ function makeSample(){
       r = await fetch(CFG.url + "/functions/v1/cuentas-claude", {
         method: "POST", signal: opts.signal,
         headers: { "Content-Type": "application/json", Authorization: "Bearer " + data.session.access_token, apikey: CFG.key },
-        body: JSON.stringify({ prompt, images })
+        body: JSON.stringify({ prompt, images, fijo, tarea: opts.tarea || "" })
       });
     } catch (e) { throw { code: e && e.name === "AbortError" ? "cancelled" : "upstream_error", message: String(e) }; }
     const j = await r.json().catch(() => ({}));

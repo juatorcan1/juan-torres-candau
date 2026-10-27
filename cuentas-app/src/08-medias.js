@@ -139,7 +139,7 @@ async function splitGo(){
   if (!dict.trim() && !splitImg) { splitErr = "Haz la foto del ticket o di qué ha tomado cada uno."; return renderView(); }
   splitBusy = true; splitErr = ""; renderView();
   try {
-    const o = await sample.json(splitPrompt(dict), { images: splitImg ? [splitImg] : undefined, cache: false });
+    const o = await sample.json(splitPrompt(dict), { images: splitImg ? [splitImg] : undefined, cache: false, tarea: "medias" });
     if (!o || !Array.isArray(o.lineas)) throw { mine: "La IA no ha devuelto nada que se pueda usar." };
     const personas = [YO];
     for (const p of [].concat(o.personas || [], ...o.lineas.map(l => l.personas || []))) { const n = String(p || "").trim().slice(0, 30); if (n && !personas.some(x => norm(x) === norm(n))) personas.push(norm(n) === norm(YO) ? YO : n); }
@@ -356,7 +356,7 @@ async function tcPasarStart(key){
     TCP.msg = trozos > 1 ? `La IA está poniendo las categorías: ${i + 1} de ${trozos}…` : "La IA está poniendo las categorías…"; renderView();
     const parte = rows.slice(i * N, (i + 1) * N);
     try {
-      const o = await sample.json(tcPasarPrompt(it, d, parte), { cache: false });
+      const o = await sample.json(tcPasarPrompt(it, d, parte), { cache: false, tarea: "tricount" });
       for (const x of (o && o.g) || []) {
         const r = parte.find(r => r.id === String(x && x.id)); if (!r) continue;
         if (x.cat && CATIDX[x.cat] && CATIDX[x.cat].tipo === "gasto") r.cat = x.cat;

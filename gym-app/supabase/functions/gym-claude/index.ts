@@ -67,9 +67,13 @@ Deno.serve(async (req: Request) => {
     if (!text.trim()) return reply({ code: "empty_completion" }, 502);
     return reply({ text, truncated: msg.stop_reason === "max_tokens" });
   } catch (e) {
+    // Queda en los registros de la función: sin esto, un fallo de Anthropic no deja rastro.
+    console.error("gym-claude:", e instanceof Anthropic.APIError ? `${e.status} ${e.message}` : String(e));
     if (e instanceof Anthropic.RateLimitError) return reply({ code: "rate_limited" }, 429);
     if (e instanceof Anthropic.AuthenticationError) return reply({ code: "no_key", error: "Clave de Anthropic no válida" }, 503);
-    if (e instanceof Anthropic.APIError) return reply({ code: "upstream_error", error: e.message }, 502);
+    if (e instanceof Anthropic.APIError && /credit balance/i.test(e.message)) return reply({ code: "no_credit", error: e.message }, 402);
+    if (e instanceof Anthropic.APIError && e.status === 529) return reply({ code: "overloaded", error: e.message }, 503);
+    if (e instanceof Anthropic.APIError) return reply({ code: "upstream_error", error: `${e.status ?? ""} ${e.message}`.trim() }, 502);
     return reply({ code: "upstream_error", error: String(e) }, 502);
   }
 });

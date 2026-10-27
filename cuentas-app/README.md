@@ -46,6 +46,7 @@ persona paga algo por ti (p. ej. la cuenta del bar), queda en negativo y aparece
     Row Level Security: cada uno ve y toca sólo lo suyo (`owner = auth.uid()`).
   - Carpeta privada `cuentas-tickets` para las fotos de los tickets (`<user_id>/<id>.jpg`).
   - `cuentas_claude_uso`: llamadas a la IA por día (tope de 150).
+  - `cuentas_claude_gasto`: lo que gasta cada llamada a la IA (tokens y dólares), para saber cuánto cuesta un ticket.
 - La IA (tickets, dictado, extractos y preguntas) pasa por la Edge Function `supabase/functions/cuentas-claude`,
   con la misma clave de Anthropic que el gimnasio.
 - **Tickets en Google Drive**, como en Senda: cada ticket que se guarda se archiva también en

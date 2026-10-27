@@ -2547,9 +2547,16 @@ const SAMPLE_ERR = {
   rate_limited: "Demasiadas peticiones seguidas. Espera un poco y vuelve a intentarlo.", session_expired: "Tu sesión ha caducado: vuelve a iniciar sesión.",
   invalid_json: "Claude no ha devuelto los datos bien ordenados. Pulsa otra vez.", refused: "Claude no ha querido procesar este texto. Cámbialo un poco.",
   prompt_too_large: "El texto es demasiado largo. Cuéntalo en dos partes.",
-  no_key: "Claude todavía no está configurado en el servidor (falta la clave de Anthropic).", upstream_error: "No se ha podido hablar con Claude. Vuelve a intentarlo."
+  no_key: "Claude todavía no está configurado en el servidor (falta la clave de Anthropic).",
+  no_credit: "La cuenta de Anthropic se ha quedado sin saldo. Recárgala en console.anthropic.com y vuelve a probar.",
+  overloaded: "Claude está saturado. Espera un minuto y vuelve a probar."
 };
-const sampleMsg = e => SAMPLE_ERR[e && e.code] || "No se ha podido hablar con Claude. Vuelve a intentarlo.";
+// Unknown failures keep the real reason in brackets, so a broken Claude never looks like a plain retry.
+const sampleMsg = e => {
+  if (e && SAMPLE_ERR[e.code]) return SAMPLE_ERR[e.code];
+  const det = e && e.message ? String(e.message).trim().slice(0, 160) : "";
+  return "No se ha podido hablar con Claude. Vuelve a intentarlo." + (det ? ` (${det})` : "");
+};
 async function vozGo(){
   const text = String(keep("voz")).trim();
   if (!text) { vErr = "Cuenta primero lo que has hecho (pulsa el micrófono del teclado)."; renderVoz(); return; }

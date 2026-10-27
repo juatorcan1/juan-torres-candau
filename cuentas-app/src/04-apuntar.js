@@ -538,7 +538,7 @@ async function readTicket(key, files){
     DRAFTS[key] = d;
     jobUpdate(key, { state: "listo", name: d.comercio || "Ticket", url: d.ticketUrl });
   } catch (e) {
-    const msg = e && e.mine ? e.mine : e && e.code === "not_granted" ? "No has dado permiso para usar la IA." : e && e.code === "rate_limited" ? "Demasiados tickets seguidos. Espera un minuto y dale a «Probar otra vez»." : e && e.code === "invalid_json" ? "La IA no ha sabido leerlo bien." : "No he podido leerlo.";
+    const msg = e && e.code === "rate_limited" ? "Demasiados tickets seguidos. Espera un minuto y dale a «Probar otra vez»." : e && e.code === "invalid_json" ? "La IA no ha sabido leerlo bien." : iaErrMsg(e, "No he podido leerlo.");
     jobUpdate(key, { state: "error", err: msg, retry: true });
   }
 }
@@ -581,7 +581,7 @@ ${t.slice(0, 6000)}`, { cache: false });
     for (const m of list.reverse()) { const d = iaToDraft(m, "texto"); if (m.cuenta && cuenta(m.cuenta)) d.cuenta = m.cuenta; addJob("texto", d, { name: d.comercio || (d.tipo === "traspaso" ? "Traspaso" : "Movimiento") }); }
     if ($("#dict")) $("#dict").value = "";
   } catch (e) {
-    jobUpdate(key, { state: "error", err: e && e.code === "not_granted" ? "No has dado permiso para usar la IA." : "No ha salido. Prueba otra vez." });
+    jobUpdate(key, { state: "error", err: iaErrMsg(e, "No ha salido. Prueba otra vez.") });
   }
   renderView();
 }

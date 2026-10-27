@@ -105,7 +105,7 @@ async function onExtractFile(file){
       EXT.saldo = { v: r2(pick.r.saldo), fecha: pick.r.fecha };
     }
   } catch (e) {
-    EXT.err = e && e.mine ? e.mine : e && e.code === "not_granted" ? "No has dado permiso para usar la IA." : e && e.code === "rate_limited" ? "La IA está saturada. Espera un minuto y vuelve a probar." : "No he podido leer el fichero.";
+    EXT.err = e && e.code === "rate_limited" ? "La IA está saturada. Espera un minuto y vuelve a probar." : iaErrMsg(e, "No he podido leer el fichero.");
     EXT.rows = [];
   }
   EXT.busy = false; renderView();

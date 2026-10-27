@@ -7,6 +7,24 @@ const store = {
   set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
 };
 const num = v => { if (typeof v === "number") return isFinite(v) ? v : 0; let s = String(v ?? "").trim().replace(/\s|€/g, ""); if (/,\d{1,2}$/.test(s)) s = s.replace(/\./g, "").replace(",", "."); else s = s.replace(/,/g, ""); const n = parseFloat(s); return isFinite(n) ? n : 0; };
+// Por qué no ha salido una llamada a la IA, dicho para Juan. Lo que no se reconoce lleva el detalle
+// entre paréntesis, para saber qué ha pasado sin tener que mirar los registros.
+const IA_ERR = {
+  not_granted: "No has dado permiso para usar la IA.",
+  no_credit: "La cuenta de Anthropic se ha quedado sin saldo. Recárgala en console.anthropic.com y vuelve a probar.",
+  no_key: "La clave de Anthropic falta o no vale: hay que revisarla en Supabase.",
+  session_expired: "Tu sesión ha caducado: sal y vuelve a entrar.",
+  forbidden: "Este usuario no tiene permiso para usar la IA de las cuentas.",
+  refused: "La IA no ha querido leer esto.",
+  overloaded: "La IA está saturada. Espera un minuto y vuelve a probar.",
+  rate_limited: "Demasiadas seguidas. Espera un minuto y vuelve a probar."
+};
+const iaErrMsg = (e, generic) => {
+  if (e && e.mine) return e.mine;
+  if (e && IA_ERR[e.code]) return IA_ERR[e.code];
+  const det = e && e.message ? String(e.message).trim().slice(0, 160) : "";
+  return det ? `${generic} (${det})` : generic;
+};
 const r2 = v => Math.round((v + Number.EPSILON) * 100) / 100;
 const NF2 = new Intl.NumberFormat("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const NF0 = new Intl.NumberFormat("es-ES", { maximumFractionDigits: 0 });

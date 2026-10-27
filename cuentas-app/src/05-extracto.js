@@ -82,7 +82,7 @@ async function onExtractFile(file){
     const out = [];
     for (let i = 0; i < chunks.length; i++) {
       EXT.msg = chunks.length > 1 ? `La IA está leyendo el extracto: trozo ${i + 1} de ${chunks.length}…` : "La IA está leyendo el extracto…"; renderView();
-      const o = await sample.json(extPrompt(head, chunks[i], i + 1, chunks.length), { cache: false });
+      const o = await sample.json(extPrompt(head, chunks[i], i + 1, chunks.length), { cache: false, tarea: "extracto" });
       for (const m of (o && o.movimientos) || []) if (m && /^\d{4}-\d{2}-\d{2}$/.test(m.fecha || "") && num(m.importe)) out.push(m);
     }
     if (!out.length) throw { mine: "No he encontrado movimientos en el fichero." };

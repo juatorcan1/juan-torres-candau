@@ -159,7 +159,7 @@ Pregunta de Juan: ${q}
 Sus datos (JSON):
 ${JSON.stringify(resumenParaIA())}`;
   try {
-    await sample(prompt, { signal: askState.ctl.signal, cache: false, onText: ({ text }) => { askState.text = text; paintAsk(); } });
+    await sample(prompt, { signal: askState.ctl.signal, cache: false, tarea: "pregunta", onText: ({ text }) => { askState.text = text; paintAsk(); } });
   } catch (e) {
     if (e && e.code !== "cancelled") askState.err = e.code === "not_granted" ? "No has dado permiso para preguntar a la IA." : e.code === "rate_limited" ? "Demasiadas preguntas seguidas. Espera un poco." : "No ha salido. Prueba otra vez.";
     if (e && e.text) askState.text = e.text;

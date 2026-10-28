@@ -863,7 +863,7 @@ const CATALOG = {
   "Press militar":"Hombro","Elevaciones laterales":"Hombro","Pájaros":"Hombro","Face pull":"Hombro",
   "Curl con barra":"Bíceps","Curl martillo":"Bíceps","Curl en banco Scott":"Bíceps","Curl en polea":"Bíceps",
   "Extensión en polea":"Tríceps","Press francés":"Tríceps",
-  "Plancha":"Core","Crunch":"Core","Crunch en banco":"Core","Rueda abdominal":"Core","Elevación de piernas":"Core",
+  "Plancha":"Core","Crunch":"Core","Crunch en banco":"Core","Rueda abdominal":"Core","Elevación de piernas":"Core","Elevación de piernas tumbado":"Core",
   "Flexiones":"Pecho","Remo invertido":"Espalda","Mountain climbers":"Core","Sentadilla sin peso":"Piernas","Pike push-up":"Hombro",
   "Burpee":"Full body","Puente de glúteo":"Glúteo","Fondos en banco":"Tríceps",
   "Press declinado":"Pecho","Press banca con mancuernas":"Pecho","Contractor de pecho":"Pecho","Pullover con mancuerna":"Pecho",
@@ -1245,6 +1245,8 @@ const GUIDE = {
     fig: { a: { hip: [70, 146], to: 20, ank: [30, 184], kb: "down", ft: 180, wr: [102, 176] }, b: { hip: [100, 168], to: 80, ank: [30, 184], kb: "down", ft: 180, wr: [184, 176] }, hl: ["torso"], props: [{ t: "wheel", j: "wr" }] } },
   "Elevación de piernas": { m: "Abdomen inferior y flexores de cadera", steps: ["Colgado de la barra con los brazos estirados.", "Sube las piernas hasta la horizontal (o las rodillas al pecho).", "Baja sin balancearte."], ojo: "Usar el balanceo.",
     fig: { a: { hip: [100, 112], to: 0, ank: [100, 190], kb: "fwd", wr: [100, 6] }, b: { hip: [100, 112], to: 0, ank: [178, 106], kb: "down", wr: [100, 6] }, hl: ["torso", "thigh"], nofloor: true, props: [{ t: "bar", x1: 56, y1: 6, x2: 150, y2: 6 }] } },
+  "Elevación de piernas tumbado": { m: "Abdomen inferior y flexores de cadera", steps: ["Tumbado boca arriba en el suelo, piernas estiradas y brazos a los lados.", "Sube las piernas juntas hasta que queden casi en vertical.", "Bájalas despacio sin llegar a apoyar los talones."], ojo: "Despegar la zona lumbar del suelo.",
+    fig: { a: { hip: [100, 180], to: -90, ank: [180, 180], ft: 0, wr: [102, 182] }, b: { hip: [100, 180], to: -90, ank: [114, 101], ft: 90, wr: [102, 182] }, hl: ["torso", "thigh"], props: [] } },
   "Flexiones": { m: "Pectoral, tríceps y hombro", steps: ["Manos algo más abiertas que los hombros, cuerpo recto de la cabeza a los talones.", "Baja el pecho casi hasta el suelo con los codos a unos 45° del cuerpo.", "Empuja el suelo hasta estirar los brazos sin hundir la cadera."], ojo: "Cadera caída o culo en pompa.",
     fig: { a: { hip: [90, 150], to: 78, hd: 100, ank: [12, 176], ft: 160, wr: [141, 188] }, b: { hip: [90, 166], to: 84, hd: 100, ank: [12, 176], ft: 160, wr: [141, 188], eb: "up" }, hl: ["torso", "ua"], props: [] } },
   "Remo invertido": { m: "Dorsal, romboides y bíceps", steps: ["Túmbate bajo una barra baja o anillas, agarre a la anchura de hombros.", "Con el cuerpo recto y los talones en el suelo, tira hasta llevar el pecho a la barra.", "Baja controlado hasta estirar los brazos."], ojo: "Doblar la cadera para llegar.",
@@ -1357,7 +1359,7 @@ const EX_MUS = {
   "Prensa": [["cuadriceps", "gluteo"], ["isquios"]], "Zancadas": [["cuadriceps", "gluteo"], ["isquios", "gemelos"]], "Sentadilla búlgara": [["cuadriceps", "gluteo"], ["isquios"]],
   "Extensión de cuádriceps": [["cuadriceps"], []], "Curl femoral": [["isquios"], ["gemelos"]], "Gemelos": [["gemelos"], []], "Hip thrust": [["gluteo"], ["isquios"]],
   "Plancha": [["abdomen"], ["oblicuos", "deltoides"]], "Crunch": [["abdomen"], []], "Crunch en banco": [["abdomen"], ["oblicuos"]], "Rueda abdominal": [["abdomen"], ["dorsal", "oblicuos"]],
-  "Elevación de piernas": [["abdomen"], ["oblicuos"]], "Remo con mancuerna": [["dorsal"], ["biceps", "trapecio"]], "Remo en polea baja": [["dorsal"], ["biceps", "trapecio"]],
+  "Elevación de piernas": [["abdomen"], ["oblicuos"]], "Elevación de piernas tumbado": [["abdomen"], ["oblicuos"]], "Remo con mancuerna": [["dorsal"], ["biceps", "trapecio"]], "Remo en polea baja": [["dorsal"], ["biceps", "trapecio"]],
   "Flexiones": [["pectoral"], ["triceps", "deltoides", "abdomen"]], "Remo invertido": [["dorsal"], ["biceps", "trapecio"]], "Mountain climbers": [["abdomen"], ["cuadriceps", "deltoides"]],
   "Sentadilla sin peso": [["cuadriceps", "gluteo"], []], "Pike push-up": [["deltoides"], ["triceps"]], "Burpee": [["cuadriceps", "pectoral"], ["deltoides", "abdomen"]],
   "Puente de glúteo": [["gluteo"], ["isquios"]], "Fondos en banco": [["triceps"], ["deltoides", "pectoral"]],
@@ -4019,7 +4021,7 @@ const SWIM = ["Crol", "Espalda", "Braza", "Mariposa", "Patada con tabla", "Pull 
 const CARDIO = ["Carrera en cinta", "Bici", "Elíptica", "Remo ergómetro", "Comba", "Caminar en cinta inclinada"];
 const TIMED = new Set(["Plancha", "Plancha lateral", "Mountain climbers"]);
 const BODYWEIGHT = new Set(["Dominadas", "Fondos", "Flexiones", "Remo invertido", "Mountain climbers", "Sentadilla sin peso", "Pike push-up", "Burpee",
-  "Puente de glúteo", "Fondos en banco", "Plancha", "Plancha lateral", "Crunch", "Elevación de piernas", "Zancadas", "Sentadilla búlgara", "Gemelos", "Hiperextensiones", "Giro ruso"]);
+  "Puente de glúteo", "Fondos en banco", "Plancha", "Plancha lateral", "Crunch", "Elevación de piernas", "Elevación de piernas tumbado", "Zancadas", "Sentadilla búlgara", "Gemelos", "Hiperextensiones", "Giro ruso"]);
 let swap = null; // the open "Cambiar" sheet: { bi, ii, list, ai, aiErr, dislike }
 
 const dislikes = (who = me) => { const l = profiles[who] && profiles[who].noGusta; return Array.isArray(l) ? l.map(String) : []; };

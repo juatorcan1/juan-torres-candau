@@ -20,7 +20,7 @@ const EX_MUS = {
   "Prensa": [["cuadriceps", "gluteo"], ["isquios"]], "Zancadas": [["cuadriceps", "gluteo"], ["isquios", "gemelos"]], "Sentadilla búlgara": [["cuadriceps", "gluteo"], ["isquios"]],
   "Extensión de cuádriceps": [["cuadriceps"], []], "Curl femoral": [["isquios"], ["gemelos"]], "Gemelos": [["gemelos"], []], "Hip thrust": [["gluteo"], ["isquios"]],
   "Plancha": [["abdomen"], ["oblicuos", "deltoides"]], "Crunch": [["abdomen"], []], "Crunch en banco": [["abdomen"], ["oblicuos"]], "Rueda abdominal": [["abdomen"], ["dorsal", "oblicuos"]],
-  "Elevación de piernas": [["abdomen"], ["oblicuos"]], "Remo con mancuerna": [["dorsal"], ["biceps", "trapecio"]], "Remo en polea baja": [["dorsal"], ["biceps", "trapecio"]],
+  "Elevación de piernas": [["abdomen"], ["oblicuos"]], "Elevación de piernas tumbado": [["abdomen"], ["oblicuos"]], "Remo con mancuerna": [["dorsal"], ["biceps", "trapecio"]], "Remo en polea baja": [["dorsal"], ["biceps", "trapecio"]],
   "Flexiones": [["pectoral"], ["triceps", "deltoides", "abdomen"]], "Remo invertido": [["dorsal"], ["biceps", "trapecio"]], "Mountain climbers": [["abdomen"], ["cuadriceps", "deltoides"]],
   "Sentadilla sin peso": [["cuadriceps", "gluteo"], []], "Pike push-up": [["deltoides"], ["triceps"]], "Burpee": [["cuadriceps", "pectoral"], ["deltoides", "abdomen"]],
   "Puente de glúteo": [["gluteo"], ["isquios"]], "Fondos en banco": [["triceps"], ["deltoides", "pectoral"]],

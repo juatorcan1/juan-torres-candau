@@ -43,7 +43,7 @@ const CATALOG = {
   "Press militar":"Hombro","Elevaciones laterales":"Hombro","Pájaros":"Hombro","Face pull":"Hombro",
   "Curl con barra":"Bíceps","Curl martillo":"Bíceps","Curl en banco Scott":"Bíceps","Curl en polea":"Bíceps",
   "Extensión en polea":"Tríceps","Press francés":"Tríceps",
-  "Plancha":"Core","Crunch":"Core","Crunch en banco":"Core","Rueda abdominal":"Core","Elevación de piernas":"Core",
+  "Plancha":"Core","Crunch":"Core","Crunch en banco":"Core","Rueda abdominal":"Core","Elevación de piernas":"Core","Elevación de piernas tumbado":"Core",
   "Flexiones":"Pecho","Remo invertido":"Espalda","Mountain climbers":"Core","Sentadilla sin peso":"Piernas","Pike push-up":"Hombro",
   "Burpee":"Full body","Puente de glúteo":"Glúteo","Fondos en banco":"Tríceps",
   "Press declinado":"Pecho","Press banca con mancuernas":"Pecho","Contractor de pecho":"Pecho","Pullover con mancuerna":"Pecho",

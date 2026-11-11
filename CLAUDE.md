@@ -33,6 +33,24 @@ tablas, funciones y Edge Functions con el prefijo de cada app** (`gym_*`, `cuent
   claves secretas. La clave publicable de Supabase sí puede estar (`src/web/supabase-publishable-key.txt`).
 - La clave de Anthropic vive en los secretos de las Edge Functions o en el Vault, nunca en el código.
 
+## Correos que Claude manda en nombre de Juan
+
+Misma norma que en `senda-cerebro` (`criterios/correos-con-la-firma-de-juan.md`, repositorio privado; aquí solo
+va el resumen, porque este repositorio es público). Vale para cualquier correo, sea del tema que sea (drones,
+proveedores, abogado, etc.):
+
+- Salen siempre del Outlook de empresa (`juantorrescandau@sendacc.com`) con su firma entera: tarjeta de Senda,
+  los tres sellos de AENOR y los cuatro avisos. El Gmail personal solo si Juan lo dice para ese correo.
+- Pasos: 1) Juan pide el correo y Claude lo escribe en la conversación; 2) lo repasan juntos; 3) cuando Juan dice
+  «envíalo», Claude lo apunta en la bandeja de salida de Senda 360; 4) el vigía del correo lo envía desde el Outlook
+  de Juan y le pone la firma (si no hay firma, no lo envía); 5) Claude comprueba que ha salido y se lo dice.
+- Nunca se envía ni se deja en borradores con la conexión de Outlook de Claude (no lleva imágenes, saldría sin
+  tarjeta ni sellos), ni se copia la firma a mano en el cuerpo. Esa conexión solo sirve para leer.
+- El texto acaba con la despedida de Juan («Muchas gracias X, un saludo y buena semana.») y no lleva firma.
+- Si el correo lleva un papel, se sube al Drive y se pone el enlace: la bandeja no adjunta.
+- Sin el «envíalo» de Juan no se escribe nada en la bandeja. Nada de nombres de clientes, abogados o importes
+  en este repositorio.
+
 ## Agentes de Claude Code (`.claude/agents/`)
 
 - `guardian-gym`: revisa que los datos del gimnasio estén bien guardados (sesiones a medias, días sin apuntar,

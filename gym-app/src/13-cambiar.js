@@ -75,13 +75,16 @@ function applySwap(bi, ii, item){
   // the step on screen (in the rest, the one just done), to find it again after the swap
   const cur = run.steps[run.i], was = cur && { ...cur };
   if (was && was.bi === bi && done) { if (was.ii > ii) was.ii++; else if (was.ii === ii && was.s > done) { was.ii++; was.s -= done; } }
-  if (!done) items[ii] = { ...item, series: old.series, ...(old.desde ? { desde: old.desde } : {}) };
+  run.edit = null; // a set reopened with «◀ Anterior» stays as it was, with the old exercise
+  if (!done) { items[ii] = { ...item, series: old.series, ...(old.desde ? { desde: old.desde } : {}) }; if (run.skip) delete run.skip[bi + "." + ii]; }
   else {
     // alternating: the new exercise goes on from the round where the old one stopped, next to its partner
     items.splice(ii, 1, { ...old, series: done }, { ...item, series: Math.max(1, old.series - done), ...(b.alterna ? { desde: num(old.desde) + done } : {}) });
     const log = {};
     for (const [k, v] of Object.entries(run.log)) { const [b, i] = k.split(".").map(Number); log[b === bi && i > ii ? b + "." + (i + 1) : k] = v; }
     run.log = log;
+    // the exercises skipped move with them; the new one is not skipped
+    if (run.skip) { const sk = {}; for (const k of Object.keys(run.skip)) { const [b, i] = k.split(".").map(Number); if (!(b === bi && i === ii)) sk[b === bi && i > ii ? b + "." + (i + 1) : k] = true; } run.skip = sk; }
   }
   run.steps = flatten(run.w);
   if (done) {
@@ -89,6 +92,8 @@ function applySwap(bi, ii, item){
     if (back >= 0) run.i = back;
     else { const at = run.steps.findIndex(s => s.bi === bi && s.ii === ii && s.s === done); run.i = run.phase === "rest" ? at : at + 1; }
   }
+  // on a set already done (reopened with «◀ Anterior»): on to the next one left, the new exercise's first
+  if (run.phase === "set" && run.steps[run.i] && isDone(run.steps[run.i])) { const j = nextUndone(run.i); if (run.steps[j]) goStep(j); }
   const st = run.steps[run.i];
   if (run.phase === "set" && st && st.bi === bi && st.ii === (done ? ii + 1 : ii)) { const it = itemOf(st); run.cur = { reps: it.reps, kg: it.kg, secs: it.segundos, meters: it.metros }; }
   // resting before the swapped exercise: the next set's numbers are the new exercise's

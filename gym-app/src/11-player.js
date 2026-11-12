@@ -31,9 +31,20 @@ function restAfter(st, next){
   return it.descanso_s || 0;
 }
 // the next step not done yet: with alternating blocks, a set already logged can come later in the order
-// (a workout continued, an exercise swapped halfway), and it is never asked for again
-const isDone = st => (run.log[keyOf(st)] || []).length >= st.s;
-function nextUndone(i){ let j = i + 1; while (run.steps[j] && isDone(run.steps[j])) j++; return j; }
+// (a workout continued, an exercise swapped halfway), and it is never asked for again. run.skip: the exercises
+// skipped with «Saltar ejercicio» (outside alternating blocks, which use it.hasta), never asked for again.
+// After the last step it starts again from the top: tapping a ring jumps to any exercise, so the sets left
+// behind come afterwards instead of being lost.
+const isDone = st => (run.log[keyOf(st)] || []).length >= st.s || !!(run.skip && run.skip[keyOf(st)]);
+// An exercise always goes on with its first set left: in a pair you entered by the partner (or jumped out of),
+// the step found can be its set 2 while its set 1 is still to do, and then it is that set 1 that comes
+function nextUndone(i){
+  const n = run.steps.length, first = j => { const st = run.steps[j], k = keyOf(st), d = (run.log[k] || []).length;
+    if (st.s === d + 1) return j; const m = run.steps.findIndex(x => keyOf(x) === k && x.s === d + 1); return m >= 0 ? m : j; };
+  for (let j = i + 1; j < n; j++) if (!isDone(run.steps[j])) return first(j);
+  for (let j = 0; j < Math.min(i, n); j++) if (!isDone(run.steps[j])) return first(j);
+  return n;
+}
 const alternating = st => !!(st && run.w.bloques[st.bi] && run.w.bloques[st.bi].alterna);
 const itemOf = (st) => run.w.bloques[st.bi].items[st.ii];
 const keyOf = (st) => st.bi + "." + st.ii;
@@ -144,7 +155,8 @@ const mmssS = s => { const t = Math.max(0, Math.ceil(s)); return `${Math.floor(t
 
 /* rendering */
 /* the whole workout as a row of small rings, one per exercise, that fill up set by set: 2/3 means
-   two of its three sets done, so you can see at a glance how much is left */
+   two of its three sets done, so you can see at a glance how much is left. Tapping a ring goes straight to
+   that exercise (jumpTo), to go back and forth between exercises in one tap */
 const TRACK_ICO = {
   reps: `<path d="M5 9v6M8 7v10M16 7v10M19 9v6M8 12h8"/>`,
   tiempo: `<circle cx="12" cy="13" r="6.5"/><path d="M12 13V9.5M10 4h4"/>`,
@@ -154,12 +166,12 @@ function trackHTML(nowKey){
   const w = run.w, C = 106.8; let n = 0, nowN = 0;
   const cells = w.bloques.map((b, bi) => b.items.map((it, ii) => {
     const k = bi + "." + ii, done = Math.min((run.log[k] || []).length, it.series), now = k === nowKey; n++; if (now) nowN = n;
-    // an exercise already behind you with sets missing was skipped (or cut short)
-    const past = !now && run.steps.findIndex(s => keyOf(s) === k) < run.i && done < it.series;
+    // skipped with «Saltar ejercicio» (or cut short in a pair): tapping it brings it back
+    const past = !now && done < it.series && (!!(run.skip && run.skip[k]) || (it.hasta != null && done >= it.hasta));
     const cls = now ? "now" : done >= it.series ? "full" : past ? "skip" : "";
-    return `<li class="tk ${cls}" ${now ? 'aria-current="step"' : ""} aria-label="${esc(it.ejercicio)}: ${done} de ${it.series} series${past ? ", saltado" : ""}">
+    return `<li class="tk ${cls}" ${now ? 'aria-current="step"' : ""}><button type="button" class="tk-b" data-jump="${k}" ${run.phase === "work" ? "disabled" : ""} aria-label="${esc(it.ejercicio)}: ${done} de ${it.series} series${past ? ", saltado" : ""}${now ? "" : ". Ir a este ejercicio"}">
       <svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="17" class="tk-t"/><circle cx="20" cy="20" r="17" class="tk-v" style="stroke-dasharray:${C};stroke-dashoffset:${C * (1 - done / (it.series || 1))}"/><g transform="translate(8 8)" class="tk-i">${TRACK_ICO[it.modo] || TRACK_ICO.reps}</g></svg>
-      <span>${done}/${it.series}</span></li>`;
+      <span>${done}/${it.series}</span></button></li>`;
   }).join("")).join(`<li class="tk-sep" aria-hidden="true"></li>`);
   return `<div class="pl-track"><div class="eyebrow">Ejercicio ${nowN} de ${n}</div><ol class="tk-row" id="pl-track">${cells}</ol></div>`;
 }
@@ -275,7 +287,10 @@ function tickPlayer(){
 function logSet(){
   const st = run.steps[run.i], it = itemOf(st), c = run.cur || {};
   run.lastAt = Date.now();
-  (run.log[keyOf(st)] ||= []).push({ reps: num(c.reps), kg: num(c.kg), secs: it.modo === "tiempo" ? it.segundos : null, meters: it.modo === "distancia" ? num(c.meters) : null });
+  const set = { reps: num(c.reps), kg: num(c.kg), secs: it.modo === "tiempo" ? it.segundos : null, meters: it.modo === "distancia" ? num(c.meters) : null }, l = (run.log[keyOf(st)] ||= []);
+  // a set reopened with «◀ Anterior» is corrected where it is; any other one is added
+  const ed = run.edit; run.edit = null;
+  if (ed && ed.k === keyOf(st) && l[ed.idx]) l[ed.idx] = set; else l.push(set);
   run._w3 = false;
   const next = run.steps[nextUndone(run.i)];
   if (!next) { finishRun(); return; }
@@ -291,8 +306,9 @@ function logSet(){
   saveRun(); renderPlayer(); syncRun();
 }
 function endRest(){ buzz(); beep(); advance(); const st = run.steps[run.i]; if (st) say(`${spokenStep(st)}. ${target({ ...itemOf(st), ...(run.cur || {}) })}`); saveRun(); renderPlayer(); }
-function advance(){
-  run.i = nextUndone(run.i); run.until = null; run.pausedLeft = null;
+function advance(){ goStep(nextUndone(run.i)); }
+function goStep(j){
+  run.i = j; run.until = null; run.pausedLeft = null;
   const st = run.steps[run.i]; if (!st) { finishRun(); return; }
   // without numbers set for it in the rest: what you did in this exercise's previous set (unless it has a target from last time)
   const it = itemOf(st), lg = (run.log[keyOf(st)] || []).slice(-1)[0];
@@ -453,16 +469,27 @@ async function saveRunSession(){
   if (run === r) closePlayer(true);
   toast(prs.length ? `Guardado. ¡${prs.length} récord${prs.length > 1 ? "s" : ""}! ${ATH[OTHER[me]]} ya lo ve.` : "Entreno guardado");
 }
-/* one step back: in the rest it undoes the set you just logged, in a set it goes to the previous one;
-   a set that was done comes back with what you logged, ready to correct and log again */
+/* one step back: in the rest it reopens the set you just logged, in a set it goes to the previous one; a set
+   that was done comes back with what you logged, to correct it. It stays in the log meanwhile (run.edit says
+   which one is open) and «Serie hecha» writes it over in its place: leaving it any other way (a ring, «Saltar
+   ejercicio», «Terminar», closing, the phone dying) keeps it as it was. */
 function goBack(){
   try { speechSynthesis.cancel(); } catch {}
   let st = run.steps[run.i];
-  if (run.phase !== "rest") { if (run.i === 0) return; run.i--; st = run.steps[run.i]; }
-  const it = itemOf(st), l = run.log[keyOf(st)] || [], x = l.length >= st.s ? l.pop() : null, def = planned(it, st.s);
+  if (run.phase !== "rest") {
+    // back to the previous step that was logged or is still to do (not the sets of a skipped exercise)
+    const got = x => (run.log[keyOf(x)] || []).length;
+    let j = run.i - 1; while (j >= 0 && got(run.steps[j]) < run.steps[j].s && isDone(run.steps[j])) j--;
+    if (j < 0) return;
+    run.i = j; st = run.steps[j];
+    // a step left behind (after a ring) goes to that exercise's first set left
+    if (got(st) < st.s) { const m = run.steps.findIndex(x => keyOf(x) === keyOf(st) && x.s === got(st) + 1); if (m >= 0) { run.i = m; st = run.steps[m]; } }
+  }
+  const it = itemOf(st), l = run.log[keyOf(st)] || [], x = l.length >= st.s ? l[st.s - 1] : null, def = planned(it, st.s);
+  run.edit = x ? { k: keyOf(st), idx: st.s - 1 } : null;
   run.cur = x ? { ...def, reps: x.reps, kg: x.kg, meters: x.meters != null ? x.meters : def.meters } : def;
   run.phase = "set"; run.until = null; run.pausedLeft = null; run.nextCur = null;
-  saveRun(); renderPlayer(); syncRun();
+  saveRun(); renderPlayer();
   toast(`${it.ejercicio} · serie ${st.s}${x ? ": corrige y pulsa «Serie hecha»" : ""}`);
 }
 // the summary lets you fix any set before saving
@@ -502,17 +529,41 @@ document.addEventListener("click", e => {
     saveRun(); renderPlayer();
   }
   else if (a === "skip") endRest();
-  else if (a === "skipex" && alternating(run.steps[run.i])) skipAlternating();
-  else if (a === "skipex") { run.nextCur = null; const k = keyOf(run.steps[run.i]); while (run.steps[run.i] && keyOf(run.steps[run.i]) === k) run.i++; run.i--; advance(); saveRun(); renderPlayer(); }
-  else if (a === "finish") finishRun();
+  else if (a === "skipex") { run.edit = null;
+    if (alternating(run.steps[run.i])) skipAlternating();
+    else { run.nextCur = null; (run.skip ||= {})[keyOf(run.steps[run.i])] = true; advance(); saveRun(); renderPlayer(); } }
+  else if (a === "finish") { run.edit = null; finishRun(); }
   else if (a === "save") saveRunSession();
   else if (a === "discard") { if (run.sid && !confirm(dropAsk())) return; dropRunDoc(); closePlayer(true); }
   else if (a === "back") goBack();
   else if (a === "addset") addSetNow();
+  else if (t.dataset.jump) jumpTo(t.dataset.jump);
 });
+/* a tap on a ring of the row goes straight to that exercise, at its first set left: in a set it leaves the one
+   on screen for later, in the rest it ends the rest. Nothing logged changes, and the sets left behind come
+   afterwards. A skipped exercise comes back; one with all its sets done stays as it is. */
+function jumpTo(k){
+  if (!run || (run.phase !== "set" && run.phase !== "rest")) return;
+  const [bi, ii] = k.split(".").map(Number), it = run.w.bloques[bi] && run.w.bloques[bi].items[ii]; if (!it) return;
+  const done = (run.log[k] || []).length, cur = run.steps[run.i];
+  if (done >= it.series) { toast(`${it.ejercicio}: ya están las ${it.series} series${run.phase === "set" ? "" : ". Para otra, «+ Serie»"}`); return; }
+  if (run.phase === "set" && cur && keyOf(cur) === k) return;
+  run.edit = null;
+  // in the rest, the numbers set for the next set stay if that is where you go
+  const next = run.phase === "rest" ? run.steps[nextUndone(run.i)] : null;
+  if (!(next && keyOf(next) === k && next.s === done + 1)) run.nextCur = null;
+  if (run.skip) delete run.skip[k];
+  let changed = false;
+  if (it.hasta != null && done >= it.hasta) { delete it.hasta; run.steps = flatten(run.w); changed = true; }
+  const j = run.steps.findIndex(x => keyOf(x) === k && x.s === done + 1); if (j < 0) return;
+  try { speechSynthesis.cancel(); } catch {}
+  goStep(j); saveRun(); renderPlayer(); if (changed) syncRun();
+  const st = run.steps[run.i]; if (st) say(`${spokenStep(st)}. ${target({ ...itemOf(st), ...(run.cur || {}) })}`);
+}
 // skipping an exercise of an alternating block: its sets left come out, the other exercises of the block go on
 function skipAlternating(){
-  const st = run.steps[run.i], k = keyOf(st), it = itemOf(st), keep = run.phase === "rest" ? st.s : st.s - 1;
+  // what stays is what is logged (in the rest, the set just done; a set reopened with «◀ Anterior» too)
+  const st = run.steps[run.i], k = keyOf(st), it = itemOf(st), keep = (run.log[k] || []).length;
   it.hasta = keep; run.nextCur = null;
   const at = run.steps.slice(0, run.i).filter(x => keyOf(x) !== k || x.s <= keep).length;
   run.steps = flatten(run.w); run.i = run.phase === "rest" ? at : at - 1;

@@ -497,6 +497,11 @@ body.playing{overflow:hidden}
 .tk-t{fill:var(--surface);stroke:var(--line);stroke-width:3}
 .tk-v{fill:none;stroke:var(--me);stroke-width:3.5;stroke-linecap:round;transform:rotate(-90deg);transform-origin:20px 20px;transition:stroke-dashoffset .3s}
 .tk-i{fill:none;stroke:var(--muted);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.tk-b{all:unset;box-sizing:border-box;width:100%;position:relative;display:grid;justify-items:center;gap:2px;cursor:pointer;border-radius:10px;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.tk-b::after{content:"";position:absolute;inset:-4px -3px}
+.tk-b:focus-visible{outline:2px solid var(--ink-2);outline-offset:1px}
+.tk-b:active svg{transform:scale(.9)}
+.tk-b:disabled{cursor:default}
 .tk span{font:600 11.5px/1 var(--mono);color:var(--muted);font-variant-numeric:tabular-nums}
 .tk.full .tk-t{fill:var(--me);stroke:var(--me)}
 .tk.full .tk-i{stroke:var(--surface)}

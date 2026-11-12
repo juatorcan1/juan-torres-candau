@@ -47,6 +47,8 @@ borrado. `gym_docs_copia_20261020`: copia de todo `gym_docs` justo antes de acti
    olvidado hace más de 6 h se guarda solo al abrir la app (`parkOldRun`). Si mientras tanto se continúa, se queda.
 6. Los minutos acaban en la última serie si se dejó abierto más de 20 min (`idleEnd`), no al guardar.
 7. Una sesión a medias se continúa desde el plan o Hoy (`src/21-continuar.js`) con el mismo id.
+8. «◀ Anterior» no quita la serie del registro: la reabre (`run.edit`) y «Serie hecha» la escribe en su sitio.
+   Salir de ella de cualquier otra forma (una bolita, saltar, cambiar, terminar, cerrar) la deja como estaba.
 
 Si cambias algo de esto: `./build.sh && node pruebas/guardado.mjs` (Chromium, base de datos de mentira, sin red).
 Si tocas cómo se lee el plan: `node pruebas/plan-domingo.mjs`.
@@ -55,6 +57,9 @@ Si tocas la pantalla del entreno guiado: `node pruebas/pantalla.mjs` (la serie y
 Si tocas el Dietista o cómo se guarda el perfil: `node pruebas/dietista.mjs`.
 Si tocas los bloques que alternan (`alterna: true`, superseries: serie a serie de un ejercicio al otro, 30 s para
 cambiar de máquina, `restAfter` y `skipAlternating` en `src/11-player.js`): `node pruebas/alterna.mjs`.
+Si tocas las bolitas de arriba del entreno guiado (una por ejercicio; tocarla lleva a ese ejercicio: `jumpTo`,
+`nextUndone` vuelve al principio para pedir lo que quedó atrás, `run.skip` guarda lo saltado fuera de las
+parejas): `node pruebas/bolitas.mjs`.
 
 Los agentes de la app (Entrenador y Dietista) llaman a Claude por `supabase/functions/gym-claude` (modelo en
 `MODEL`). Si cambias esa función, despliégala en Supabase con el mismo código que queda en el repo.

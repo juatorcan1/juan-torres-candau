@@ -12,7 +12,7 @@ Abajo hay cinco botones:
 
 **El músculo manda**: en Hoy el entrenador pregunta cómo estás (energía, sueño, molestias), qué músculos quieres trabajar (tocando el mapa del cuerpo), dónde entrenas y cuánto tiempo tienes, y hace el entreno según eso y lo que trabajaste los últimos días. En el entreno guiado el protagonista es el músculo (nombre grande y mapa encendido) y el ejercicio es solo el cómo. En **Músculos** tocas un músculo y ves con qué ejercicios trabajarlo.
 
-**Entreno guiado**: cada entreno del entrenador se abre a pantalla completa: dibujo del ejercicio, objetivo y reto de la serie, tu mejor marca y la del otro, kilos y repeticiones con botones +/−, descanso con cuenta atrás, vibración, pitido y voz, pantalla siempre encendida. Al terminar calcula el volumen, detecta récords y guarda la sesión.
+**Entreno guiado**: cada entreno del entrenador se abre a pantalla completa: dibujo del ejercicio, objetivo y reto de la serie, tu mejor marca y la del otro, kilos y repeticiones con botones +/−, descanso con cuenta atrás, vibración, pitido y voz, pantalla siempre encendida. Arriba, una bolita por ejercicio que se va llenando serie a serie: tocándola vas directo a ese ejercicio (en el gimnasio o nadando), adelante o atrás, y lo que dejas a medias te lo vuelve a pedir al final. Al terminar calcula el volumen, detecta récords y guarda la sesión.
 
 ## Dos versiones, mismo código
 

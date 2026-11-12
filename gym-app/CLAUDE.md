@@ -53,6 +53,8 @@ Si tocas cómo se lee el plan: `node pruebas/plan-domingo.mjs`.
 Si tocas la pantalla del entreno guiado: `node pruebas/pantalla.mjs` (la serie y el descanso caben en un móvil de
 360 × 640 sin scroll; los estilos de móvil están al final de `src/style.css`).
 Si tocas el Dietista o cómo se guarda el perfil: `node pruebas/dietista.mjs`.
+Si tocas los bloques que alternan (`alterna: true`, superseries: serie a serie de un ejercicio al otro, 30 s para
+cambiar de máquina, `restAfter` y `skipAlternating` en `src/11-player.js`): `node pruebas/alterna.mjs`.
 
 Los agentes de la app (Entrenador y Dietista) llaman a Claude por `supabase/functions/gym-claude` (modelo en
 `MODEL`). Si cambias esa función, despliégala en Supabase con el mismo código que queda en el repo.

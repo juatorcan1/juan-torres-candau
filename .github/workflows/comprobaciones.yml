@@ -44,3 +44,5 @@ jobs:
         run: node gym-app/pruebas/pantalla.mjs
       - name: El Dietista guarda lo que no os gusta comer sin pisar el perfil
         run: node gym-app/pruebas/dietista.mjs
+      - name: Entreno guiado · ejercicios alternados
+        run: node gym-app/pruebas/alterna.mjs

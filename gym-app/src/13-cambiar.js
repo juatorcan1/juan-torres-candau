@@ -71,20 +71,28 @@ function autoSwap(w){
 
 /* replacing an item of the running workout; sets already done stay with the old exercise */
 function applySwap(bi, ii, item){
-  const items = run.w.bloques[bi].items, old = items[ii], done = (run.log[bi + "." + ii] || []).length;
-  if (!done) items[ii] = { ...item, series: old.series };
+  const b = run.w.bloques[bi], items = b.items, old = items[ii], done = (run.log[bi + "." + ii] || []).length;
+  // the step on screen (in the rest, the one just done), to find it again after the swap
+  const cur = run.steps[run.i], was = cur && { ...cur };
+  if (was && was.bi === bi && done) { if (was.ii > ii) was.ii++; else if (was.ii === ii && was.s > done) { was.ii++; was.s -= done; } }
+  if (!done) items[ii] = { ...item, series: old.series, ...(old.desde ? { desde: old.desde } : {}) };
   else {
-    items.splice(ii, 1, { ...old, series: done }, { ...item, series: Math.max(1, old.series - done) });
+    // alternating: the new exercise goes on from the round where the old one stopped, next to its partner
+    items.splice(ii, 1, { ...old, series: done }, { ...item, series: Math.max(1, old.series - done), ...(b.alterna ? { desde: num(old.desde) + done } : {}) });
     const log = {};
     for (const [k, v] of Object.entries(run.log)) { const [b, i] = k.split(".").map(Number); log[b === bi && i > ii ? b + "." + (i + 1) : k] = v; }
     run.log = log;
   }
   run.steps = flatten(run.w);
-  if (done) { const at = run.steps.findIndex(s => s.bi === bi && s.ii === ii && s.s === done); run.i = run.phase === "rest" ? at : at + 1; }
+  if (done) {
+    const back = was ? run.steps.findIndex(s => s.bi === was.bi && s.ii === was.ii && s.s === was.s) : -1;
+    if (back >= 0) run.i = back;
+    else { const at = run.steps.findIndex(s => s.bi === bi && s.ii === ii && s.s === done); run.i = run.phase === "rest" ? at : at + 1; }
+  }
   const st = run.steps[run.i];
   if (run.phase === "set" && st && st.bi === bi && st.ii === (done ? ii + 1 : ii)) { const it = itemOf(st); run.cur = { reps: it.reps, kg: it.kg, secs: it.segundos, meters: it.metros }; }
   // resting before the swapped exercise: the next set's numbers are the new exercise's
-  if (run.phase === "rest") { const n = run.steps[run.i + 1]; if (n && (n.bi === bi && n.ii === (done ? ii + 1 : ii))) { const ni = itemOf(n); run.nextCur = { reps: ni.reps, kg: ni.kg, meters: ni.metros }; } }
+  if (run.phase === "rest") { const n = run.steps[nextUndone(run.i)]; if (n && (n.bi === bi && n.ii === (done ? ii + 1 : ii))) { const ni = itemOf(n); run.nextCur = { reps: ni.reps, kg: ni.kg, meters: ni.metros }; } }
 }
 
 /* the sheet */

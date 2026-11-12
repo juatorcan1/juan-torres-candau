@@ -44,7 +44,7 @@ function athleteContext(who){
   return [
     `${ATH[who]}: hombre, ${pr.age} años, ${pr.height} cm, ${w ? fmt(w.kg, 1) + " kg" : "peso sin apuntar"}${w && old ? ` (${fmt(w.kg - old.kg, 1)} kg en 4 semanas)` : ""}; objetivo ${GOALS[pr.goal].l.toLowerCase()}; trabajo ${WORK[pr.work].l.toLowerCase()}.`,
     `Media de entreno: ${fmt(weeklyMinutes(who))} min/semana. Alcohol esta semana: ${fmt(al.ube, 1)} UBE (objetivo ${pr.alcoholGoal}).`,
-    pr.prefEntreno ? `Lo que le gusta y quiere: ${String(pr.prefEntreno).slice(0, 400)}` : "",
+    pr.prefEntreno ? `Lo que le gusta y quiere: ${String(pr.prefEntreno).slice(0, 2000)}` : "",
     notesText(who) ? `Sus notas de ejercicios (respétalas): ${notesText(who).slice(0, 800)}` : "",
     gripsText(who) ? `Agarres que usa: ${gripsText(who)}` : "",
     extrasText(who) ? `Series de más que quiere siempre (súmalas a lo que pongas): ${extrasText(who)}` : "",

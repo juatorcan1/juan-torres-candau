@@ -24,6 +24,7 @@ const GRIPS = {
 };
 const GRIP_OPTIONS = {
   "Jalón al pecho": ["barra_larga", "neutro", "triangulo", "barra_recta"],
+  "Jalón al pecho cerrado": ["triangulo", "neutro", "barra_recta"],
   "Remo en polea baja": ["triangulo", "neutro", "barra_recta", "cuerda"],
   "Extensión en polea": ["cuerda", "barra_recta", "ez", "maneral"],
   "Curl en polea": ["barra_recta", "ez", "cuerda", "maneral"],

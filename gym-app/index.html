@@ -857,7 +857,7 @@ const GROUPS = ["Pecho","Espalda","Piernas","Glúteo","Hombro","Bíceps","Tríce
 const EQUIP = ["Barra","Mancuernas","Máquina","Polea","Peso corporal","Kettlebell","Otro"];
 const CATALOG = {
   "Press banca":"Pecho","Press inclinado con barra":"Pecho","Press inclinado con mancuernas":"Pecho","Press en máquina":"Pecho","Aperturas":"Pecho","Cruce de poleas":"Pecho","Fondos":"Pecho",
-  "Dominadas":"Espalda","Jalón al pecho":"Espalda","Remo con barra":"Espalda","Remo con mancuerna":"Espalda","Remo en polea baja":"Espalda","Peso muerto":"Espalda",
+  "Dominadas":"Espalda","Jalón al pecho":"Espalda","Jalón al pecho cerrado":"Espalda","Remo con barra":"Espalda","Remo con mancuerna":"Espalda","Remo en polea baja":"Espalda","Peso muerto":"Espalda",
   "Sentadilla":"Piernas","Sentadilla búlgara":"Piernas","Prensa":"Piernas","Zancadas":"Piernas","Extensión de cuádriceps":"Piernas","Curl femoral":"Piernas","Gemelos":"Piernas",
   "Hip thrust":"Glúteo","Peso muerto rumano":"Glúteo",
   "Press militar":"Hombro","Elevaciones laterales":"Hombro","Pájaros":"Hombro","Face pull":"Hombro",
@@ -1191,6 +1191,8 @@ const GUIDE = {
     fig: { a: { hip: [104, 112], to: 0, ank: [86, 168], wr: [104, 6] }, b: { hip: [96, 66], to: 0, ank: [78, 122], wr: [104, 6], eb: "fwd" }, hl: ["torso", "ua"], nofloor: true, props: [{ t: "bar", x1: 56, y1: 6, x2: 152, y2: 6 }] } },
   "Jalón al pecho": { m: "Dorsal y bíceps", steps: ["Sentado con los muslos bajo el rodillo y agarre ancho.", "Inclínate un poco atrás y baja la barra hasta la parte alta del pecho.", "Sube controlando hasta estirar los brazos."], ojo: "Llevar la barra detrás de la nuca; tirar solo con los brazos.",
     fig: { a: { hip: [92, 138], to: -8, ank: [132, 180], kb: "up", wr: [88, 34] }, b: { hip: [92, 138], to: -8, ank: [132, 180], kb: "up", wr: [86, 88] }, hl: ["torso", "ua"], props: [{ t: "bench", x: 70, y: 143, w: 44 }, { t: "cable", from: [88, -12] }, { t: "hbar", j: "wr" }] } },
+  "Jalón al pecho cerrado": { m: "Dorsal bajo, espalda media y bíceps", steps: ["Sentado con los muslos bajo el rodillo, triángulo o agarre estrecho.", "Inclínate un poco atrás y tira hasta el esternón con los codos pegados al cuerpo.", "Sube controlando hasta estirar los brazos."], ojo: "Echarte muy atrás para tirar; separar los codos.",
+    fig: { a: { hip: [92, 138], to: -8, ank: [132, 180], kb: "up", wr: [90, 34] }, b: { hip: [92, 138], to: -8, ank: [132, 180], kb: "up", wr: [90, 92] }, hl: ["torso", "ua"], props: [{ t: "bench", x: 70, y: 143, w: 44 }, { t: "cable", from: [90, -12] }] } },
   "Curl con barra": { m: "Bíceps", steps: ["De pie, codos pegados al cuerpo y agarre a la anchura de hombros.", "Sube la barra doblando solo el codo.", "Aprieta arriba y baja despacio hasta estirar."], ojo: "Balancear el cuerpo; adelantar los codos.",
     fig: { a: { hip: [100, 106], to: 0, ank: [100, 186], wr: [102, 106], eb: "fwd" }, b: { hip: [100, 106], to: 0, ank: [100, 186], wr: [112, 58] }, hl: ["fa"], props: [{ t: "plate", j: "wr", r: 9 }] } },
   "Curl en polea": { m: "Bíceps", steps: ["De pie frente a la polea baja con la barra recta, codos pegados al cuerpo.", "Sube la barra doblando solo el codo.", "Aprieta arriba y baja despacio: la polea tira todo el recorrido."], ojo: "Echarte hacia atrás o adelantar los codos.",
@@ -1351,7 +1353,7 @@ const EX_MUS = {
   "Sentadilla": [["cuadriceps", "gluteo"], ["lumbar", "isquios", "abdomen"]], "Press banca": [["pectoral"], ["triceps", "deltoides"]],
   "Peso muerto": [["gluteo", "isquios", "lumbar"], ["dorsal", "trapecio", "cuadriceps", "antebrazo"]], "Peso muerto rumano": [["isquios", "gluteo"], ["lumbar"]],
   "Press militar": [["deltoides"], ["triceps", "trapecio", "abdomen"]], "Remo con barra": [["dorsal"], ["biceps", "trapecio", "lumbar"]],
-  "Dominadas": [["dorsal"], ["biceps", "antebrazo", "abdomen"]], "Jalón al pecho": [["dorsal"], ["biceps"]], "Curl con barra": [["biceps"], ["antebrazo"]],
+  "Dominadas": [["dorsal"], ["biceps", "antebrazo", "abdomen"]], "Jalón al pecho": [["dorsal"], ["biceps"]], "Jalón al pecho cerrado": [["dorsal"], ["biceps", "trapecio"]], "Curl con barra": [["biceps"], ["antebrazo"]],
   "Curl martillo": [["biceps", "antebrazo"], []], "Curl en banco Scott": [["biceps"], ["antebrazo"]], "Curl en polea": [["biceps"], ["antebrazo"]], "Extensión en polea": [["triceps"], []],
   "Press francés": [["triceps"], []], "Fondos": [["pectoral", "triceps"], ["deltoides"]], "Press inclinado con mancuernas": [["pectoral"], ["deltoides", "triceps"]], "Press inclinado con barra": [["pectoral"], ["deltoides", "triceps"]],
   "Press en máquina": [["pectoral"], ["triceps"]], "Aperturas": [["pectoral"], ["deltoides"]], "Cruce de poleas": [["pectoral"], ["deltoides"]],
@@ -3044,7 +3046,7 @@ function athleteContext(who){
   return [
     `${ATH[who]}: hombre, ${pr.age} años, ${pr.height} cm, ${w ? fmt(w.kg, 1) + " kg" : "peso sin apuntar"}${w && old ? ` (${fmt(w.kg - old.kg, 1)} kg en 4 semanas)` : ""}; objetivo ${GOALS[pr.goal].l.toLowerCase()}; trabajo ${WORK[pr.work].l.toLowerCase()}.`,
     `Media de entreno: ${fmt(weeklyMinutes(who))} min/semana. Alcohol esta semana: ${fmt(al.ube, 1)} UBE (objetivo ${pr.alcoholGoal}).`,
-    pr.prefEntreno ? `Lo que le gusta y quiere: ${String(pr.prefEntreno).slice(0, 400)}` : "",
+    pr.prefEntreno ? `Lo que le gusta y quiere: ${String(pr.prefEntreno).slice(0, 2000)}` : "",
     notesText(who) ? `Sus notas de ejercicios (respétalas): ${notesText(who).slice(0, 800)}` : "",
     gripsText(who) ? `Agarres que usa: ${gripsText(who)}` : "",
     extrasText(who) ? `Series de más que quiere siempre (súmalas a lo que pongas): ${extrasText(who)}` : "",
@@ -4589,6 +4591,7 @@ const GRIPS = {
 };
 const GRIP_OPTIONS = {
   "Jalón al pecho": ["barra_larga", "neutro", "triangulo", "barra_recta"],
+  "Jalón al pecho cerrado": ["triangulo", "neutro", "barra_recta"],
   "Remo en polea baja": ["triangulo", "neutro", "barra_recta", "cuerda"],
   "Extensión en polea": ["cuerda", "barra_recta", "ez", "maneral"],
   "Curl en polea": ["barra_recta", "ez", "cuerda", "maneral"],

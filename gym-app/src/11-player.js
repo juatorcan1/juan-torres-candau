@@ -12,11 +12,12 @@ function mainItems(w){
   return core.length ? core : all;
 }
 // a block with "alterna" goes round its exercises set by set (A1, B1, A2, B2…): while one rests, the other works.
-// it.hasta: the sets left out of an alternating exercise you skipped
+// it.hasta: the sets left out of an alternating exercise you skipped; it.desde: the rounds an exercise swapped in
+// halfway starts after (its set 1 goes in round desde + 1, next to its partner's)
 function flatten(w){
-  const steps = [], upTo = it => it.hasta != null ? Math.min(it.hasta, it.series) : it.series;
+  const steps = [], upTo = it => it.hasta != null ? Math.min(it.hasta, it.series) : it.series, from = it => num(it.desde);
   w.bloques.forEach((b, bi) => {
-    if (b.alterna) { const n = Math.max(0, ...b.items.map(upTo)); for (let s = 1; s <= n; s++) b.items.forEach((it, ii) => { if (s <= upTo(it)) steps.push({ bi, ii, s }); }); }
+    if (b.alterna) { const n = Math.max(0, ...b.items.map(it => from(it) + upTo(it))); for (let r = 1; r <= n; r++) b.items.forEach((it, ii) => { const s = r - from(it); if (s >= 1 && s <= upTo(it)) steps.push({ bi, ii, s }); }); }
     else b.items.forEach((it, ii) => { for (let s = 1; s <= it.series; s++) steps.push({ bi, ii, s }); });
   });
   return steps;
@@ -29,6 +30,10 @@ function restAfter(st, next){
   if (b.alterna && next && next.bi === st.bi && next.ii !== st.ii) return Math.min(ALTERNA_CAMBIO_S, it.descanso_s || ALTERNA_CAMBIO_S);
   return it.descanso_s || 0;
 }
+// the next step not done yet: with alternating blocks, a set already logged can come later in the order
+// (a workout continued, an exercise swapped halfway), and it is never asked for again
+const isDone = st => (run.log[keyOf(st)] || []).length >= st.s;
+function nextUndone(i){ let j = i + 1; while (run.steps[j] && isDone(run.steps[j])) j++; return j; }
 const alternating = st => !!(st && run.w.bloques[st.bi] && run.w.bloques[st.bi].alterna);
 const itemOf = (st) => run.w.bloques[st.bi].items[st.ii];
 const keyOf = (st) => st.bi + "." + st.ii;
@@ -55,6 +60,8 @@ async function openPlayer(w, opts = {}){
    compared with the same set last time. Reached the target reps → KG_STEP more; fell short → same weight
    and one rep more. it.prev keeps last time's sets and it.plan today's target for every set. */
 const KG_STEP = 1; // kilos de uno en uno: lo que sube de una vez a otra y lo que mueven − / +
+// "subirPeso": "yo" in the profile: the app never raises the weight, it starts each set where you left it
+const raisesOwnWeight = who => profileOf(who).subirPeso === "yo";
 function tuneFromHistory(w){
   let n = 0;
   for (const b of w.bloques) for (const it of b.items) {
@@ -62,13 +69,15 @@ function tuneFromHistory(w){
     const { last } = bestFor(me, it.ejercicio); if (!last || !last.sets.length) continue;
     const top = Math.max(...last.sets.map(x => num(x.kg)));
     if (!top) continue; // bodyweight: nothing to carry over
-    const step = KG_STEP;
+    const step = KG_STEP, mine = raisesOwnWeight(me);
     it.prev = { date: last.date, sets: last.sets.map(x => ({ kg: num(x.kg), reps: num(x.reps) })) };
     it.plan = Array.from({ length: it.series }, (_, i) => {
       const p = it.prev.sets[Math.min(i, it.prev.sets.length - 1)];
+      if (mine) return { kg: p.kg, reps: num(it.reps) };
       return num(p.reps) >= num(it.reps) ? { kg: p.kg + step, reps: num(it.reps) } : { kg: p.kg, reps: Math.min(num(it.reps), num(p.reps) + 1) };
     });
-    it.reto = `La última vez (${relDay(last.date)}): ${it.prev.sets.map(x => `${fmt(x.kg, 2)}×${x.reps}`).join(" · ")}. Hoy: ${it.plan.map(x => `${fmt(x.kg, 2)}×${x.reps}`).join(" · ")}.`;
+    const before = `La última vez (${relDay(last.date)}): ${it.prev.sets.map(x => `${fmt(x.kg, 2)}×${x.reps}`).join(" · ")}.`;
+    it.reto = mine ? `${before} Hoy empiezas con los mismos kilos: súbelos tú cuando te veas.` : `${before} Hoy: ${it.plan.map(x => `${fmt(x.kg, 2)}×${x.reps}`).join(" · ")}.`;
     n++;
     it.kg = it.plan[0].kg;
   }
@@ -184,7 +193,7 @@ function renderPlayer(){
   } else if (run.phase === "done") {
     body = summaryHTML();
   } else {
-    const next = run.steps[run.i + 1];
+    const next = run.steps[nextUndone(run.i)];
     const cur = run.cur || planned(it, st.s);
     run.cur = cur;
     const mine = it.modo === "reps" ? bestFor(me, it.ejercicio).b : null, his = it.modo === "reps" ? bestFor(OTHER[me], it.ejercicio).b : null;
@@ -268,7 +277,7 @@ function logSet(){
   run.lastAt = Date.now();
   (run.log[keyOf(st)] ||= []).push({ reps: num(c.reps), kg: num(c.kg), secs: it.modo === "tiempo" ? it.segundos : null, meters: it.modo === "distancia" ? num(c.meters) : null });
   run._w3 = false;
-  const next = run.steps[run.i + 1];
+  const next = run.steps[nextUndone(run.i)];
   if (!next) { finishRun(); return; }
   run.pausedLeft = null;
   const ni = itemOf(next);
@@ -283,10 +292,11 @@ function logSet(){
 }
 function endRest(){ buzz(); beep(); advance(); const st = run.steps[run.i]; if (st) say(`${spokenStep(st)}. ${target({ ...itemOf(st), ...(run.cur || {}) })}`); saveRun(); renderPlayer(); }
 function advance(){
-  const prev = run.steps[run.i]; run.i++; run.until = null; run.pausedLeft = null;
+  run.i = nextUndone(run.i); run.until = null; run.pausedLeft = null;
   const st = run.steps[run.i]; if (!st) { finishRun(); return; }
-  const it = itemOf(st), same = prev && keyOf(prev) === keyOf(st);
-  const last = run.nextCur || (same ? run.cur : null);
+  // without numbers set for it in the rest: what you did in this exercise's previous set (unless it has a target from last time)
+  const it = itemOf(st), lg = (run.log[keyOf(st)] || []).slice(-1)[0];
+  const last = run.nextCur || (lg && !it.plan ? lg : null);
   const def = planned(it, st.s);
   run.cur = { reps: last ? last.reps : def.reps, kg: last ? last.kg : def.kg, secs: it.segundos, meters: last && last.meters != null ? last.meters : it.metros };
   run.nextCur = null;

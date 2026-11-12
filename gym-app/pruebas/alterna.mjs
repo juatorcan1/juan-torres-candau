@@ -1,6 +1,7 @@
 // Prueba de los bloques que alternan (superseries): el entreno guiado va serie a serie de un ejercicio al otro
 // (A1, B1, A2, B2…), con 30 s para cambiar de máquina y el descanso entero cuando el otro ya acabó; «Saltar
-// ejercicio» quita solo el que saltas y lo apuntado se guarda bien. Abre gym-app/index.html (de ./build.sh) en
+// ejercicio», «+ Serie» y «Cambiar» a mitad de pareja no mezclan los números ni repiten series; lo apuntado se
+// guarda bien; y con «Los subo yo» la app no sube los kilos. Abre gym-app/index.html (de ./build.sh) en
 // Chromium con una base de datos de mentira: sin red. Uso: gym-app/build.sh && node gym-app/pruebas/alterna.mjs
 import { createRequire } from "node:module";
 import { execSync } from "node:child_process";
@@ -62,5 +63,65 @@ await page.click('[data-pl="save"]'); await page.waitForTimeout(400);
 const ses = await page.evaluate(() => [...window.__cols.sesiones.values()].filter(s => !s.enCurso && s.id !== "a").map(s => s.exercises.map(x => x.name + ":" + x.sets.length).join(", ")));
 ok(ses.length === 1 && ses[0] === "Press banca:3, Crunch:2, Face pull:2, Extensión en polea:2", `se guarda todo: ${ses.join(" | ")}`);
 ok(!errs.length, `sin errores de JavaScript ${errs.join(" | ")}`);
+await page.close();
+
+// each case on a fresh page: the plan opened and started
+async function nueva(perfil){
+  const p = await browser.newPage({ viewport: { width: 390, height: 664 } }); p.errs = []; p.on("pageerror", e => p.errs.push(e.message)); p.on("dialog", d => d.accept());
+  await p.route("**/*", r => r.request().url().startsWith("file:") ? r.continue() : r.abort());
+  const sesiones = [{ id: "a", athlete: "juan", date: ayer, sport: "gym", exercises: [{ name: "Sentadilla", sets: [{ reps: 10, kg: 40 }] }, ...(perfil ? [{ name: "Press banca", sets: [{ reps: 8, kg: 30 }, { reps: 6, kg: 30 }, { reps: 8, kg: 32 }] }] : [])] }];
+  await p.addInitScript(([seed, src]) => { localStorage.setItem("gym.me", '"juan"'); localStorage.setItem("gym.voice", "false"); eval("(" + src + ")")(seed); }, [{ planes: [plan], sesiones, perfiles: perfil ? [{ id: "juan", ...perfil }] : [] }, mock.toString()]);
+  await p.goto(APP); await p.waitForTimeout(500); await p.click(`[data-plan-open="${hoy}"]`); await p.click('[data-pl="start"]'); await p.waitForTimeout(100);
+  return p;
+}
+const est = p => p.evaluate(() => { const run = JSON.parse(localStorage.getItem("gym.run")), st = run.steps[run.i]; return { ej: run.w.bloques[st.bi].items[st.ii].ejercicio, s: st.s, fase: run.phase, cur: run.cur, next: run.nextCur, log: run.log, w: run.w }; });
+const clic = async (p, sel) => { await p.click(sel); await p.waitForTimeout(80); };
+
+// skipping an exercise of a pair from its 2nd set: the partner keeps its own numbers
+let p = await nueva();
+await clic(p, '[data-pl="done"]'); await clic(p, '[data-pl="skip"]'); await clic(p, '[data-pl="done"]'); await clic(p, '[data-pl="skip"]'); // press banca 1, crunch 1
+await clic(p, '[data-pl="skipex"]'); let x = await est(p);
+ok(x.ej === "Crunch" && x.s === 2 && x.cur.kg === 0 && x.cur.reps === 15, `saltar press banca en la serie 2 deja crunch 2 con sus números (${x.ej} ${x.s}: ${x.cur.reps} × ${x.cur.kg} kg)`);
+await clic(p, '[data-pl="done"]'); x = await est(p);
+ok(JSON.stringify(x.log["0.1"]) === JSON.stringify([{ reps: 15, kg: 0, secs: null, meters: null }, { reps: 15, kg: 0, secs: null, meters: null }]), "crunch se apunta 2 × 15 sin kilos");
+ok(!p.errs.length, `sin errores ${p.errs.join(" | ")}`); await p.close();
+
+// "+ Serie" in the rest of a pair: the partner, next, keeps its numbers
+p = await nueva();
+await clic(p, '[data-pl="done"]'); await clic(p, '[data-pl="addset"]'); x = await est(p);
+ok(x.w.bloques[0].items[0].series === 4 && x.next && x.next.kg === 0 && x.next.reps === 15, `«+ Serie» en el descanso: press banca con 4 series y lo siguiente sigue siendo crunch con 15 × 0 kg (${x.next && x.next.reps} × ${x.next && x.next.kg})`);
+await clic(p, '[data-pl="skip"]'); x = await est(p); ok(x.ej === "Crunch" && x.s === 1, `luego crunch 1 (${x.ej} ${x.s})`);
+ok(!p.errs.length, `sin errores ${p.errs.join(" | ")}`); await p.close();
+
+// swapping an exercise halfway in a pair: the new one goes on alternating, nothing done is asked again
+p = await nueva();
+await clic(p, '[data-pl="done"]'); await clic(p, '[data-pl="skip"]'); await clic(p, '[data-pl="done"]'); await clic(p, '[data-pl="skip"]'); // press banca 1, crunch 1
+await clic(p, '[data-swap-item="0.0"]'); await clic(p, "[data-swap-pick]"); x = await est(p);
+const nuevo = x.w.bloques[0].items[1].ejercicio;
+ok(x.ej === nuevo && x.s === 1, `tras cambiar press banca sigues con ${nuevo} 1 (${x.ej} ${x.s})`);
+const vistos = [];
+for (let k = 0; k < 6; k++) { x = await est(p); if (x.fase === "done") break; vistos.push(x.ej + " " + x.s); await clic(p, '[data-pl="done"]'); x = await est(p); if (x.fase === "rest") await clic(p, '[data-pl="skip"]'); }
+ok(vistos.slice(0, 4).join(", ") === `${nuevo} 1, Crunch 2, ${nuevo} 2, Press militar 1`, `y alterna con crunch sin repetir crunch 1: ${vistos.join(", ")}`);
+x = await est(p); ok(x.log["0.1"].length === 2 && x.log["0.0"].length === 1 && x.log["0.2"].length === 2, "press banca 1 serie, el nuevo 2 y crunch 2");
+ok(!p.errs.length, `sin errores ${p.errs.join(" | ")}`); await p.close();
+
+// the same from the rest before it ("Cambiar el siguiente"): you stay in crunch 1's rest, and «◀ Anterior» goes back to crunch 1
+p = await nueva();
+await clic(p, '[data-pl="done"]'); await clic(p, '[data-pl="skip"]'); await clic(p, '[data-pl="done"]'); // press banca 1, crunch 1, in the rest
+await clic(p, '[data-swap-item="0.0"]'); await clic(p, "[data-swap-pick]"); x = await est(p);
+ok(x.fase === "rest" && x.ej === "Crunch" && x.s === 1, `sigues en el descanso de crunch 1 (${x.fase}, ${x.ej} ${x.s})`);
+await clic(p, '[data-pl="back"]'); x = await est(p);
+ok(x.ej === "Crunch" && x.s === 1 && x.log["0.0"].length === 1 && !(x.log["0.2"] || []).length, `«◀ Anterior» vuelve a crunch 1 y press banca 1 se queda apuntada (${x.ej} ${x.s})`);
+ok(!p.errs.length, `sin errores ${p.errs.join(" | ")}`); await p.close();
+
+// "Los subo yo": the weights start where you left them, never more
+p = await nueva({ subirPeso: "yo" }); x = await est(p);
+const pb = x.w.bloques[0].items[0];
+ok(JSON.stringify(pb.plan.map(s => s.kg)) === "[30,30,32]" && x.cur.kg === 30 && pb.plan.every(s => s.reps === 8), `con «Los subo yo», press banca empieza con los kilos de la última vez (${pb.plan.map(s => s.kg + "×" + s.reps).join(" · ")})`);
+ok(/súbelos tú/.test(pb.reto), "y lo dice: súbelos tú");
+await p.close();
+p = await nueva({ subirPeso: "app" }); x = await est(p);
+ok(JSON.stringify(x.w.bloques[0].items[0].plan.map(s => s.kg)) === "[31,30,33]", `con «Me los sube la app», como siempre (${x.w.bloques[0].items[0].plan.map(s => s.kg).join(" · ")})`);
+await p.close();
 await browser.close();
 console.log(fallos ? `${fallos} fallos` : "todo bien"); process.exit(fallos ? 1 : 0);

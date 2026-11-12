@@ -34,7 +34,9 @@ function addSetNow(){
   const st = run.steps[run.i]; if (!st) return;
   const it = itemOf(st); it.series++; if (it.hasta != null) it.hasta++;
   run.steps = flatten(run.w); run.i = run.steps.findIndex(x => x.bi === st.bi && x.ii === st.ii && x.s === st.s);
-  if (run.phase === "rest") { const l = lastLog(); run.nextCur = l ? { reps: l.reps, kg: l.kg, meters: l.meters } : null; }
+  // in the rest, the new set comes next only when it is of the same exercise (in a pair, the partner may go first)
+  const n = run.steps[nextUndone(run.i)];
+  if (run.phase === "rest" && n && keyOf(n) === keyOf(st)) { const l = lastLog(); run.nextCur = l ? { reps: l.reps, kg: l.kg, meters: l.meters } : null; }
   saveRun(); renderPlayer(); syncRun();
   toast(`${it.ejercicio}: ahora ${it.series} series`);
 }

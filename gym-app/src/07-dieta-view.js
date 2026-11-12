@@ -53,6 +53,7 @@ function renderDieta(){
             <div class="f"><label for="p-work">Trabajo</label><select id="p-work" ${editable ? "" : "disabled"}>${Object.entries(WORK).map(([k, g]) => `<option value="${k}" ${pr.work === k ? "selected" : ""}>${g.l}</option>`).join("")}</select></div>
             <div class="f"><label for="p-meals">Comidas al día</label><select id="p-meals" ${editable ? "" : "disabled"}>${Object.entries(FREQS).map(([k, f]) => `<option value="${k}" ${freq === +k ? "selected" : ""}>${f.l}: ${f.s}</option>`).join("")}</select></div>
             <div class="f"><label for="p-alc">Objetivo de alcohol <small>UBE/semana</small></label><input id="p-alc" type="number" inputmode="numeric" min="0" max="40" value="${esc(pr.alcoholGoal)}" ${editable ? "" : "disabled"}></div>
+            <div class="f"><label for="p-peso">Kilos del entreno</label><select id="p-peso" ${editable ? "" : "disabled"}><option value="app" ${pr.subirPeso !== "yo" ? "selected" : ""}>Me los sube la app</option><option value="yo" ${pr.subirPeso === "yo" ? "selected" : ""}>Los subo yo</option></select></div>
           </div>
           ${editable ? `<div class="row-btns"><button type="submit" class="btn primary">Guardar mis datos</button></div>` : `<p class="note" style="margin:0">${me === dWho ? "Conectando…" : `Solo ${ATH[dWho]} puede cambiar sus datos.`}</p>`}
         </form>
@@ -115,7 +116,7 @@ Formato: un apartado por comida (${mealsFor(dWho).map(([, l]) => l).join(", ")})
 }
 async function saveProfile(){
   if (dbState !== "ready" || me !== dWho) return;
-  const p = { height: num($("#p-height").value), age: num($("#p-age").value), goal: $("#p-goal").value, work: $("#p-work").value, alcoholGoal: num($("#p-alc").value), comidas: FREQS[$("#p-meals").value] ? +$("#p-meals").value : 5 };
+  const p = { height: num($("#p-height").value), age: num($("#p-age").value), goal: $("#p-goal").value, work: $("#p-work").value, alcoholGoal: num($("#p-alc").value), comidas: FREQS[$("#p-meals").value] ? +$("#p-meals").value : 5, subirPeso: $("#p-peso").value === "yo" ? "yo" : "app" };
   if (p.height < 140 || p.height > 220 || p.age < 16 || p.age > 90) { toast("Revisa la altura y la edad"); return; }
   try { await db.doc("perfiles/" + me).set({ ...profileDoc(me), ...p, updatedAt: Date.now() }); toast("Datos guardados"); }
   catch { toast("No se han podido guardar tus datos"); }

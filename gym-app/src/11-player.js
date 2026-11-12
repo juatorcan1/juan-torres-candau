@@ -477,10 +477,13 @@ function goBack(){
   try { speechSynthesis.cancel(); } catch {}
   let st = run.steps[run.i];
   if (run.phase !== "rest") {
-    if (run.i === 0) return;
-    run.i--; st = run.steps[run.i];
+    // back to the previous step that was logged or is still to do (not the sets of a skipped exercise)
+    const got = x => (run.log[keyOf(x)] || []).length;
+    let j = run.i - 1; while (j >= 0 && got(run.steps[j]) < run.steps[j].s && isDone(run.steps[j])) j--;
+    if (j < 0) return;
+    run.i = j; st = run.steps[j];
     // a step left behind (after a ring) goes to that exercise's first set left
-    if (!isDone(st)) { const d = (run.log[keyOf(st)] || []).length, m = run.steps.findIndex(x => keyOf(x) === keyOf(st) && x.s === d + 1); if (m >= 0) { run.i = m; st = run.steps[m]; } }
+    if (got(st) < st.s) { const m = run.steps.findIndex(x => keyOf(x) === keyOf(st) && x.s === got(st) + 1); if (m >= 0) { run.i = m; st = run.steps[m]; } }
   }
   const it = itemOf(st), l = run.log[keyOf(st)] || [], x = l.length >= st.s ? l[st.s - 1] : null, def = planned(it, st.s);
   run.edit = x ? { k: keyOf(st), idx: st.s - 1 } : null;

@@ -137,6 +137,26 @@ await clic(p, '[data-swap-item="0.0"]'); await clic(p, "[data-swap-pick]"); x = 
 ok(n(x.log, "0.0") === 2 && x.ej !== "Remo con barra" && x.s === 1, `remo se queda con sus 2 series y sigues con ${x.ej} ${x.s}`);
 ok(!p.errs.length, `sin errores ${p.errs.join(" | ")}`); await p.close();
 
+// «◀ Anterior» tras «Saltar ejercicio» vuelve a la serie hecha, no a las saltadas
+p = await nueva(gym);
+await p.fill("#pl-cur-kg", "43"); await p.dispatchEvent("#pl-cur-kg", "input"); await hecha(p); // remo 1 a 43 kg
+await clic(p, '[data-pl="skipex"]'); await clic(p, '[data-pl="back"]'); x = await est(p);
+ok(x.ej === "Remo con barra" && x.s === 1 && x.cur.kg === 43, `vuelve a remo 1 con sus 43 kg (${x.ej} ${x.s}, ${x.cur.kg} kg)`);
+await clic(p, '[data-pl="done"]'); x = await est(p);
+ok(n(x.log, "0.0") === 1, `y al apuntarla sigue habiendo una sola serie de remo (${n(x.log, "0.0")})`);
+ok(!p.errs.length, `sin errores ${p.errs.join(" | ")}`); await p.close();
+
+// «◀ Anterior» hasta una serie de la pareja y «Cambiar»: lo siguiente lleva sus propios números
+p = await nueva(gym);
+await bolita(p, "1.0"); await p.fill("#pl-cur-kg", "33"); await p.dispatchEvent("#pl-cur-kg", "input"); await hecha(p); // curl 1 a 33
+await hecha(p); await hecha(p); // extensión 1, curl 2 → extensión 2
+x = await est(p); ok(x.ej === "Extensión en polea" && x.s === 2, `en extensión 2 (${x.ej} ${x.s})`);
+await clic(p, '[data-pl="back"]'); await clic(p, '[data-pl="back"]'); await clic(p, '[data-pl="back"]'); x = await est(p);
+ok(x.ej === "Curl con barra" && x.s === 1 && x.cur.kg === 33, `tres veces atrás: curl 1 a 33 kg (${x.ej} ${x.s}, ${x.cur.kg})`);
+await clic(p, '[data-swap-item="1.0"]'); await clic(p, "[data-swap-pick]"); x = await est(p);
+ok(n(x.log, "1.0") === 2 && x.cur.kg !== 33, `cambiar curl deja sus 2 series y lo siguiente no lleva sus 33 kg (${x.ej} ${x.s}, ${x.cur.kg} kg)`);
+ok(!p.errs.length, `sin errores ${p.errs.join(" | ")}`); await p.close();
+
 // «Cambiar» un ejercicio a medias no le pasa la marca de saltado al de al lado
 p = await nueva(gym);
 await hecha(p); await bolita(p, "0.1"); await clic(p, '[data-pl="skipex"]'); await bolita(p, "0.0"); // remo 1; jalón saltado; vuelta a remo 2

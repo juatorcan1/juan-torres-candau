@@ -93,7 +93,7 @@ function applySwap(bi, ii, item){
     else { const at = run.steps.findIndex(s => s.bi === bi && s.ii === ii && s.s === done); run.i = run.phase === "rest" ? at : at + 1; }
   }
   // on a set already done (reopened with «◀ Anterior»): on to the next one left, the new exercise's first
-  if (run.phase === "set" && run.steps[run.i] && isDone(run.steps[run.i])) { const j = nextUndone(run.i); if (run.steps[j]) run.i = j; }
+  if (run.phase === "set" && run.steps[run.i] && isDone(run.steps[run.i])) { const j = nextUndone(run.i); if (run.steps[j]) goStep(j); }
   const st = run.steps[run.i];
   if (run.phase === "set" && st && st.bi === bi && st.ii === (done ? ii + 1 : ii)) { const it = itemOf(st); run.cur = { reps: it.reps, kg: it.kg, secs: it.segundos, meters: it.metros }; }
   // resting before the swapped exercise: the next set's numbers are the new exercise's

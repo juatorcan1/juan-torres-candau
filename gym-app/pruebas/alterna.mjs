@@ -111,7 +111,7 @@ await clic(p, '[data-pl="done"]'); await clic(p, '[data-pl="skip"]'); await clic
 await clic(p, '[data-swap-item="0.0"]'); await clic(p, "[data-swap-pick]"); x = await est(p);
 ok(x.fase === "rest" && x.ej === "Crunch" && x.s === 1, `sigues en el descanso de crunch 1 (${x.fase}, ${x.ej} ${x.s})`);
 await clic(p, '[data-pl="back"]'); x = await est(p);
-ok(x.ej === "Crunch" && x.s === 1 && x.log["0.0"].length === 1 && !(x.log["0.2"] || []).length, `«◀ Anterior» vuelve a crunch 1 y press banca 1 se queda apuntada (${x.ej} ${x.s})`);
+ok(x.ej === "Crunch" && x.s === 1 && x.log["0.0"].length === 1 && (x.log["0.2"] || []).length === 1, `«◀ Anterior» vuelve a crunch 1 para corregirla (sigue apuntada mientras) y press banca 1 se queda apuntada (${x.ej} ${x.s})`);
 ok(!p.errs.length, `sin errores ${p.errs.join(" | ")}`); await p.close();
 
 // "Los subo yo": the weights start where you left them, never more

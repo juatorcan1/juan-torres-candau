@@ -75,7 +75,7 @@ function applySwap(bi, ii, item){
   // the step on screen (in the rest, the one just done), to find it again after the swap
   const cur = run.steps[run.i], was = cur && { ...cur };
   if (was && was.bi === bi && done) { if (was.ii > ii) was.ii++; else if (was.ii === ii && was.s > done) { was.ii++; was.s -= done; } }
-  run.reopen = null; // a set reopened with «◀ Anterior» and then swapped is done again with the new exercise
+  run.edit = null; // a set reopened with «◀ Anterior» stays as it was, with the old exercise
   if (!done) { items[ii] = { ...item, series: old.series, ...(old.desde ? { desde: old.desde } : {}) }; if (run.skip) delete run.skip[bi + "." + ii]; }
   else {
     // alternating: the new exercise goes on from the round where the old one stopped, next to its partner
@@ -92,6 +92,8 @@ function applySwap(bi, ii, item){
     if (back >= 0) run.i = back;
     else { const at = run.steps.findIndex(s => s.bi === bi && s.ii === ii && s.s === done); run.i = run.phase === "rest" ? at : at + 1; }
   }
+  // on a set already done (reopened with «◀ Anterior»): on to the next one left, the new exercise's first
+  if (run.phase === "set" && run.steps[run.i] && isDone(run.steps[run.i])) { const j = nextUndone(run.i); if (run.steps[j]) run.i = j; }
   const st = run.steps[run.i];
   if (run.phase === "set" && st && st.bi === bi && st.ii === (done ? ii + 1 : ii)) { const it = itemOf(st); run.cur = { reps: it.reps, kg: it.kg, secs: it.segundos, meters: it.metros }; }
   // resting before the swapped exercise: the next set's numbers are the new exercise's

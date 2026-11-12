@@ -286,8 +286,11 @@ function tickPlayer(){
 /* flow */
 function logSet(){
   const st = run.steps[run.i], it = itemOf(st), c = run.cur || {};
-  run.lastAt = Date.now(); run.reopen = null;
-  (run.log[keyOf(st)] ||= []).push({ reps: num(c.reps), kg: num(c.kg), secs: it.modo === "tiempo" ? it.segundos : null, meters: it.modo === "distancia" ? num(c.meters) : null });
+  run.lastAt = Date.now();
+  const set = { reps: num(c.reps), kg: num(c.kg), secs: it.modo === "tiempo" ? it.segundos : null, meters: it.modo === "distancia" ? num(c.meters) : null }, l = (run.log[keyOf(st)] ||= []);
+  // a set reopened with «◀ Anterior» is corrected where it is; any other one is added
+  const ed = run.edit; run.edit = null;
+  if (ed && ed.k === keyOf(st) && l[ed.idx]) l[ed.idx] = set; else l.push(set);
   run._w3 = false;
   const next = run.steps[nextUndone(run.i)];
   if (!next) { finishRun(); return; }
@@ -466,25 +469,25 @@ async function saveRunSession(){
   if (run === r) closePlayer(true);
   toast(prs.length ? `Guardado. ¡${prs.length} récord${prs.length > 1 ? "s" : ""}! ${ATH[OTHER[me]]} ya lo ve.` : "Entreno guardado");
 }
-/* one step back: in the rest it undoes the set you just logged, in a set it goes to the previous one;
-   a set that was done comes back with what you logged, ready to correct and log again */
+/* one step back: in the rest it reopens the set you just logged, in a set it goes to the previous one; a set
+   that was done comes back with what you logged, to correct it. It stays in the log meanwhile (run.edit says
+   which one is open) and «Serie hecha» writes it over in its place: leaving it any other way (a ring, «Saltar
+   ejercicio», «Terminar», closing, the phone dying) keeps it as it was. */
 function goBack(){
   try { speechSynthesis.cancel(); } catch {}
   let st = run.steps[run.i];
-  if (run.phase !== "rest") { if (run.i === 0) return; restoreReopened(); run.i--; st = run.steps[run.i]; }
-  const it = itemOf(st), l = run.log[keyOf(st)] || [], x = l.length >= st.s ? l.pop() : null, def = planned(it, st.s);
-  run.reopen = x ? { k: keyOf(st), x } : null;
+  if (run.phase !== "rest") {
+    if (run.i === 0) return;
+    run.i--; st = run.steps[run.i];
+    // a step left behind (after a ring) goes to that exercise's first set left
+    if (!isDone(st)) { const d = (run.log[keyOf(st)] || []).length, m = run.steps.findIndex(x => keyOf(x) === keyOf(st) && x.s === d + 1); if (m >= 0) { run.i = m; st = run.steps[m]; } }
+  }
+  const it = itemOf(st), l = run.log[keyOf(st)] || [], x = l.length >= st.s ? l[st.s - 1] : null, def = planned(it, st.s);
+  run.edit = x ? { k: keyOf(st), idx: st.s - 1 } : null;
   run.cur = x ? { ...def, reps: x.reps, kg: x.kg, meters: x.meters != null ? x.meters : def.meters } : def;
   run.phase = "set"; run.until = null; run.pausedLeft = null; run.nextCur = null;
-  saveRun(); renderPlayer(); syncRun();
+  saveRun(); renderPlayer();
   toast(`${it.ejercicio} · serie ${st.s}${x ? ": corrige y pulsa «Serie hecha»" : ""}`);
-}
-/* a set reopened with «◀ Anterior» and left without logging it again (a ring, «Saltar ejercicio», going back
-   further, «Terminar»): it goes back into the log as it was, so its numbers are never lost */
-function restoreReopened(){
-  const o = run.reopen; run.reopen = null;
-  if (!o || run.phase !== "set") return false;
-  (run.log[o.k] ||= []).push(o.x); return true;
 }
 // the summary lets you fix any set before saving
 let fixOpen = false;
@@ -523,10 +526,10 @@ document.addEventListener("click", e => {
     saveRun(); renderPlayer();
   }
   else if (a === "skip") endRest();
-  else if (a === "skipex") { const back = restoreReopened();
+  else if (a === "skipex") { run.edit = null;
     if (alternating(run.steps[run.i])) skipAlternating();
-    else { run.nextCur = null; (run.skip ||= {})[keyOf(run.steps[run.i])] = true; advance(); saveRun(); renderPlayer(); if (back) syncRun(); } }
-  else if (a === "finish") { if (restoreReopened()) syncRun(); finishRun(); }
+    else { run.nextCur = null; (run.skip ||= {})[keyOf(run.steps[run.i])] = true; advance(); saveRun(); renderPlayer(); } }
+  else if (a === "finish") { run.edit = null; finishRun(); }
   else if (a === "save") saveRunSession();
   else if (a === "discard") { if (run.sid && !confirm(dropAsk())) return; dropRunDoc(); closePlayer(true); }
   else if (a === "back") goBack();
@@ -542,7 +545,7 @@ function jumpTo(k){
   const done = (run.log[k] || []).length, cur = run.steps[run.i];
   if (done >= it.series) { toast(`${it.ejercicio}: ya están las ${it.series} series${run.phase === "set" ? "" : ". Para otra, «+ Serie»"}`); return; }
   if (run.phase === "set" && cur && keyOf(cur) === k) return;
-  const restored = restoreReopened();
+  run.edit = null;
   // in the rest, the numbers set for the next set stay if that is where you go
   const next = run.phase === "rest" ? run.steps[nextUndone(run.i)] : null;
   if (!(next && keyOf(next) === k && next.s === done + 1)) run.nextCur = null;
@@ -551,12 +554,12 @@ function jumpTo(k){
   if (it.hasta != null && done >= it.hasta) { delete it.hasta; run.steps = flatten(run.w); changed = true; }
   const j = run.steps.findIndex(x => keyOf(x) === k && x.s === done + 1); if (j < 0) return;
   try { speechSynthesis.cancel(); } catch {}
-  goStep(j); saveRun(); renderPlayer(); if (changed || restored) syncRun();
+  goStep(j); saveRun(); renderPlayer(); if (changed) syncRun();
   const st = run.steps[run.i]; if (st) say(`${spokenStep(st)}. ${target({ ...itemOf(st), ...(run.cur || {}) })}`);
 }
 // skipping an exercise of an alternating block: its sets left come out, the other exercises of the block go on
 function skipAlternating(){
-  // what stays is what is logged (in the rest, the set just done; a set reopened with «◀ Anterior» is back in)
+  // what stays is what is logged (in the rest, the set just done; a set reopened with «◀ Anterior» too)
   const st = run.steps[run.i], k = keyOf(st), it = itemOf(st), keep = (run.log[k] || []).length;
   it.hasta = keep; run.nextCur = null;
   const at = run.steps.slice(0, run.i).filter(x => keyOf(x) !== k || x.s <= keep).length;

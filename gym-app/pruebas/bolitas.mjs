@@ -95,7 +95,7 @@ p = await nueva(gym);
 await bolita(p, "1.1"); await hecha(p); x = await est(p);
 ok(x.ej === "Curl con barra" && x.s === 1, `tras extensión 1, curl empieza por su serie 1 (${x.ej} ${x.s})`);
 await clic(p, '[data-pl="done"]'); await clic(p, '[data-pl="back"]'); x = await est(p);
-ok(x.ej === "Curl con barra" && x.s === 1 && n(x.log, "1.0") === 0, `«◀ Anterior» en el descanso quita esa serie para corregirla (${x.ej} ${x.s}, ${n(x.log, "1.0")} apuntadas)`);
+ok(x.ej === "Curl con barra" && x.s === 1 && n(x.log, "1.0") === 1, `«◀ Anterior» en el descanso reabre esa serie para corregirla, sin quitarla (${x.ej} ${x.s}, ${n(x.log, "1.0")} apuntada)`);
 await clic(p, '[data-pl="done"]'); x = await est(p);
 ok(n(x.log, "1.0") === 1, `y al apuntarla otra vez queda una sola (${n(x.log, "1.0")})`);
 ok(!p.errs.length, `sin errores ${p.errs.join(" | ")}`); await p.close();
@@ -104,7 +104,7 @@ ok(!p.errs.length, `sin errores ${p.errs.join(" | ")}`); await p.close();
 p = await nueva(gym);
 await p.fill("#pl-cur-kg", "44"); await p.dispatchEvent("#pl-cur-kg", "input"); await hecha(p); // remo 1 a 44 kg
 await clic(p, '[data-pl="back"]'); x = await est(p);
-ok(x.ej === "Remo con barra" && x.s === 1 && n(x.log, "0.0") === 0, `«◀ Anterior» desde remo 2 reabre remo 1 (${x.ej} ${x.s})`);
+ok(x.ej === "Remo con barra" && x.s === 1 && n(x.log, "0.0") === 1 && x.cur.kg === 44, `«◀ Anterior» desde remo 2 reabre remo 1 con sus 44 kg (${x.ej} ${x.s}, ${x.cur.kg} kg)`);
 await bolita(p, "0.1"); x = await est(p);
 ok(x.ej === "Jalón al pecho" && JSON.stringify((x.log["0.0"] || []).map(z => z.kg)) === "[44]", `irte con una bolita deja remo 1 como estaba, a 44 kg (${JSON.stringify(x.log["0.0"])})`);
 await bolita(p, "0.0"); x = await est(p);
@@ -115,6 +115,26 @@ await p.close();
 p = await nueva(gym);
 await hecha(p); await hecha(p); await clic(p, '[data-pl="back"]'); await clic(p, '[data-pl="skipex"]'); x = await est(p);
 ok(x.ej === "Jalón al pecho" && n(x.log, "0.0") === 2, `«Saltar ejercicio» tras «◀ Anterior» se queda con las 2 series de remo (${n(x.log, "0.0")})`);
+ok(!p.errs.length, `sin errores ${p.errs.join(" | ")}`); await p.close();
+
+// corregir con «◀ Anterior»: dos veces atrás corrige la serie 2, en su sitio; y la base no la pierde mientras
+p = await nueva(gym);
+for (const kg of ["40", "41", "42"]) { await p.fill("#pl-cur-kg", kg); await p.dispatchEvent("#pl-cur-kg", "input"); await hecha(p); }
+await clic(p, '[data-pl="back"]'); await clic(p, '[data-pl="back"]'); x = await est(p);
+ok(x.ej === "Remo con barra" && x.s === 2 && x.cur.kg === 41, `dos veces «◀ Anterior»: remo 2 con sus 41 kg (${x.ej} ${x.s}, ${x.cur.kg} kg)`);
+await p.waitForTimeout(300);
+const enBase = await p.evaluate(() => { const s = [...window.__cols.sesiones.values()].find(z => z.enCurso); return s ? s.exercises.map(e => e.sets.map(z => z.kg).join("/")).join(",") : ""; });
+ok(enBase === "40/41/42", `mientras la corriges, la base tiene las 3 series (${enBase})`);
+await p.fill("#pl-cur-kg", "45"); await p.dispatchEvent("#pl-cur-kg", "input"); await clic(p, '[data-pl="done"]'); x = await est(p);
+ok(JSON.stringify(x.log["0.0"].map(z => z.kg)) === "[40,45,42]", `«Serie hecha» la corrige en su sitio: ${x.log["0.0"].map(z => z.kg).join("/")}`);
+ok(x.ej === "Jalón al pecho" || x.fase === "rest", `y sigue adelante, sin repetir remo (${x.ej} ${x.s}, ${x.fase})`);
+ok(!p.errs.length, `sin errores ${p.errs.join(" | ")}`); await p.close();
+
+// «◀ Anterior» y luego «Cambiar»: la serie hecha se queda con el ejercicio antiguo
+p = await nueva(gym);
+await hecha(p); await hecha(p); await clic(p, '[data-pl="back"]'); // remo 1 y 2; reabres remo 2
+await clic(p, '[data-swap-item="0.0"]'); await clic(p, "[data-swap-pick]"); x = await est(p);
+ok(n(x.log, "0.0") === 2 && x.ej !== "Remo con barra" && x.s === 1, `remo se queda con sus 2 series y sigues con ${x.ej} ${x.s}`);
 ok(!p.errs.length, `sin errores ${p.errs.join(" | ")}`); await p.close();
 
 // «Cambiar» un ejercicio a medias no le pasa la marca de saltado al de al lado

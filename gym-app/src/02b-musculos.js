@@ -12,7 +12,7 @@ const EX_MUS = {
   "Sentadilla": [["cuadriceps", "gluteo"], ["lumbar", "isquios", "abdomen"]], "Press banca": [["pectoral"], ["triceps", "deltoides"]],
   "Peso muerto": [["gluteo", "isquios", "lumbar"], ["dorsal", "trapecio", "cuadriceps", "antebrazo"]], "Peso muerto rumano": [["isquios", "gluteo"], ["lumbar"]],
   "Press militar": [["deltoides"], ["triceps", "trapecio", "abdomen"]], "Remo con barra": [["dorsal"], ["biceps", "trapecio", "lumbar"]],
-  "Dominadas": [["dorsal"], ["biceps", "antebrazo", "abdomen"]], "Jalón al pecho": [["dorsal"], ["biceps"]], "Curl con barra": [["biceps"], ["antebrazo"]],
+  "Dominadas": [["dorsal"], ["biceps", "antebrazo", "abdomen"]], "Jalón al pecho": [["dorsal"], ["biceps"]], "Jalón al pecho cerrado": [["dorsal"], ["biceps", "trapecio"]], "Curl con barra": [["biceps"], ["antebrazo"]],
   "Curl martillo": [["biceps", "antebrazo"], []], "Curl en banco Scott": [["biceps"], ["antebrazo"]], "Curl en polea": [["biceps"], ["antebrazo"]], "Extensión en polea": [["triceps"], []],
   "Press francés": [["triceps"], []], "Fondos": [["pectoral", "triceps"], ["deltoides"]], "Press inclinado con mancuernas": [["pectoral"], ["deltoides", "triceps"]], "Press inclinado con barra": [["pectoral"], ["deltoides", "triceps"]],
   "Press en máquina": [["pectoral"], ["triceps"]], "Aperturas": [["pectoral"], ["deltoides"]], "Cruce de poleas": [["pectoral"], ["deltoides"]],

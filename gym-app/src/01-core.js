@@ -37,7 +37,7 @@ const GROUPS = ["Pecho","Espalda","Piernas","Glúteo","Hombro","Bíceps","Tríce
 const EQUIP = ["Barra","Mancuernas","Máquina","Polea","Peso corporal","Kettlebell","Otro"];
 const CATALOG = {
   "Press banca":"Pecho","Press inclinado con barra":"Pecho","Press inclinado con mancuernas":"Pecho","Press en máquina":"Pecho","Aperturas":"Pecho","Cruce de poleas":"Pecho","Fondos":"Pecho",
-  "Dominadas":"Espalda","Jalón al pecho":"Espalda","Remo con barra":"Espalda","Remo con mancuerna":"Espalda","Remo en polea baja":"Espalda","Peso muerto":"Espalda",
+  "Dominadas":"Espalda","Jalón al pecho":"Espalda","Jalón al pecho cerrado":"Espalda","Remo con barra":"Espalda","Remo con mancuerna":"Espalda","Remo en polea baja":"Espalda","Peso muerto":"Espalda",
   "Sentadilla":"Piernas","Sentadilla búlgara":"Piernas","Prensa":"Piernas","Zancadas":"Piernas","Extensión de cuádriceps":"Piernas","Curl femoral":"Piernas","Gemelos":"Piernas",
   "Hip thrust":"Glúteo","Peso muerto rumano":"Glúteo",
   "Press militar":"Hombro","Elevaciones laterales":"Hombro","Pájaros":"Hombro","Face pull":"Hombro",

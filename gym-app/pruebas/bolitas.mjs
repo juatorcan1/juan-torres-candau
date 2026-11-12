@@ -90,6 +90,44 @@ await bolita(p, "1.0"); x = await est(p);
 ok(x.ej === "Curl con barra" && x.s === 1, `y su bolita lo recupera (${x.ej} ${x.s})`);
 ok(!p.errs.length, `sin errores ${p.errs.join(" | ")}`); await p.close();
 
+// entrar en una pareja por el segundo: el primero empieza por su serie 1, no por la 2, y «◀ Anterior» no la duplica
+p = await nueva(gym);
+await bolita(p, "1.1"); await hecha(p); x = await est(p);
+ok(x.ej === "Curl con barra" && x.s === 1, `tras extensión 1, curl empieza por su serie 1 (${x.ej} ${x.s})`);
+await clic(p, '[data-pl="done"]'); await clic(p, '[data-pl="back"]'); x = await est(p);
+ok(x.ej === "Curl con barra" && x.s === 1 && n(x.log, "1.0") === 0, `«◀ Anterior» en el descanso quita esa serie para corregirla (${x.ej} ${x.s}, ${n(x.log, "1.0")} apuntadas)`);
+await clic(p, '[data-pl="done"]'); x = await est(p);
+ok(n(x.log, "1.0") === 1, `y al apuntarla otra vez queda una sola (${n(x.log, "1.0")})`);
+ok(!p.errs.length, `sin errores ${p.errs.join(" | ")}`); await p.close();
+
+// «◀ Anterior» y luego una bolita, «Saltar ejercicio» o «Terminar»: la serie vuelve con sus números
+p = await nueva(gym);
+await p.fill("#pl-cur-kg", "44"); await p.dispatchEvent("#pl-cur-kg", "input"); await hecha(p); // remo 1 a 44 kg
+await clic(p, '[data-pl="back"]'); x = await est(p);
+ok(x.ej === "Remo con barra" && x.s === 1 && n(x.log, "0.0") === 0, `«◀ Anterior» desde remo 2 reabre remo 1 (${x.ej} ${x.s})`);
+await bolita(p, "0.1"); x = await est(p);
+ok(x.ej === "Jalón al pecho" && JSON.stringify((x.log["0.0"] || []).map(z => z.kg)) === "[44]", `irte con una bolita deja remo 1 como estaba, a 44 kg (${JSON.stringify(x.log["0.0"])})`);
+await bolita(p, "0.0"); x = await est(p);
+ok(x.ej === "Remo con barra" && x.s === 2, `y al volver, remo sigue por la 2 (${x.ej} ${x.s})`);
+await clic(p, '[data-pl="back"]'); await clic(p, '[data-pl="finish"]'); await p.waitForTimeout(150); x = await est(p);
+ok(x.fase === "done" && n(x.log, "0.0") === 1, `«Terminar» tras «◀ Anterior» guarda remo 1 igual (${n(x.log, "0.0")})`);
+await p.close();
+p = await nueva(gym);
+await hecha(p); await hecha(p); await clic(p, '[data-pl="back"]'); await clic(p, '[data-pl="skipex"]'); x = await est(p);
+ok(x.ej === "Jalón al pecho" && n(x.log, "0.0") === 2, `«Saltar ejercicio» tras «◀ Anterior» se queda con las 2 series de remo (${n(x.log, "0.0")})`);
+ok(!p.errs.length, `sin errores ${p.errs.join(" | ")}`); await p.close();
+
+// «Cambiar» un ejercicio a medias no le pasa la marca de saltado al de al lado
+p = await nueva(gym);
+await hecha(p); await bolita(p, "0.1"); await clic(p, '[data-pl="skipex"]'); await bolita(p, "0.0"); // remo 1; jalón saltado; vuelta a remo 2
+await clic(p, '[data-swap-item="0.0"]'); await clic(p, "[data-swap-pick]"); x = await est(p);
+const nuevoEj = x.ej;
+ok(x.ej !== "Remo con barra" && x.s === 1, `cambiar remo a mitad: sigues con ${x.ej} 1`);
+await hecha(p); x = await est(p);
+ok(x.ej === nuevoEj && x.s === 2, `y se pide su serie 2 (${x.ej} ${x.s})`);
+ok(await p.evaluate(() => document.querySelector('[data-jump="0.2"]').closest(".tk").classList.contains("skip") && !document.querySelector('[data-jump="0.1"]').closest(".tk").classList.contains("skip")), "jalón sigue saltado y el nuevo no");
+ok(!p.errs.length, `sin errores ${p.errs.join(" | ")}`); await p.close();
+
 // nadar: igual con los largos
 p = await nueva(nadar);
 await clic(p, '[data-pl="done"]'); await bolita(p, "0.1"); x = await est(p);

@@ -11,11 +11,25 @@ function mainItems(w){
   const all = w.bloques.flatMap(b => b.items), core = w.bloques.filter(b => !/calentamiento|vuelta a la calma/i.test(b.nombre)).flatMap(b => b.items);
   return core.length ? core : all;
 }
+// a block with "alterna" goes round its exercises set by set (A1, B1, A2, B2…): while one rests, the other works.
+// it.hasta: the sets left out of an alternating exercise you skipped
 function flatten(w){
-  const steps = [];
-  w.bloques.forEach((b, bi) => b.items.forEach((it, ii) => { for (let s = 1; s <= it.series; s++) steps.push({ bi, ii, s }); }));
+  const steps = [], upTo = it => it.hasta != null ? Math.min(it.hasta, it.series) : it.series;
+  w.bloques.forEach((b, bi) => {
+    if (b.alterna) { const n = Math.max(0, ...b.items.map(upTo)); for (let s = 1; s <= n; s++) b.items.forEach((it, ii) => { if (s <= upTo(it)) steps.push({ bi, ii, s }); }); }
+    else b.items.forEach((it, ii) => { for (let s = 1; s <= it.series; s++) steps.push({ bi, ii, s }); });
+  });
   return steps;
 }
+const ALTERNA_CAMBIO_S = 30; // in an alternating block, from one exercise to the other: just the time to get to the next machine
+// the rest after a set: in an alternating block, short if another exercise of the block comes next, and the
+// exercise's own rest when its partner is finished or the block ends
+function restAfter(st, next){
+  const it = itemOf(st), b = run.w.bloques[st.bi];
+  if (b.alterna && next && next.bi === st.bi && next.ii !== st.ii) return Math.min(ALTERNA_CAMBIO_S, it.descanso_s || ALTERNA_CAMBIO_S);
+  return it.descanso_s || 0;
+}
+const alternating = st => !!(st && run.w.bloques[st.bi] && run.w.bloques[st.bi].alterna);
 const itemOf = (st) => run.w.bloques[st.bi].items[st.ii];
 const keyOf = (st) => st.bi + "." + st.ii;
 function saveRun(){ store.set("gym.run", run); }
@@ -160,7 +174,7 @@ function renderPlayer(){
       ${run.forDate ? `<div class="banner">Apuntas el entreno del <b>${esc(DIA[parseISO(run.forDate).getDay()])} ${parseISO(run.forDate).getDate()}</b>. Pon en cada serie lo que hiciste y pulsa «Serie hecha»: sin descansos. Lo que no hiciste, «Saltar ejercicio».</div>` : ""}
       ${run.tuned ? `<p class="note">Pesos según lo que levantaste la última vez en ${run.tuned} ejercicio${run.tuned > 1 ? "s" : ""}.</p>` : ""}
       ${run.swapped && run.swapped.length ? `<p class="note">Cambiado porque no te gusta: ${run.swapped.map(([a, b]) => `${esc(a)} → <b>${esc(b)}</b>`).join(", ")}.</p>` : ""}
-      ${w.bloques.map((b, bi) => `<div class="pl-block"><div class="eyebrow">${esc(b.nombre)}</div>${b.items.map((x, ii) => `<div class="pl-item">
+      ${w.bloques.map((b, bi) => `<div class="pl-block"><div class="eyebrow">${esc(b.nombre)}${b.alterna && b.items.length > 1 ? " · alternando, serie a serie" : ""}</div>${b.items.map((x, ii) => `<div class="pl-item">
         ${figMini(x.ejercicio)}
         <div>${musclesOf(x).main.length ? `<div class="mus-chip">${esc(musNames(musclesOf(x).main))}</div>` : ""}<b>${esc(x.ejercicio)}</b><div class="muted" style="font-size:13px">${x.series} × ${target(x)} · descanso ${x.descanso_s} s</div>${x.reto ? `<div class="reto">${esc(x.reto)}</div>` : ""}${gripTag(x.ejercicio)}${noteHTML(x.ejercicio, { small: true, add: false })}</div>
         <button type="button" class="btn sm ghost" data-swap-item="${bi}.${ii}" aria-label="Cambiar ${esc(x.ejercicio)}">Cambiar</button></div>`).join("")}</div>`).join("")}
@@ -175,7 +189,7 @@ function renderPlayer(){
     run.cur = cur;
     const mine = it.modo === "reps" ? bestFor(me, it.ejercicio).b : null, his = it.modo === "reps" ? bestFor(OTHER[me], it.ejercicio).b : null;
     const resting = run.phase === "rest", working = run.phase === "work";
-    const paused = run.pausedLeft != null, secsLeft = paused ? run.pausedLeft / 1000 : run.until ? (run.until - Date.now()) / 1000 : 0, span = resting ? (it.descanso_s || 1) : (it.segundos || 1);
+    const paused = run.pausedLeft != null, secsLeft = paused ? run.pausedLeft / 1000 : run.until ? (run.until - Date.now()) / 1000 : 0, span = resting ? (run.restSpan || it.descanso_s || 1) : (it.segundos || 1);
     const newEx = resting && next && keyOf(next) !== keyOf(st); // the rest before a different exercise: time to set up the machine
     const mu = musclesOf(it);
     // while resting, the top of the screen already shows what comes next (the new exercise, or the next set)
@@ -191,7 +205,7 @@ function renderPlayer(){
       ${resting || working ? `<div class="ring ${resting ? "rest" : "work"}">
           <svg viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="52" class="rt"/><circle cx="60" cy="60" r="52" class="rv" id="pl-ring" style="stroke-dasharray:326.7;stroke-dashoffset:${326.7 * (1 - Math.max(0, secsLeft) / span)}"/></svg>
           <div class="ring-txt"><span id="pl-count">${mmssS(secsLeft)}</span><small>${paused ? "en pausa" : resting ? "descanso" : "¡dale!"}</small></div></div>
-          ${resting ? `<div class="pl-next">${!next ? "Última serie hecha: <b>a terminar</b>" : newEx ? `Acabaste <b>${esc(it.ejercicio)}</b>. Prepara la máquina y pulsa «Estoy listo».` : `Siguiente: <b>serie ${next.s} de ${itemOf(next).series}</b>`}</div>${restEdit(st, next)}` : ""}`
+          ${resting ? `<div class="pl-next">${!next ? "Última serie hecha: <b>a terminar</b>" : newEx && alternating(st) && next.bi === st.bi ? `Cambia a <b>${esc(itemOf(next).ejercicio)}</b> y pulsa «Estoy listo».` : newEx ? `Acabaste <b>${esc(it.ejercicio)}</b>. Prepara la máquina y pulsa «Estoy listo».` : `Siguiente: <b>serie ${next.s} de ${itemOf(next).series}</b>`}</div>${restEdit(st, next)}` : ""}`
         : `<div class="pl-map">${bodyMap(levelsFor([mu]))}</div>
           ${it.indicacion ? `<div class="pl-cue">${esc(it.indicacion)}</div>` : ""}
           ${it.reto && !it.prev ? `<div class="reto big">${esc(it.reto)}</div>` : ""}
@@ -241,7 +255,7 @@ function tickPlayer(){
   const e = $("#pl-elapsed"); if (e && run.startedAt) e.textContent = mmssS((Date.now() - run.startedAt) / 1000);
   if (run.phase !== "rest" && run.phase !== "work") return;
   if (run.pausedLeft != null) return;
-  const it = itemOf(run.steps[run.i]), left = (run.until - Date.now()) / 1000, span = run.phase === "rest" ? (it.descanso_s || 1) : (it.segundos || 1);
+  const it = itemOf(run.steps[run.i]), left = (run.until - Date.now()) / 1000, span = run.phase === "rest" ? (run.restSpan || it.descanso_s || 1) : (it.segundos || 1);
   const c = $("#pl-count"); if (c) c.textContent = mmssS(left);
   const r = $("#pl-ring"); if (r) r.style.strokeDashoffset = 326.7 * (1 - Math.max(0, left) / span);
   if (run.phase === "work" && Math.ceil(left) === 3 && !run._w3) { run._w3 = true; beep(); }
@@ -259,8 +273,11 @@ function logSet(){
   run.pausedLeft = null;
   const ni = itemOf(next);
   // the next set of the same exercise keeps what you just did, unless it has its own target from last time
-  run.nextCur = keyOf(next) === keyOf(st) && !ni.plan ? { reps: num(c.reps), kg: num(c.kg), meters: c.meters } : (({ reps, kg, meters }) => ({ reps, kg, meters }))(planned(ni, next.s));
-  if (it.descanso_s > 0 && !run.forDate) { run.phase = "rest"; run.until = Date.now() + it.descanso_s * 1000; say(`Descanso. Siguiente: ${spokenStep(next)}`); }
+  // (alternating: what you did in its previous set, a few steps back)
+  const prevSet = keyOf(next) === keyOf(st) ? c : (run.log[keyOf(next)] || []).slice(-1)[0];
+  run.nextCur = prevSet && !ni.plan ? { reps: num(prevSet.reps), kg: num(prevSet.kg), meters: prevSet.meters } : (({ reps, kg, meters }) => ({ reps, kg, meters }))(planned(ni, next.s));
+  const rest = restAfter(st, next);
+  if (rest > 0 && !run.forDate) { run.phase = "rest"; run.restSpan = rest; run.until = Date.now() + rest * 1000; say(`Descanso. Siguiente: ${spokenStep(next)}`); }
   else advance();
   saveRun(); renderPlayer(); syncRun();
 }
@@ -475,6 +492,7 @@ document.addEventListener("click", e => {
     saveRun(); renderPlayer();
   }
   else if (a === "skip") endRest();
+  else if (a === "skipex" && alternating(run.steps[run.i])) skipAlternating();
   else if (a === "skipex") { run.nextCur = null; const k = keyOf(run.steps[run.i]); while (run.steps[run.i] && keyOf(run.steps[run.i]) === k) run.i++; run.i--; advance(); saveRun(); renderPlayer(); }
   else if (a === "finish") finishRun();
   else if (a === "save") saveRunSession();
@@ -482,6 +500,14 @@ document.addEventListener("click", e => {
   else if (a === "back") goBack();
   else if (a === "addset") addSetNow();
 });
+// skipping an exercise of an alternating block: its sets left come out, the other exercises of the block go on
+function skipAlternating(){
+  const st = run.steps[run.i], k = keyOf(st), it = itemOf(st), keep = run.phase === "rest" ? st.s : st.s - 1;
+  it.hasta = keep; run.nextCur = null;
+  const at = run.steps.slice(0, run.i).filter(x => keyOf(x) !== k || x.s <= keep).length;
+  run.steps = flatten(run.w); run.i = run.phase === "rest" ? at : at - 1;
+  advance(); saveRun(); renderPlayer(); syncRun();
+}
 function advanceFromStart(){ run.i = -1; advance(); }
 document.addEventListener("input", e => {
   if (!run) return;

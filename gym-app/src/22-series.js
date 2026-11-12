@@ -32,7 +32,7 @@ function alwaysHTML(it, done){
 // one more set of the exercise on screen (in the rest: of the one you just did)
 function addSetNow(){
   const st = run.steps[run.i]; if (!st) return;
-  const it = itemOf(st); it.series++;
+  const it = itemOf(st); it.series++; if (it.hasta != null) it.hasta++;
   run.steps = flatten(run.w); run.i = run.steps.findIndex(x => x.bi === st.bi && x.ii === st.ii && x.s === st.s);
   if (run.phase === "rest") { const l = lastLog(); run.nextCur = l ? { reps: l.reps, kg: l.kg, meters: l.meters } : null; }
   saveRun(); renderPlayer(); syncRun();

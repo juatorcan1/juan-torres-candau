@@ -59,11 +59,11 @@ function planSummary(plan){
   return `${plan.titulo || "Plan"}${d ? ` — hoy: ${d.actividad} ${d.duracion_min || ""} min, ${d.foco || ""}` : ""}\n${next.map(x => `${x.fecha} ${x.actividad} ${x.duracion_min || ""} min ${x.foco || ""}`).join("\n")}`;
 }
 const WORKOUT_SCHEMA = `ENTRENO = {"titulo": str, "tipo": "gym"|"calistenia"|"natacion"|"cinta"|"bici"|"otro", "duracion_min": n, "objetivo": str,
- "bloques": [{"nombre": "Calentamiento"|"Principal"|"Finisher"|"Vuelta a la calma"|..., "items": [
+ "bloques": [{"nombre": "Calentamiento"|"Principal"|"Finisher"|"Vuelta a la calma"|..., "alterna": bool?, "items": [
    {"ejercicio": str, "musculos": [clave], "modo": "reps"|"tiempo"|"distancia", "series": n, "reps": n?, "kg": n?, "segundos": n?, "metros": n?, "descanso_s": n, "indicacion": str?, "reto": str?}]}],
  "nota": str}
 Lo importante es el músculo, no el ejercicio: organiza el entreno por los músculos que toca trabajar y elige para cada uno el ejercicio que mejor encaje con el lugar y el material. "musculos": los que trabaja, el principal primero, con estas claves: ${Object.keys(MUSCLES).join(", ")}.
-Reglas del ENTRENO: que quepa en la duración pedida contando descansos; "reps" para fuerza (kg 0 si es peso corporal), "tiempo" para planchas, intervalos o cardio por tiempo, "distancia" para natación (metros por serie). En "reto" pon cómo superar su última vez o su récord (por ejemplo "Tu mejor: 80 kg × 8. Hoy 82,5 × 8") o cómo ganar a ${"${RIVAL}"}. Progresión prudente: +2,5 kg o +1 rep si la última vez completó todo; nunca más de un 5 %. Para "ejercicio" usa exactamente estos nombres cuando encajen (tienen dibujo): ${Object.keys(GUIDE).join(", ")}. Para natación usa nombres como "Crol", "Braza", "Espalda", "Patada con tabla", "Pull buoy", en metros por serie, y monta una sesión completa: calentamiento variado, técnica, bloque con aletas, bloque con palas (y pull buoy), series de crol concentrado a ritmo fuerte y vuelta a la calma; en "indicacion" di el material y el ritmo.`;
+Reglas del ENTRENO: que quepa en la duración pedida contando descansos; "reps" para fuerza (kg 0 si es peso corporal), "tiempo" para planchas, intervalos o cardio por tiempo, "distancia" para natación (metros por serie). En "reto" pon cómo superar su última vez o su récord (por ejemplo "Tu mejor: 80 kg × 8. Hoy 82,5 × 8") o cómo ganar a ${"${RIVAL}"}. Progresión prudente: +2,5 kg o +1 rep si la última vez completó todo; nunca más de un 5 %. Para "ejercicio" usa exactamente estos nombres cuando encajen (tienen dibujo): ${Object.keys(GUIDE).join(", ")}. Si sus preferencias piden ejercicios alternados (superseries), agrupa el gimnasio en bloques de 2 (o 3) ejercicios con "alterna": true y nombre como "Pareja 1": la app los hace serie a serie (A1, B1, A2, B2…) con 30 s para cambiar de máquina, así que en cada bloque junta un músculo grande con uno pequeño que no se estorben (pecho con hombro posterior o abdomen, espalda con tríceps o abdomen, cuádriceps con femoral…) y pon en "descanso_s" el descanso normal de cada ejercicio. Para natación usa nombres como "Crol", "Braza", "Espalda", "Patada con tabla", "Pull buoy", en metros por serie, y monta una sesión completa: calentamiento variado, técnica, bloque con aletas, bloque con palas (y pull buoy), series de crol concentrado a ritmo fuerte y vuelta a la calma; en "indicacion" di el material y el ritmo.`;
 const TRAIN_PLAN_SCHEMA = `PLAN_ENTRENO = {"tipo": "semana"|"mes", "titulo": str, "semanas": [{"objetivo": str, "dias": [{"fecha": "YYYY-MM-DD", "dia": "lunes"…, "actividad": "gym"|"calistenia"|"natacion"|"cinta"|"bici"|"descanso"|"otro", "duracion_min": n, "foco": str, "detalle": str}], "diasDomingo": [mismo formato que "dias"]|null}], "nota": str}
 Reglas del PLAN_ENTRENO: empieza hoy; semana = 7 días, mes = 4 semanas; cada semana con su objetivo y progresión; incluye descansos; "detalle" en una frase. "diasDomingo" (opcional) es la misma semana para cuando nadó el domingo de antes: si sus preferencias dicen que entonces la semana se adelanta, ponla también.`;
 const DIET_PLAN_SCHEMA = `SITIO = {"bocadillo": [str], "bar": [str], "oficina": [str]}
@@ -117,8 +117,8 @@ const clampN = (v, lo, hi) => { const n = num(v); return n >= lo && n <= hi ? n 
 function normalizeWorkout(o){
   if (!o || typeof o !== "object" || !Array.isArray(o.bloques)) return null;
   const tipo = ["gym", "calistenia", "natacion", "cinta", "bici", "otro"].includes(o.tipo) ? o.tipo : "gym";
-  const bloques = o.bloques.slice(0, 6).map(b => ({
-    nombre: String((b && b.nombre) || "Bloque").slice(0, 40),
+  const bloques = o.bloques.slice(0, 10).map(b => ({
+    nombre: String((b && b.nombre) || "Bloque").slice(0, 40), ...(b && b.alterna === true ? { alterna: true } : {}),
     items: (Array.isArray(b && b.items) ? b.items : []).slice(0, 12).map(it => {
       const modo = ["reps", "tiempo", "distancia"].includes(it && it.modo) ? it.modo : "reps";
       return {

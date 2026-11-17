@@ -32,8 +32,16 @@ function alwaysHTML(it, done){
 // one more set of the exercise on screen (in the rest: of the one you just did)
 function addSetNow(){
   const st = run.steps[run.i]; if (!st) return;
-  const it = itemOf(st); it.series++; if (it.hasta != null) it.hasta++;
+  const it = itemOf(st), l = run.log[keyOf(st)] || [], full = l.length >= it.series;
+  it.series++; if (it.hasta != null) it.hasta++;
   run.steps = flatten(run.w); run.i = run.steps.findIndex(x => x.bi === st.bi && x.ii === st.ii && x.s === st.s);
+  // correcting a set of an exercise already done (its ring, «◀ Anterior»): straight to the new set, with the
+  // numbers of the last one; the set being corrected stays as it was
+  if (run.phase === "set" && run.edit && full) {
+    const j = run.steps.findIndex(x => x.bi === st.bi && x.ii === st.ii && x.s === l.length + 1);
+    if (j >= 0) { run.edit = null; const z = l[l.length - 1]; run.nextCur = z ? { reps: z.reps, kg: z.kg, meters: z.meters } : null; goStep(j);
+      saveRun(); renderPlayer(); syncRun(); toast(`${it.ejercicio}: serie ${l.length + 1} de ${it.series}`); return; }
+  }
   // in the rest, the new set comes next only when it is of the same exercise (in a pair, the partner may go first)
   const n = run.steps[nextUndone(run.i)];
   if (run.phase === "rest" && n && keyOf(n) === keyOf(st)) { const l = lastLog(); run.nextCur = l ? { reps: l.reps, kg: l.kg, meters: l.meters } : null; }

@@ -1,7 +1,7 @@
 // Prueba de las bolitas del entreno guiado (una por ejercicio, arriba): tocar una lleva directo a ese ejercicio,
 // en su primera serie pendiente, desde una serie o desde el descanso; lo que queda atrás se pide después (nada
-// se pierde ni se repite); un ejercicio saltado vuelve al tocarlo; uno completo no se mueve; y vale igual para
-// nadar. Abre gym-app/index.html (de ./build.sh) en Chromium con una base de datos de mentira: sin red.
+// se pierde ni se repite); un ejercicio saltado vuelve al tocarlo; uno completo se reabre para corregirlo o añadir
+// una serie; una serie de hoy del cuadro de series se abre para corregirla; y vale igual para nadar. Abre gym-app/index.html (de ./build.sh) en Chromium con una base de datos de mentira: sin red.
 // Uso: gym-app/build.sh && node gym-app/pruebas/bolitas.mjs
 import { createRequire } from "node:module";
 import { execSync } from "node:child_process";
@@ -28,10 +28,10 @@ function mock(seed){
 }
 const browser = await pw.chromium.launch(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {});
 let fallos = 0; const ok = (c, m) => { console.log((c ? "✓ " : "✗ ") + m); if (!c) fallos++; };
-async function nueva(entreno){
+async function nueva(entreno, previas = []){
   const p = await browser.newPage({ viewport: { width: 360, height: 640 } }); p.errs = []; p.on("pageerror", e => p.errs.push(e.message)); p.on("dialog", d => d.accept());
   await p.route("**/*", r => r.request().url().startsWith("file:") ? r.continue() : r.abort());
-  const sesiones = [{ id: "a", athlete: "juan", date: ayer, sport: "gym", exercises: [{ name: "Sentadilla", sets: [{ reps: 10, kg: 40 }] }] }];
+  const sesiones = [{ id: "a", athlete: "juan", date: ayer, sport: "gym", exercises: [{ name: "Sentadilla", sets: [{ reps: 10, kg: 40 }] }] }, ...previas];
   await p.addInitScript(([seed, src]) => { localStorage.setItem("gym.me", '"juan"'); localStorage.setItem("gym.voice", "false"); eval("(" + src + ")")(seed); }, [{ planes: [planDe(entreno)], sesiones }, mock.toString()]);
   await p.goto(APP); await p.waitForTimeout(500); await p.click(`[data-plan-open="${hoy}"]`); await p.click('[data-pl="start"]'); await p.waitForTimeout(100);
   return p;
@@ -61,13 +61,46 @@ x = await est(p); ok(x.ej === "Extensión en polea" && x.s === 1, `curl 1 y su p
 await hecha(p); await hecha(p); await hecha(p); // extensión 1, curl 2, extensión 2
 x = await est(p); ok(x.fase === "set" && x.ej === "Remo con barra" && x.s === 3, `al acabar el final, vuelve a lo que quedó atrás: remo 3 (${x.fase}, ${x.ej} ${x.s})`);
 await hecha(p); x = await est(p); ok(x.ej === "Jalón al pecho" && x.s === 1, `y jalón 1 (${x.ej} ${x.s})`);
+// un ejercicio completo se reabre en su última serie para corregirla, o para hacer otra con «+ Serie»
 await bolita(p, "0.0"); x = await est(p);
-ok(x.ej === "Jalón al pecho" && await p.evaluate(() => /ya están/.test(document.querySelector("#toast")?.textContent || document.body.textContent)), "un ejercicio completo no se mueve: avisa de que ya están sus series");
+ok(x.fase === "set" && x.ej === "Remo con barra" && x.s === 3 && x.cur.kg === 42 && n(x.log, "0.0") === 3, `remo, ya completo, se reabre en su serie 3 con sus 42 kg (${x.fase}, ${x.ej} ${x.s}, ${x.cur.kg} kg)`);
+await p.fill("#pl-cur-kg", "45"); await p.dispatchEvent("#pl-cur-kg", "input");
+await clic(p, '[data-pl="done"]'); x = await est(p);
+ok(n(x.log, "0.0") === 3 && x.log["0.0"][2].kg === 45, `corregirla no añade otra: remo 3 queda a 45 kg (${n(x.log, "0.0")} series)`);
+await clic(p, '[data-pl="skip"]'); x = await est(p);
+ok(x.ej === "Jalón al pecho" && x.s === 1, `y sigue lo pendiente: jalón 1 (${x.ej} ${x.s})`);
+await bolita(p, "0.0"); await clic(p, '[data-pl="addset"]'); x = await est(p);
+ok(x.fase === "set" && x.ej === "Remo con barra" && x.s === 4 && x.cur.kg === 45 && n(x.log, "0.0") === 3, `«+ Serie» desde ahí lleva a remo 4 con los 45 kg de la última (${x.ej} ${x.s}, ${x.cur.kg} kg)`);
+await hecha(p); x = await est(p);
+ok(n(x.log, "0.0") === 4 && x.ej === "Jalón al pecho" && x.s === 1, `hecha la 4, vuelve a jalón 1 (${n(x.log, "0.0")} de remo, ${x.ej} ${x.s})`);
 await hecha(p); await clic(p, '[data-pl="done"]'); await p.waitForTimeout(200); x = await est(p);
 ok(x.fase === "done", `con todo hecho, termina (${x.fase})`);
 await clic(p, '[data-pl="save"]'); await p.waitForTimeout(400);
 let ses = await p.evaluate(() => [...window.__cols.sesiones.values()].filter(s => !s.enCurso && s.id !== "a").map(s => s.exercises.map(e => e.name + ":" + e.sets.map(z => z.kg).join("/")).join(", ")));
-ok(ses.length === 1 && ses[0] === "Remo con barra:42/42/42, Jalón al pecho:35/35, Curl con barra:20/20, Extensión en polea:15/15", `se guarda cada serie una vez: ${ses.join(" | ")}`);
+ok(ses.length === 1 && ses[0] === "Remo con barra:42/42/45/45, Jalón al pecho:35/35, Curl con barra:20/20, Extensión en polea:15/15", `se guarda cada serie una vez: ${ses.join(" | ")}`);
+ok(!p.errs.length, `sin errores ${p.errs.join(" | ")}`); await p.close();
+
+// en una pareja ya hecha: reabrir curl y hacer una serie más
+p = await nueva(gym);
+await bolita(p, "1.0"); for (let k = 0; k < 4; k++) await hecha(p); x = await est(p);
+ok(x.ej === "Remo con barra" && x.s === 1 && n(x.log, "1.0") === 2 && n(x.log, "1.1") === 2, `pareja hecha y vuelve a remo 1 (${x.ej} ${x.s})`);
+await bolita(p, "1.0"); x = await est(p); ok(x.ej === "Curl con barra" && x.s === 2, `la bolita de curl lo reabre en su serie 2 (${x.ej} ${x.s})`);
+await clic(p, '[data-pl="addset"]'); x = await est(p); ok(x.ej === "Curl con barra" && x.s === 3, `«+ Serie»: curl 3 (${x.ej} ${x.s})`);
+await hecha(p); x = await est(p);
+ok(n(x.log, "1.0") === 3 && n(x.log, "1.1") === 2 && x.ej === "Remo con barra" && x.s === 1, `curl con 3, extensión con 2, y vuelve a remo 1 (${x.ej} ${x.s})`);
+ok(!p.errs.length, `sin errores ${p.errs.join(" | ")}`); await p.close();
+
+// en el cuadro de series (la última vez y hoy), tocar una serie de hoy ya hecha la abre para corregirla
+p = await nueva(gym, [{ id: "b", athlete: "juan", date: ayer, sport: "gym", exercises: [{ name: "Remo con barra", sets: [{ reps: 10, kg: 40 }, { reps: 10, kg: 40 }, { reps: 10, kg: 40 }] }] }]);
+await hecha(p); x = await est(p); // remo 1 hecha, en remo 2
+ok(x.ej === "Remo con barra" && x.s === 2 && await p.evaluate(() => !!document.querySelector('[data-reopen="0.0:1"]') && !document.querySelector('[data-reopen="0.0:2"]')), "en remo 2, la S1 de hoy se puede tocar (la que haces no)");
+await clic(p, '[data-reopen="0.0:1"]'); x = await est(p);
+ok(x.fase === "set" && x.ej === "Remo con barra" && x.s === 1 && n(x.log, "0.0") === 1, `la abre: remo 1, sin quitarla del registro (${x.ej} ${x.s})`);
+await p.fill("#pl-cur-kg", "44"); await p.dispatchEvent("#pl-cur-kg", "input");
+await clic(p, '[data-pl="done"]'); x = await est(p);
+ok(n(x.log, "0.0") === 1 && x.log["0.0"][0].kg === 44, `«Serie hecha» la corrige en su sitio: 1 serie, a 44 kg (${n(x.log, "0.0")}, ${x.log["0.0"][0].kg} kg)`);
+await clic(p, '[data-pl="skip"]'); x = await est(p);
+ok(x.ej === "Remo con barra" && x.s === 2, `y sigue con remo 2 (${x.ej} ${x.s})`);
 ok(!p.errs.length, `sin errores ${p.errs.join(" | ")}`); await p.close();
 
 // saltar un ejercicio y recuperarlo con su bolita

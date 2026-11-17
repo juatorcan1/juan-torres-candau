@@ -59,7 +59,9 @@ Si tocas los bloques que alternan (`alterna: true`, superseries: serie a serie d
 cambiar de máquina, `restAfter` y `skipAlternating` en `src/11-player.js`): `node pruebas/alterna.mjs`.
 Si tocas las bolitas de arriba del entreno guiado (una por ejercicio; tocarla lleva a ese ejercicio: `jumpTo`,
 `nextUndone` vuelve al principio para pedir lo que quedó atrás, `run.skip` guarda lo saltado fuera de las
-parejas): `node pruebas/bolitas.mjs`.
+parejas; una bolita de un ejercicio ya completo lo reabre en su última serie con `reopenDone`, y «+ Serie» desde ahí
+va directo a la serie nueva; en el cuadro de series, tocar una serie de hoy ya hecha la abre con `editSet`):
+`node pruebas/bolitas.mjs`.
 Si tocas cómo se ordenan los abdominales (`absLast` en `src/11-player.js`: al empezar un entreno, los ejercicios de
 abdomen pasan a las últimas parejas y, dentro de su pareja, al último sitio; si al cambiarlos todo choca, salen a un
 bloque «Abdomen» al final y su compañero queda en «Series seguidas»; el Entrenador también lo tiene en sus reglas):

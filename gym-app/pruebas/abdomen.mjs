@@ -80,6 +80,8 @@ ok(orden(r.w) === "Pareja 1*: Sentadilla + Curl con barra | Pareja 2*: Peso muer
 r = await prueba(sinAbs); ok(!r.n && orden(r.w) === orden(sinAbs), "un entreno sin abdominales no cambia");
 r = await prueba(soloAbs);
 ok(orden(r.w) === "Pareja 2*: Remo con barra + Curl con barra | Pareja 1*: Crunch + Rueda abdominal", `una pareja solo de abdominales pasa al final entera (${orden(r.w)})`);
+r = await prueba({ ...soloAbs, bloques: [{ nombre: "Calentamiento", items: [{ ejercicio: "Carrera en cinta", modo: "tiempo", series: 1, segundos: 300, descanso_s: 60 }] }, soloAbs.bloques[0], { nombre: "Principal", items: [it("Remo con barra", 3, 10, 40, 90)] }] });
+ok(orden(r.w) === "Calentamiento: Carrera en cinta | Principal: Remo con barra | Pareja 1*: Crunch + Rueda abdominal", `sin otras parejas, la de abdominales va al final y nunca antes del calentamiento (${orden(r.w)})`);
 r = await prueba({ ...pierna, bloques: [pierna.bloques[1], P("Pareja 1", it("Sentadilla", 3, 8, 60, 120), it("Crunch", 2, 15, 0, 45))] });
 ok(!r.n, "si ya están al final, no se toca nada");
 

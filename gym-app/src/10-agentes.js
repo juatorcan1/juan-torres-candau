@@ -117,7 +117,8 @@ const clampN = (v, lo, hi) => { const n = num(v); return n >= lo && n <= hi ? n 
 function normalizeWorkout(o){
   if (!o || typeof o !== "object" || !Array.isArray(o.bloques)) return null;
   const tipo = ["gym", "calistenia", "natacion", "cinta", "bici", "otro"].includes(o.tipo) ? o.tipo : "gym";
-  const bloques = o.bloques.slice(0, 10).map(b => ({
+  // 12: room for the «Abdomen» block absLast may add to a workout of 10 (a session continued goes through here)
+  const bloques = o.bloques.slice(0, 12).map(b => ({
     nombre: String((b && b.nombre) || "Bloque").slice(0, 40), ...(b && b.alterna === true ? { alterna: true } : {}),
     items: (Array.isArray(b && b.items) ? b.items : []).slice(0, 12).map(it => {
       const modo = ["reps", "tiempo", "distancia"].includes(it && it.modo) ? it.modo : "reps";

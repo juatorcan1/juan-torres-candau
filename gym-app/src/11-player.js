@@ -36,11 +36,11 @@ function absLast(w){
   const before = JSON.stringify(w.bloques.map(b => b.items.map(it => it.ejercicio)));
   const clash = (a, b) => { const x = musclesOf(a), y = musclesOf(b);
     return x.main.some(k => y.main.includes(k) || y.help.includes(k)) || y.main.some(k => x.help.includes(k)); };
-  // where the last pair is: blocks of only abs and the «Abdomen» block go right after it
-  const lastPair = () => w.bloques.reduce((a, b, i) => isPair(b) ? i : a, -1);
-  // pairs of only abs: to the end of the pairs as they are
+  // where the work ends (before the cool-down): blocks of only abs and the «Abdomen» block go there
+  const endOfWork = () => w.bloques.reduce((a, b, i) => /vuelta a la calma/i.test(b.nombre) ? a : i + 1, 0);
+  // pairs of only abs: to the end of the work as they are
   for (const b of w.bloques.filter(b => isPair(b) && b.items.every(isAbs))) {
-    w.bloques.splice(w.bloques.indexOf(b), 1); w.bloques.splice(lastPair() + 1, 0, b);
+    w.bloques.splice(w.bloques.indexOf(b), 1); w.bloques.splice(endOfWork(), 0, b);
   }
   const pairs = w.bloques.filter(isPair), loose = [];
   pairs.forEach((b, i) => {
@@ -57,7 +57,7 @@ function absLast(w){
   });
   // a pair left with one exercise is no longer a pair
   for (const b of pairs) if (b.items.length < 2) { delete b.alterna; b.nombre = "Series seguidas"; }
-  if (loose.length) w.bloques.splice(lastPair() + 1, 0, { nombre: "Abdomen", ...(loose.length > 1 ? { alterna: true } : {}), items: loose });
+  if (loose.length) w.bloques.splice(endOfWork(), 0, { nombre: "Abdomen", ...(loose.length > 1 ? { alterna: true } : {}), items: loose });
   // inside a pair, the abs last (stable: the rest keep their order)
   for (const b of w.bloques) if (isPair(b)) b.items = [...b.items.filter(x => !isAbs(x)), ...b.items.filter(isAbs)];
   return JSON.stringify(w.bloques.map(b => b.items.map(it => it.ejercicio))) === before ? 0 : 1;

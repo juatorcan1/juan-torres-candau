@@ -187,7 +187,11 @@ function prevHTML(st, cur){
   const cols = Array.from({ length: n }, (_, i) => {
     const was = last.sets[i], did = done[i] ? { kg: num(done[i].kg), reps: num(done[i].reps) } : null, plan = i < it.series ? planned(it, i + 1) : null;
     const c = did ? cmp(did, was) : "";
-    return `<div class="pv-col ${i === s - 1 ? "now" : ""}"><span class="pv-s">S${i + 1}</span><span class="pv-was">${cell(was)}</span><span class="pv-today ${did ? "did " + c : ""}">${did ? cell(did) + (c === "up" ? " ▲" : c === "down" ? " ▼" : "") : plan ? cell(plan) : "–"}</span></div>`;
+    const inner = `<span class="pv-s">S${i + 1}</span><span class="pv-was">${cell(was)}</span><span class="pv-today ${did ? "did " + c : ""}">${did ? cell(did) + (c === "up" ? " ▲" : c === "down" ? " ▼" : "") : plan ? cell(plan) : "–"}</span>`;
+    // a set done today: tapping it opens it to correct it (editSet)
+    const open = did && i !== s - 1 && run.phase !== "work";
+    return open ? `<button type="button" class="pv-col pv-b" data-reopen="${keyOf(st)}:${i + 1}" aria-label="Corregir la serie ${i + 1} de ${esc(it.ejercicio)}">${inner}</button>`
+      : `<div class="pv-col ${i === s - 1 ? "now" : ""}">${inner}</div>`;
   }).join("");
   return `<div class="pl-prev" role="table" aria-label="Series de la última vez y de hoy">
     <div class="pv-col pv-head"><span class="pv-s"></span><span class="pv-was">${esc(DIA[d.getDay()])} ${d.getDate()}</span><span class="pv-today">Hoy</span></div>${cols}</div>`;
@@ -304,7 +308,8 @@ function steppersFor(it, v, tgt, cls = ""){
 }
 const lastSum = (it, l) => it.modo === "reps" ? `${fmt(l.reps)} reps${l.kg ? " × " + fmt(l.kg, 2) + " kg" : ""}` : fmt(l.meters) + " m";
 function refreshLastSum(){ const el = $("#pl-last-sum"), l = lastLog(); if (el && l) el.textContent = lastSum(itemOf(run.steps[run.i]), l); }
-const lastLog = () => { const st = run.steps[run.i], l = st && run.log[keyOf(st)]; return l && l.length ? l[l.length - 1] : null; };
+// the set just logged: the last one, or the one just corrected (run.lastIdx, set by logSet)
+const lastLog = () => { const st = run.steps[run.i], l = st && run.log[keyOf(st)]; return l && l.length ? l[run.lastIdx != null && l[run.lastIdx] ? run.lastIdx : l.length - 1] : null; };
 const stepTarget = tgt => tgt === "next" ? run.nextCur : tgt === "last" ? lastLog() : run.cur;
 // during the rest: fix what you just did, and set the weight for the next set
 function restEdit(st, next){
@@ -332,7 +337,7 @@ function logSet(){
   const set = { reps: num(c.reps), kg: num(c.kg), secs: it.modo === "tiempo" ? it.segundos : null, meters: it.modo === "distancia" ? num(c.meters) : null }, l = (run.log[keyOf(st)] ||= []);
   // a set reopened with «◀ Anterior» is corrected where it is; any other one is added
   const ed = run.edit; run.edit = null;
-  if (ed && ed.k === keyOf(st) && l[ed.idx]) l[ed.idx] = set; else l.push(set);
+  if (ed && ed.k === keyOf(st) && l[ed.idx]) { l[ed.idx] = set; run.lastIdx = ed.idx; } else { l.push(set); run.lastIdx = l.length - 1; }
   run._w3 = false;
   const next = run.steps[nextUndone(run.i)];
   if (!next) { finishRun(); return; }
@@ -340,7 +345,9 @@ function logSet(){
   const ni = itemOf(next);
   // the next set of the same exercise keeps what you just did, unless it has its own target from last time
   // (alternating: what you did in its previous set, a few steps back)
-  const prevSet = keyOf(next) === keyOf(st) ? c : (run.log[keyOf(next)] || []).slice(-1)[0];
+  // after correcting an earlier set: the set before the next one, not the corrected one
+  const ln = run.log[keyOf(next)] || [];
+  const prevSet = ed ? (ln[next.s - 2] || ln.slice(-1)[0]) : keyOf(next) === keyOf(st) ? c : ln.slice(-1)[0];
   run.nextCur = prevSet && !ni.plan ? { reps: num(prevSet.reps), kg: num(prevSet.kg), meters: prevSet.meters } : (({ reps, kg, meters }) => ({ reps, kg, meters }))(planned(ni, next.s));
   const rest = restAfter(st, next);
   if (rest > 0 && !run.forDate) { run.phase = "rest"; run.restSpan = rest; run.until = Date.now() + rest * 1000; say(`Descanso. Siguiente: ${spokenStep(next)}`); }
@@ -580,16 +587,18 @@ document.addEventListener("click", e => {
   else if (a === "back") goBack();
   else if (a === "addset") addSetNow();
   else if (t.dataset.jump) jumpTo(t.dataset.jump);
+  else if (t.dataset.reopen) { const [k, n] = t.dataset.reopen.split(":"), it = run.w.bloques[+k.split(".")[0]].items[+k.split(".")[1]];
+    if (editSet(k, +n)) toast(`${it.ejercicio} · serie ${n}: corrígela y pulsa «Serie hecha»`); }
 });
 /* a tap on a ring of the row goes straight to that exercise, at its first set left: in a set it leaves the one
    on screen for later, in the rest it ends the rest. Nothing logged changes, and the sets left behind come
-   afterwards. A skipped exercise comes back; one with all its sets done stays as it is. */
+   afterwards. A skipped exercise comes back; one with all its sets done reopens to correct it or add a set. */
 function jumpTo(k){
   if (!run || (run.phase !== "set" && run.phase !== "rest")) return;
   const [bi, ii] = k.split(".").map(Number), it = run.w.bloques[bi] && run.w.bloques[bi].items[ii]; if (!it) return;
   const done = (run.log[k] || []).length, cur = run.steps[run.i];
-  if (done >= it.series) { toast(`${it.ejercicio}: ya están las ${it.series} series${run.phase === "set" ? "" : ". Para otra, «+ Serie»"}`); return; }
   if (run.phase === "set" && cur && keyOf(cur) === k) return;
+  if (done >= it.series) { reopenDone(k); return; }
   run.edit = null;
   // in the rest, the numbers set for the next set stay if that is where you go
   const next = run.phase === "rest" ? run.steps[nextUndone(run.i)] : null;
@@ -601,6 +610,29 @@ function jumpTo(k){
   try { speechSynthesis.cancel(); } catch {}
   goStep(j); saveRun(); renderPlayer(); if (changed) syncRun();
   const st = run.steps[run.i]; if (st) say(`${spokenStep(st)}. ${target({ ...itemOf(st), ...(run.cur || {}) })}`);
+}
+// an exercise with all its sets done comes back on its last set, with what you logged, to correct it («Serie
+// hecha»), go to the ones before («◀ Anterior») or do one more («+ Serie» goes straight to the new set). It stays
+// in the log meanwhile (run.edit, as with «◀ Anterior»); leaving it any other way keeps it as it was.
+function reopenDone(k){
+  const [bi, ii] = k.split(".").map(Number), it = run.w.bloques[bi].items[ii], l = run.log[k] || [];
+  if (run.skip) delete run.skip[k];
+  if (editSet(k, Math.min(l.length, it.series))) toast(`${it.ejercicio} · serie ${Math.min(l.length, it.series)}: corrígela, «◀ Anterior» para las de antes o «+ Serie» para otra`);
+}
+// set s of exercise k, already logged, opened to correct it: «Serie hecha» writes it in its place (run.edit), and
+// then the workout goes on with what is left. Also from the «Hoy» row of the table of sets (data-reopen).
+function editSet(k, s){
+  if (!run || (run.phase !== "set" && run.phase !== "rest")) return false;
+  const [bi, ii] = k.split(".").map(Number), it = run.w.bloques[bi] && run.w.bloques[bi].items[ii], l = run.log[k] || [];
+  if (!it) return false;
+  const j = run.steps.findIndex(x => keyOf(x) === k && x.s === s); if (j < 0 || !l[s - 1]) return false;
+  try { speechSynthesis.cancel(); } catch {}
+  const x = l[s - 1], def = planned(it, s);
+  run.i = j; run.edit = { k, idx: s - 1 };
+  run.cur = { ...def, reps: x.reps, kg: x.kg, meters: x.meters != null ? x.meters : def.meters };
+  run.phase = "set"; run.until = null; run.pausedLeft = null; run.nextCur = null;
+  saveRun(); renderPlayer();
+  return true;
 }
 // skipping an exercise of an alternating block: its sets left come out, the other exercises of the block go on
 function skipAlternating(){

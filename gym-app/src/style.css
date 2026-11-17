@@ -481,6 +481,10 @@ body.playing{overflow:hidden}
 .pl-prev{display:flex;gap:4px;justify-content:center;max-width:100%;overflow-x:auto;background:var(--surface);border:1px solid var(--line-2);border-radius:10px;padding:8px 10px;font-variant-numeric:tabular-nums}
 .pv-col{display:grid;grid-template-rows:auto auto auto;gap:3px;min-width:52px;padding:2px 4px;border-radius:6px;text-align:center}
 .pv-col.now{background:var(--surface-2);outline:2px solid var(--me)}
+.pv-b{all:unset;box-sizing:border-box;display:grid;grid-template-rows:auto auto auto;gap:3px;min-width:52px;padding:2px 4px;border-radius:6px;text-align:center;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.pv-b .pv-today{text-decoration:underline dotted;text-underline-offset:3px}
+.pv-b:active{background:var(--surface-2)}
+.pv-b:focus-visible{outline:2px solid var(--ink-2)}
 .pv-head{min-width:auto;text-align:left;color:var(--muted);font-size:12px;font-weight:600;text-transform:capitalize}
 .pv-s{font:600 11px/1.2 var(--mono);color:var(--muted)}
 .pv-was{font-size:13px;color:var(--ink-2)}

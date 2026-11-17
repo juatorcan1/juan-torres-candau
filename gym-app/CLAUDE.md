@@ -60,6 +60,10 @@ cambiar de máquina, `restAfter` y `skipAlternating` en `src/11-player.js`): `no
 Si tocas las bolitas de arriba del entreno guiado (una por ejercicio; tocarla lleva a ese ejercicio: `jumpTo`,
 `nextUndone` vuelve al principio para pedir lo que quedó atrás, `run.skip` guarda lo saltado fuera de las
 parejas): `node pruebas/bolitas.mjs`.
+Si tocas cómo se ordenan los abdominales (`absLast` en `src/11-player.js`: al empezar un entreno, los ejercicios de
+abdomen pasan a las últimas parejas y, dentro de su pareja, al último sitio; si al cambiarlos todo choca, salen a un
+bloque «Abdomen» al final y su compañero queda en «Series seguidas»; el Entrenador también lo tiene en sus reglas):
+`node pruebas/abdomen.mjs`.
 
 Los agentes de la app (Entrenador y Dietista) llaman a Claude por `supabase/functions/gym-claude` (modelo en
 `MODEL`). Si cambias esa función, despliégala en Supabase con el mismo código que queda en el repo.

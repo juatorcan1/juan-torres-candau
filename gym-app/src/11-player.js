@@ -22,6 +22,46 @@ function flatten(w){
   });
   return steps;
 }
+// abs always at the end of the alternating work: the last pairs are the ones with abs, and inside its pair the
+// abdominal exercise goes last. An abdominal exercise in a pair with pairs without abs after it swaps places
+// with an exercise of the last of those (one that does not share muscles with its new partner, which stays first);
+// when every one clashes (a push day: all chest, shoulder or triceps) it leaves its pair for a last «Abdomen»
+// block, where the abs go round among themselves, and its partner goes on alone («Series seguidas»). Only before the first set (run.log is keyed by block and place).
+const ABS_MUS = ["abdomen", "oblicuos"];
+const isAbs = it => { const m = musclesOf(it).main; return m.length > 0 && m.every(k => ABS_MUS.includes(k)); };
+function absLast(w){
+  const isPair = b => b.alterna && b.items.length > 1 && !/calentamiento|vuelta a la calma/i.test(b.nombre);
+  const hasAbs = b => b.items.some(isAbs);
+  if (!w.bloques.some(b => isPair(b) && hasAbs(b))) return 0;
+  const before = JSON.stringify(w.bloques.map(b => b.items.map(it => it.ejercicio)));
+  const clash = (a, b) => { const x = musclesOf(a), y = musclesOf(b);
+    return x.main.some(k => y.main.includes(k) || y.help.includes(k)) || y.main.some(k => x.help.includes(k)); };
+  // where the work ends (before the cool-down): blocks of only abs and the «Abdomen» block go there
+  const endOfWork = () => w.bloques.reduce((a, b, i) => /vuelta a la calma/i.test(b.nombre) ? a : i + 1, 0);
+  // pairs of only abs: to the end of the work as they are
+  for (const b of w.bloques.filter(b => isPair(b) && b.items.every(isAbs))) {
+    w.bloques.splice(w.bloques.indexOf(b), 1); w.bloques.splice(endOfWork(), 0, b);
+  }
+  const pairs = w.bloques.filter(isPair), loose = [];
+  pairs.forEach((b, i) => {
+    for (let ii = 0; ii < b.items.length; ii++) {
+      const ab = b.items[ii]; if (!isAbs(ab) || b.items.every(isAbs)) continue;
+      const later = pairs.slice(i + 1).filter(p => !hasAbs(p)).reverse();
+      if (!later.length) continue; // already among the last pairs
+      const rest = b.items.filter(x => x !== ab);
+      let pick = null;
+      for (const p of later) { const c = p.items.find(x => !isAbs(x) && !rest.some(r => clash(r, x))); if (c) { pick = [p, c]; break; } }
+      if (pick) { const [p, c] = pick; p.items[p.items.indexOf(c)] = ab; b.items.splice(ii, 1); b.items.push(c); ii--; }
+      else { b.items.splice(ii, 1); ii--; loose.push(ab); }
+    }
+  });
+  // a pair left with one exercise is no longer a pair
+  for (const b of pairs) if (b.items.length < 2) { delete b.alterna; b.nombre = "Series seguidas"; }
+  if (loose.length) w.bloques.splice(endOfWork(), 0, { nombre: "Abdomen", ...(loose.length > 1 ? { alterna: true } : {}), items: loose });
+  // inside a pair, the abs last (stable: the rest keep their order)
+  for (const b of w.bloques) if (isPair(b)) b.items = [...b.items.filter(x => !isAbs(x)), ...b.items.filter(isAbs)];
+  return JSON.stringify(w.bloques.map(b => b.items.map(it => it.ejercicio))) === before ? 0 : 1;
+}
 const ALTERNA_CAMBIO_S = 30; // in an alternating block, from one exercise to the other: just the time to get to the next machine
 // the rest after a set: in an alternating block, short if another exercise of the block comes next, and the
 // exercise's own rest when its partner is finished or the block ends
@@ -59,11 +99,12 @@ async function openPlayer(w, opts = {}){
     if (!(await parkRun())) { if (!playerOpen()) toast("No se ha podido guardar el entreno a medias: continúalo o prueba otra vez con conexión"); return; }
   }
   const { w: ww, swapped } = autoSwap(w);
+  const absMoved = absLast(ww);
   applyExtras(ww);
   const tuned = tuneFromHistory(ww);
   swap = null; fixOpen = false;
   const forDate = opts.date && opts.date < todayISO() ? opts.date : null;
-  run = { w: ww, steps: flatten(ww), i: 0, phase: "preview", startedAt: null, until: null, log: {}, cur: null, athlete: me, rpe: null, extra: "", swapped, tuned,
+  run = { w: ww, steps: flatten(ww), i: 0, phase: "preview", startedAt: null, until: null, log: {}, cur: null, athlete: me, rpe: null, extra: "", swapped, tuned, absMoved,
     ...(forDate ? { forDate, forMin: num(opts.minutes) || null } : {}) };
   saveRun(); showPlayer();
 }
@@ -193,6 +234,7 @@ function renderPlayer(){
       ${(() => { const all = mainItems(w).map(musclesOf), lv = levelsFor(all); const main = MUSCLE_ORDER.filter(k => lv[k] === 2);
         return main.length ? `<div class="pl-today"><div class="eyebrow">Hoy trabajas</div><div class="mus-title" style="font-size:24px">${esc(musNames(main))}</div>${bodyMap(lv, { cls: "small" })}<div class="mus-legend"><span><i style="background:var(--muscle)"></i>principal</span><span><i style="background:var(--mus-help)"></i>ayuda</span></div></div>` : ""; })()}
       ${run.forDate ? `<div class="banner">Apuntas el entreno del <b>${esc(DIA[parseISO(run.forDate).getDay()])} ${parseISO(run.forDate).getDate()}</b>. Pon en cada serie lo que hiciste y pulsa «Serie hecha»: sin descansos. Lo que no hiciste, «Saltar ejercicio».</div>` : ""}
+      ${run.absMoved ? `<p class="note">Abdominales al final del entreno, en las últimas parejas.</p>` : ""}
       ${run.tuned ? `<p class="note">Pesos según lo que levantaste la última vez en ${run.tuned} ejercicio${run.tuned > 1 ? "s" : ""}.</p>` : ""}
       ${run.swapped && run.swapped.length ? `<p class="note">Cambiado porque no te gusta: ${run.swapped.map(([a, b]) => `${esc(a)} → <b>${esc(b)}</b>`).join(", ")}.</p>` : ""}
       ${w.bloques.map((b, bi) => `<div class="pl-block"><div class="eyebrow">${esc(b.nombre)}${b.alterna && b.items.length > 1 ? " · alternando, serie a serie" : ""}</div>${b.items.map((x, ii) => `<div class="pl-item">

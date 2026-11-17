@@ -308,7 +308,8 @@ function steppersFor(it, v, tgt, cls = ""){
 }
 const lastSum = (it, l) => it.modo === "reps" ? `${fmt(l.reps)} reps${l.kg ? " × " + fmt(l.kg, 2) + " kg" : ""}` : fmt(l.meters) + " m";
 function refreshLastSum(){ const el = $("#pl-last-sum"), l = lastLog(); if (el && l) el.textContent = lastSum(itemOf(run.steps[run.i]), l); }
-const lastLog = () => { const st = run.steps[run.i], l = st && run.log[keyOf(st)]; return l && l.length ? l[l.length - 1] : null; };
+// the set just logged: the last one, or the one just corrected (run.lastIdx, set by logSet)
+const lastLog = () => { const st = run.steps[run.i], l = st && run.log[keyOf(st)]; return l && l.length ? l[run.lastIdx != null && l[run.lastIdx] ? run.lastIdx : l.length - 1] : null; };
 const stepTarget = tgt => tgt === "next" ? run.nextCur : tgt === "last" ? lastLog() : run.cur;
 // during the rest: fix what you just did, and set the weight for the next set
 function restEdit(st, next){
@@ -336,7 +337,7 @@ function logSet(){
   const set = { reps: num(c.reps), kg: num(c.kg), secs: it.modo === "tiempo" ? it.segundos : null, meters: it.modo === "distancia" ? num(c.meters) : null }, l = (run.log[keyOf(st)] ||= []);
   // a set reopened with «◀ Anterior» is corrected where it is; any other one is added
   const ed = run.edit; run.edit = null;
-  if (ed && ed.k === keyOf(st) && l[ed.idx]) l[ed.idx] = set; else l.push(set);
+  if (ed && ed.k === keyOf(st) && l[ed.idx]) { l[ed.idx] = set; run.lastIdx = ed.idx; } else { l.push(set); run.lastIdx = l.length - 1; }
   run._w3 = false;
   const next = run.steps[nextUndone(run.i)];
   if (!next) { finishRun(); return; }
@@ -344,7 +345,9 @@ function logSet(){
   const ni = itemOf(next);
   // the next set of the same exercise keeps what you just did, unless it has its own target from last time
   // (alternating: what you did in its previous set, a few steps back)
-  const prevSet = keyOf(next) === keyOf(st) ? c : (run.log[keyOf(next)] || []).slice(-1)[0];
+  // after correcting an earlier set: the set before the next one, not the corrected one
+  const ln = run.log[keyOf(next)] || [];
+  const prevSet = ed ? (ln[next.s - 2] || ln.slice(-1)[0]) : keyOf(next) === keyOf(st) ? c : ln.slice(-1)[0];
   run.nextCur = prevSet && !ni.plan ? { reps: num(prevSet.reps), kg: num(prevSet.kg), meters: prevSet.meters } : (({ reps, kg, meters }) => ({ reps, kg, meters }))(planned(ni, next.s));
   const rest = restAfter(st, next);
   if (rest > 0 && !run.forDate) { run.phase = "rest"; run.restSpan = rest; run.until = Date.now() + rest * 1000; say(`Descanso. Siguiente: ${spokenStep(next)}`); }

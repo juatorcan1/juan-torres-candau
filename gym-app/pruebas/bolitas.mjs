@@ -69,15 +69,17 @@ await clic(p, '[data-pl="done"]'); x = await est(p);
 ok(n(x.log, "0.0") === 3 && x.log["0.0"][2].kg === 45, `corregirla no añade otra: remo 3 queda a 45 kg (${n(x.log, "0.0")} series)`);
 await clic(p, '[data-pl="skip"]'); x = await est(p);
 ok(x.ej === "Jalón al pecho" && x.s === 1, `y sigue lo pendiente: jalón 1 (${x.ej} ${x.s})`);
-await bolita(p, "0.0"); await clic(p, '[data-pl="addset"]'); x = await est(p);
-ok(x.fase === "set" && x.ej === "Remo con barra" && x.s === 4 && x.cur.kg === 45 && n(x.log, "0.0") === 3, `«+ Serie» desde ahí lleva a remo 4 con los 45 kg de la última (${x.ej} ${x.s}, ${x.cur.kg} kg)`);
+await bolita(p, "0.0");
+await p.fill("#pl-cur-kg", "47"); await p.dispatchEvent("#pl-cur-kg", "input");
+await clic(p, '[data-pl="addset"]'); x = await est(p);
+ok(x.fase === "set" && x.ej === "Remo con barra" && x.s === 4 && x.cur.kg === 47 && n(x.log, "0.0") === 3 && x.log["0.0"][2].kg === 47, `«+ Serie» desde ahí guarda los 47 kg tecleados en la 3 y lleva a remo 4 con ellos (${x.ej} ${x.s}, ${x.cur.kg} kg; S3 ${x.log["0.0"][2].kg})`);
 await hecha(p); x = await est(p);
 ok(n(x.log, "0.0") === 4 && x.ej === "Jalón al pecho" && x.s === 1, `hecha la 4, vuelve a jalón 1 (${n(x.log, "0.0")} de remo, ${x.ej} ${x.s})`);
 await hecha(p); await clic(p, '[data-pl="done"]'); await p.waitForTimeout(200); x = await est(p);
 ok(x.fase === "done", `con todo hecho, termina (${x.fase})`);
 await clic(p, '[data-pl="save"]'); await p.waitForTimeout(400);
 let ses = await p.evaluate(() => [...window.__cols.sesiones.values()].filter(s => !s.enCurso && s.id !== "a").map(s => s.exercises.map(e => e.name + ":" + e.sets.map(z => z.kg).join("/")).join(", ")));
-ok(ses.length === 1 && ses[0] === "Remo con barra:42/42/45/45, Jalón al pecho:35/35, Curl con barra:20/20, Extensión en polea:15/15", `se guarda cada serie una vez: ${ses.join(" | ")}`);
+ok(ses.length === 1 && ses[0] === "Remo con barra:42/42/47/47, Jalón al pecho:35/35, Curl con barra:20/20, Extensión en polea:15/15", `se guarda cada serie una vez: ${ses.join(" | ")}`);
 ok(!p.errs.length, `sin errores ${p.errs.join(" | ")}`); await p.close();
 
 // en una pareja ya hecha: reabrir curl y hacer una serie más
@@ -99,8 +101,17 @@ ok(x.fase === "set" && x.ej === "Remo con barra" && x.s === 1 && n(x.log, "0.0")
 await p.fill("#pl-cur-kg", "44"); await p.dispatchEvent("#pl-cur-kg", "input");
 await clic(p, '[data-pl="done"]'); x = await est(p);
 ok(n(x.log, "0.0") === 1 && x.log["0.0"][0].kg === 44, `«Serie hecha» la corrige en su sitio: 1 serie, a 44 kg (${n(x.log, "0.0")}, ${x.log["0.0"][0].kg} kg)`);
+ok(await p.evaluate(() => /10 reps × 44 kg/.test(document.querySelector("#pl-last-sum")?.textContent || "")), "el descanso enseña la serie corregida (44 kg) para corregirla otra vez");
 await clic(p, '[data-pl="skip"]'); x = await est(p);
 ok(x.ej === "Remo con barra" && x.s === 2, `y sigue con remo 2 (${x.ej} ${x.s})`);
+// con dos hechas: corregir la 1 desde la 3 y tocar «corregir» del descanso cambia la 1, no la 2
+await p.fill("#pl-cur-kg", "41"); await p.dispatchEvent("#pl-cur-kg", "input"); await hecha(p); // remo 2 a 41
+await clic(p, '[data-reopen="0.0:1"]'); await p.fill("#pl-cur-kg", "46"); await p.dispatchEvent("#pl-cur-kg", "input");
+await clic(p, '[data-pl="done"]'); await p.evaluate(() => document.querySelector(".pl-edit[open], details.pl-edit")?.setAttribute("open", ""));
+await clic(p, '[data-step="kg"][data-tgt="last"][data-d="1"]'); x = await est(p);
+ok(JSON.stringify(x.log["0.0"].map(z => z.kg)) === "[47,41]", `el «corregir» del descanso sube la 1 (46 → 47) y la 2 sigue a 41 (${x.log["0.0"].map(z => z.kg).join(", ")})`);
+await clic(p, '[data-pl="skip"]'); x = await est(p);
+ok(x.ej === "Remo con barra" && x.s === 3, `y sigue con remo 3 (${x.ej} ${x.s})`);
 ok(!p.errs.length, `sin errores ${p.errs.join(" | ")}`); await p.close();
 
 // saltar un ejercicio y recuperarlo con su bolita

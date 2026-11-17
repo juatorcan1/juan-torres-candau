@@ -35,11 +35,14 @@ function addSetNow(){
   const it = itemOf(st), l = run.log[keyOf(st)] || [], full = l.length >= it.series;
   it.series++; if (it.hasta != null) it.hasta++;
   run.steps = flatten(run.w); run.i = run.steps.findIndex(x => x.bi === st.bi && x.ii === st.ii && x.s === st.s);
-  // correcting a set of an exercise already done (its ring, «◀ Anterior»): straight to the new set, with the
-  // numbers of the last one; the set being corrected stays as it was
+  // correcting a set of an exercise already done (its ring, «◀ Anterior»): what is typed for it is kept, and
+  // straight to the new set, with the numbers of the last one
   if (run.phase === "set" && run.edit && full) {
     const j = run.steps.findIndex(x => x.bi === st.bi && x.ii === st.ii && x.s === l.length + 1);
-    if (j >= 0) { run.edit = null; const z = l[l.length - 1]; run.nextCur = z ? { reps: z.reps, kg: z.kg, meters: z.meters } : null; goStep(j);
+    if (j >= 0) {
+      const c = run.cur || {}, ed = run.edit; run.edit = null;
+      if (ed.k === keyOf(st) && l[ed.idx]) l[ed.idx] = { ...l[ed.idx], reps: num(c.reps), kg: num(c.kg), ...(it.modo === "distancia" ? { meters: num(c.meters) } : {}) };
+      const z = l[l.length - 1]; run.nextCur = z ? { reps: z.reps, kg: z.kg, meters: z.meters } : null; goStep(j);
       saveRun(); renderPlayer(); syncRun(); toast(`${it.ejercicio}: serie ${l.length + 1} de ${it.series}`); return; }
   }
   // in the rest, the new set comes next only when it is of the same exercise (in a pair, the partner may go first)

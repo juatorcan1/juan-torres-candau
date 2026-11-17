@@ -38,14 +38,14 @@ async function nueva(entreno, empezar = true){
   return p;
 }
 const P = (nombre, ...items) => ({ nombre, alterna: true, items });
-// el «Empuje» del Entrenador del 17 de noviembre: crunch en la pareja 2 y rueda en la 3
+// un día de empuje con los abdominales en medio: crunch en la pareja 2 y rueda en la 3 (pesos inventados)
 const empuje = { titulo: "Empuje", tipo: "gym", objetivo: "x", bloques: [
-  { nombre: "Calentamiento", items: [{ ejercicio: "Carrera en cinta", modo: "tiempo", series: 1, segundos: 480, descanso_s: 60 }] },
-  P("Pareja 1", it("Press inclinado con barra", 4, 10, 20, 120), it("Face pull", 3, 15, 17.5, 60)),
-  P("Pareja 2", it("Press banca", 2, 10, 30, 120), it("Crunch", 2, 15, 0, 45)),
-  P("Pareja 3", it("Press militar", 2, 10, 10, 90), it("Rueda abdominal", 2, 10, 0, 60)),
-  P("Pareja 4", it("Cruce de poleas", 2, 12, 7.5, 60), it("Extensión en polea", 2, 12, 15, 60)),
-  P("Pareja 5", it("Elevaciones laterales", 2, 15, 4, 60), it("Press francés", 2, 12, 10, 60))] };
+  { nombre: "Calentamiento", items: [{ ejercicio: "Carrera en cinta", modo: "tiempo", series: 1, segundos: 300, descanso_s: 60 }] },
+  P("Pareja 1", it("Press inclinado con barra", 3, 10, 40, 120), it("Face pull", 3, 15, 20, 60)),
+  P("Pareja 2", it("Press banca", 3, 8, 50, 120), it("Crunch", 2, 15, 0, 45)),
+  P("Pareja 3", it("Press militar", 3, 8, 25, 90), it("Rueda abdominal", 2, 10, 0, 60)),
+  P("Pareja 4", it("Cruce de poleas", 3, 12, 10, 60), it("Extensión en polea", 3, 12, 20, 60)),
+  P("Pareja 5", it("Elevaciones laterales", 3, 15, 6, 60), it("Press francés", 3, 12, 15, 60))] };
 // pierna y bíceps: el abdominal se cambia con uno que no choca
 const pierna = { titulo: "Pierna", tipo: "gym", objetivo: "x", bloques: [
   P("Pareja 1", it("Crunch", 2, 15, 0, 45), it("Sentadilla", 3, 8, 60, 120)),

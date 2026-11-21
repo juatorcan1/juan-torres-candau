@@ -274,7 +274,7 @@ document.addEventListener("click", async e => {
 /* plan screen */
 function renderPlan(){
   const v = $("#view-plan"), p = trainPlan(), o = trainPlan(OTHER[me]);
-  const dayRow = d => { const isToday = d.fecha === todayISO(), past = d.fecha < todayISO(), done = data().some(s => s.athlete === me && s.date === d.fecha);
+  const dayRow = d => { const isToday = d.fecha === todayISO(), past = d.fecha < todayISO(), done = real.some(s => s.athlete === me && s.date === d.fecha); // not the demo ones
     return `<div class="pday ${isToday ? "today" : ""} ${past ? "past" : ""}">
       <div class="pd-date"><b>${esc(d.dia.slice(0, 3))}</b><span>${parseISO(d.fecha).getDate()}</span></div>
       <div class="pd-body"><div><b>${d.actividad === "descanso" ? "Descanso" : esc(d.foco || SPORTS[d.actividad] || d.actividad)}</b>${d.duracion_min ? ` <span class="muted">· ${d.duracion_min} min</span>` : ""}${done ? ' <span class="pill ok">hecho</span>' : ""}</div><div class="muted" style="font-size:13px">${esc(d.detalle)}</div>${daySessionsHTML(d.fecha)}</div>

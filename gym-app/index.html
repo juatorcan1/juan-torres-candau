@@ -3285,7 +3285,7 @@ document.addEventListener("click", async e => {
 /* plan screen */
 function renderPlan(){
   const v = $("#view-plan"), p = trainPlan(), o = trainPlan(OTHER[me]);
-  const dayRow = d => { const isToday = d.fecha === todayISO(), past = d.fecha < todayISO(), done = data().some(s => s.athlete === me && s.date === d.fecha);
+  const dayRow = d => { const isToday = d.fecha === todayISO(), past = d.fecha < todayISO(), done = real.some(s => s.athlete === me && s.date === d.fecha); // not the demo ones
     return `<div class="pday ${isToday ? "today" : ""} ${past ? "past" : ""}">
       <div class="pd-date"><b>${esc(d.dia.slice(0, 3))}</b><span>${parseISO(d.fecha).getDate()}</span></div>
       <div class="pd-body"><div><b>${d.actividad === "descanso" ? "Descanso" : esc(d.foco || SPORTS[d.actividad] || d.actividad)}</b>${d.duracion_min ? ` <span class="muted">· ${d.duracion_min} min</span>` : ""}${done ? ' <span class="pill ok">hecho</span>' : ""}</div><div class="muted" style="font-size:13px">${esc(d.detalle)}</div>${daySessionsHTML(d.fecha)}</div>
@@ -4111,7 +4111,7 @@ function renderHoy(){
   }
   const { T } = (() => { const p = period; period = "semana"; const r = computeDuel(); period = p; return r; })();
   const pq = (() => { const p = period; period = "semana"; const r = piqueText(T); period = p; return r; })();
-  const pd = planDay(trainPlan()), nx = nextPlanDay(), doneToday = data().filter(s => s.athlete === me && s.date === todayISO());
+  const pd = planDay(trainPlan()), nx = nextPlanDay(), doneToday = real.filter(s => s.athlete === me && s.date === todayISO()); // real ones: the demo sessions never count as done
   const menu = todayMenu(), busy = chatBusy.coach;
   if (tab === "hoy") shownMenu = menu;
   const paused = run && run.athlete === me && run.phase !== "preview";
@@ -5018,11 +5018,13 @@ function runFromSession(s){
     phase: "set", until: null, cur: null, rpe: s.rpe || null, extra: "", swapped: [], tuned: 0, date: s.date };
 }
 const leftSets = r => r.steps.length - Object.values(r.log).reduce((a, l) => a + l.length, 0);
-function continuable(s){ if (run && run.sid === s.id) return null; const r = runFromSession(s); return r && leftSets(r) > 0 ? r : null; }
+// only a session saved half done («sin terminar»): a finished one with sets skipped is not reopened (it would go
+// back to «sin terminar»); to add to it, «Editar»
+function continuable(s){ if (!s.enCurso || (run && run.sid === s.id)) return null; const r = runFromSession(s); return r && leftSets(r) > 0 ? r : null; }
 function continueSession(id){
   const s = real.find(x => x.id === id); if (!s) return;
   if (run && run.athlete === me && run.phase !== "preview" && run.sid !== id) { toast("Antes guarda o descarta el entreno que tienes a medias"); return; }
-  const r = runFromSession(s); if (!r) { toast("Ese entreno ya está completo"); return; }
+  const r = s.enCurso ? runFromSession(s) : null; if (!r) { toast("Ese entreno ya está terminado: para cambiarlo, «Editar»"); return; }
   run = r; run.resumedAt = Date.now(); run.lastAt = Date.now(); run.syncedAt = Date.now();
   // weights from your history, without counting this same session as "last time"
   const at = run.steps[run.i], items = run.w.bloques.flatMap(b => b.items);

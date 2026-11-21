@@ -52,7 +52,7 @@ function renderHoy(){
   }
   const { T } = (() => { const p = period; period = "semana"; const r = computeDuel(); period = p; return r; })();
   const pq = (() => { const p = period; period = "semana"; const r = piqueText(T); period = p; return r; })();
-  const pd = planDay(trainPlan()), nx = nextPlanDay(), doneToday = data().filter(s => s.athlete === me && s.date === todayISO());
+  const pd = planDay(trainPlan()), nx = nextPlanDay(), doneToday = real.filter(s => s.athlete === me && s.date === todayISO()); // real ones: the demo sessions never count as done
   const menu = todayMenu(), busy = chatBusy.coach;
   if (tab === "hoy") shownMenu = menu;
   const paused = run && run.athlete === me && run.phase !== "preview";

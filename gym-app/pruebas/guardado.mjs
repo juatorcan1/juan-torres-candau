@@ -145,5 +145,21 @@ for (const [enLaBase, nombre] of [[4, "con más series allí, lo del móvil no s
   ok(!errs.length, "sin errores de JavaScript " + errs.join(" | "));
   await page.close();
 }
+// un entreno terminado con series saltadas no se ofrece para continuar (volvería a «sin terminar»); uno a medias, sí
+{
+  const guia = { titulo: "Empuje", tipo: "gym", bloques: [{ nombre: "Principal", items: [
+    { ejercicio: "Press banca", modo: "reps", series: 2, reps: 10, kg: 40, descanso_s: 0 },
+    { ejercicio: "Crunch", modo: "reps", series: 2, reps: 15, kg: 0, descanso_s: 0 }] }] };
+  const ses = enCurso => ({ id: "run-juan-1", athlete: "juan", date: iso(hoy), sport: "gym", minutes: 50, notes: "Empuje (entreno guiado)", guia,
+    exercises: [{ name: "Press banca", sets: [{ reps: 10, kg: 40 }, { reps: 10, kg: 40 }] }], ...(enCurso ? { enCurso: true } : {}) });
+  for (const enCurso of [false, true]) {
+    const { page, errs } = await abrir({ "gym.me": "juan", "gym.voice": false }, { planes: [plan], sesiones: [ses(enCurso)] });
+    await page.waitForTimeout(300);
+    const hay = await page.evaluate(() => !!document.querySelector("[data-continue]"));
+    ok(hay === enCurso, enCurso ? "uno guardado a medias se puede continuar" : "uno terminado (con el crunch saltado) no ofrece «Continuar»");
+    ok(!errs.length, "sin errores de JavaScript " + errs.join(" | "));
+    await page.close();
+  }
+}
 await browser.close();
 console.log(fallos ? `${fallos} fallos` : "todo bien"); process.exit(fallos ? 1 : 0);

@@ -39,11 +39,13 @@ function runFromSession(s){
     phase: "set", until: null, cur: null, rpe: s.rpe || null, extra: "", swapped: [], tuned: 0, date: s.date };
 }
 const leftSets = r => r.steps.length - Object.values(r.log).reduce((a, l) => a + l.length, 0);
-function continuable(s){ if (run && run.sid === s.id) return null; const r = runFromSession(s); return r && leftSets(r) > 0 ? r : null; }
+// only a session saved half done («sin terminar»): a finished one with sets skipped is not reopened (it would go
+// back to «sin terminar»); to add to it, «Editar»
+function continuable(s){ if (!s.enCurso || (run && run.sid === s.id)) return null; const r = runFromSession(s); return r && leftSets(r) > 0 ? r : null; }
 function continueSession(id){
   const s = real.find(x => x.id === id); if (!s) return;
   if (run && run.athlete === me && run.phase !== "preview" && run.sid !== id) { toast("Antes guarda o descarta el entreno que tienes a medias"); return; }
-  const r = runFromSession(s); if (!r) { toast("Ese entreno ya está completo"); return; }
+  const r = s.enCurso ? runFromSession(s) : null; if (!r) { toast("Ese entreno ya está terminado: para cambiarlo, «Editar»"); return; }
   run = r; run.resumedAt = Date.now(); run.lastAt = Date.now(); run.syncedAt = Date.now();
   // weights from your history, without counting this same session as "last time"
   const at = run.steps[run.i], items = run.w.bloques.flatMap(b => b.items);

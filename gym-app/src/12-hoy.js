@@ -122,7 +122,7 @@ document.addEventListener("click", async e => {
   else if (t.dataset.hoy === "resume") showPlayer();
   else if (t.dataset.hoy === "drop") {
     if (!confirm(dropAsk())) return;
-    dropRunDoc(); run = null; store.del("gym.run"); renderHoy();
+    discardRun(() => { run = null; store.del("gym.run"); renderHoy(); });
   }
   else if (t.dataset.hoy === "savepart") { showPlayer(); finishRun(); }
   else if (t.dataset.hoy === "last") { const m = chatMsgs("coach").slice().reverse().find(x => x.entreno); if (m) openPlayer(m.entreno); }

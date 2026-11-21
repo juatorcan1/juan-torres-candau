@@ -455,12 +455,26 @@ function dropStaleRun(){
 }
 // the workout itself goes with the session, so it can be carried on later (without last time's numbers)
 const guiaOf = w => JSON.parse(JSON.stringify(w, (k, v) => k === "prev" || k === "plan" || k === "reto" ? undefined : v));
-// discarding a workout that was carried on keeps what had been saved (and what you added): it is only closed
+// discarding a workout that was carried on keeps what had been saved (and what you added): it goes back to
+// the database as it is («sin terminar» while sets are left, so it can be carried on again) and only then
+// leaves the phone; if that write fails it stays on the phone (false). A new one is deleted.
 async function dropRunDoc(){
-  const r = run, sid = r && r.sid; if (!sid || dbState !== "ready") return;
+  const r = run, sid = r && r.sid; if (!sid) return true;
+  if (r.resumedAt) {
+    r.rev = (r.rev || 0) + 1;
+    return dbState === "ready" && !!(await queueWrite(() => writeRun(r, leftSets(r) <= 0)));
+  }
+  if (dbState !== "ready") return true;
   r.rev = (r.rev || 0) + 1;
-  if (r.resumedAt) await queueWrite(() => writeRun(r, true));
-  else await queueWrite(() => db.doc("sesiones/" + sid).delete()).catch(() => {});
+  await queueWrite(() => db.doc("sesiones/" + sid).delete()).catch(() => {});
+  return true;
+}
+// «Descartar» (player or Hoy): `after` runs once the workout can leave the phone
+function discardRun(after){
+  const r = run;
+  if (r && r.sid && r.resumedAt) {
+    dropRunDoc().then(ok => { if (!ok) { markUnsynced(r); if (r === run) saveRun(); toast("No se ha podido guardar lo que llevas: sigue en el móvil. Prueba otra vez con conexión"); return; } if (run === r) after(); });
+  } else { dropRunDoc(); after(); }
 }
 const dropAsk = () => run && run.resumedAt ? "¿Lo dejas aquí? Se queda guardado lo que llevas." : "¿Descartar este entreno? Se borra también lo que ya se había guardado de él.";
 
@@ -583,7 +597,7 @@ document.addEventListener("click", e => {
     else { run.nextCur = null; (run.skip ||= {})[keyOf(run.steps[run.i])] = true; advance(); saveRun(); renderPlayer(); } }
   else if (a === "finish") { run.edit = null; finishRun(); }
   else if (a === "save") saveRunSession();
-  else if (a === "discard") { if (run.sid && !confirm(dropAsk())) return; dropRunDoc(); closePlayer(true); }
+  else if (a === "discard") { if (run.sid && !confirm(dropAsk())) return; discardRun(() => closePlayer(true)); }
   else if (a === "back") goBack();
   else if (a === "addset") addSetNow();
   else if (t.dataset.jump) jumpTo(t.dataset.jump);

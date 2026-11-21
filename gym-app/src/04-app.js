@@ -678,7 +678,8 @@ async function submit(){
     const col = db.collection("sesiones");
     if (draft.id) {
       const prev = real.find(s => s.id === draft.id);
-      await col.doc(draft.id).set({ ...doc, createdAt: prev?.createdAt || Date.now() });
+      // a guided workout saved half done keeps its workout and stays half done, so it can still be carried on
+      await col.doc(draft.id).set({ ...doc, createdAt: prev?.createdAt || Date.now(), ...(prev?.guia ? { guia: prev.guia } : {}), ...(prev?.enCurso ? { enCurso: true } : {}) });
     } else {
       await col.doc().set({ ...doc, createdAt: Date.now() });
     }

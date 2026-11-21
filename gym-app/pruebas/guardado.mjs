@@ -152,6 +152,30 @@ for (const [enLaBase, nombre] of [[4, "con más series allí, lo del móvil no s
     { ejercicio: "Crunch", modo: "reps", series: 2, reps: 15, kg: 0, descanso_s: 0 }] }] };
   const ses = enCurso => ({ id: "run-juan-1", athlete: "juan", date: iso(hoy), sport: "gym", minutes: 50, notes: "Empuje (entreno guiado)", guia,
     exercises: [{ name: "Press banca", sets: [{ reps: 10, kg: 40 }, { reps: 10, kg: 40 }] }], ...(enCurso ? { enCurso: true } : {}) });
+  // continuar uno a medias, hacer una serie y «Descartar»: se queda a medias (se puede continuar otra vez) con la serie
+  {
+    const { page, errs } = await abrir({ "gym.me": "juan", "gym.voice": false }, { planes: [plan], sesiones: [ses(true)] });
+    await page.waitForTimeout(300); await page.click("[data-continue]"); await page.click('[data-pl="done"]'); await page.waitForTimeout(200);
+    await page.click('[data-pl="close"]'); await page.waitForTimeout(200); await page.click('[data-hoy="drop"]'); await page.waitForTimeout(300);
+    const s = (await sesiones(page)).find(x => x.id === "run-juan-1");
+    ok(s && s.enCurso && s.exercises.find(e => e.name === "Crunch")?.sets.length === 1, "descartar uno continuado lo deja a medias y con la serie nueva");
+    ok((await local(page)) === null && await page.evaluate(() => !!document.querySelector("[data-continue]")), "sale del móvil y se puede continuar otra vez");
+    ok(!errs.length, "sin errores de JavaScript " + errs.join(" | "));
+    await page.close();
+  }
+  // lo mismo sin conexión: no sale del móvil, porque no se ha podido guardar
+  {
+    const { page, errs } = await abrir({ "gym.me": "juan", "gym.voice": false }, { planes: [plan], sesiones: [ses(true)] });
+    await page.waitForTimeout(300); await page.click("[data-continue]");
+    await page.evaluate(() => window.__fail = true);
+    await page.click('[data-pl="done"]'); await page.waitForTimeout(200);
+    await page.click('[data-pl="close"]'); await page.waitForTimeout(200); await page.click('[data-hoy="drop"]'); await page.waitForTimeout(300);
+    const l = await local(page);
+    ok(l && Object.values(l.log).some(x => x.length === 1) && Object.values(l.log).reduce((a, x) => a + x.length, 0) === 3, "sin conexión, descartar no tira la serie nueva: sigue en el móvil");
+    ok(/No se ha podido guardar/.test(await toasts(page)), "y lo avisa: " + await toasts(page));
+    ok(!errs.length, "sin errores de JavaScript " + errs.join(" | "));
+    await page.close();
+  }
   for (const enCurso of [false, true]) {
     const { page, errs } = await abrir({ "gym.me": "juan", "gym.voice": false }, { planes: [plan], sesiones: [ses(enCurso)] });
     await page.waitForTimeout(300);

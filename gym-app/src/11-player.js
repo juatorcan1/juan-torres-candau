@@ -469,11 +469,12 @@ async function dropRunDoc(){
   await queueWrite(() => db.doc("sesiones/" + sid).delete()).catch(() => {});
   return true;
 }
-// «Descartar» (player or Hoy): `after` runs once the workout can leave the phone
-function discardRun(after){
+// «Descartar» (player or Hoy): `after` runs once the workout can leave the phone, unless it was opened again
+// meanwhile (from Hoy: the player is open; from the player itself, `fromPlayer`)
+function discardRun(after, fromPlayer = false){
   const r = run;
   if (r && r.sid && r.resumedAt) {
-    dropRunDoc().then(ok => { if (!ok) { markUnsynced(r); if (r === run) saveRun(); toast("No se ha podido guardar lo que llevas: sigue en el móvil. Prueba otra vez con conexión"); return; } if (run === r) after(); });
+    dropRunDoc().then(ok => { if (!ok) { markUnsynced(r); if (r === run) saveRun(); toast("No se ha podido guardar lo que llevas: sigue en el móvil. Prueba otra vez con conexión"); return; } if (run === r && (fromPlayer || !playerOpen())) after(); });
   } else { dropRunDoc(); after(); }
 }
 const dropAsk = () => run && run.resumedAt ? "¿Lo dejas aquí? Se queda guardado lo que llevas." : "¿Descartar este entreno? Se borra también lo que ya se había guardado de él.";
@@ -597,7 +598,7 @@ document.addEventListener("click", e => {
     else { run.nextCur = null; (run.skip ||= {})[keyOf(run.steps[run.i])] = true; advance(); saveRun(); renderPlayer(); } }
   else if (a === "finish") { run.edit = null; finishRun(); }
   else if (a === "save") saveRunSession();
-  else if (a === "discard") { if (run.sid && !confirm(dropAsk())) return; discardRun(() => closePlayer(true)); }
+  else if (a === "discard") { if (run.sid && !confirm(dropAsk())) return; discardRun(() => closePlayer(true), true); }
   else if (a === "back") goBack();
   else if (a === "addset") addSetNow();
   else if (t.dataset.jump) jumpTo(t.dataset.jump);

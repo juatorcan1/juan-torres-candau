@@ -156,7 +156,7 @@ for (const [enLaBase, nombre] of [[4, "con más series allí, lo del móvil no s
   {
     const { page, errs } = await abrir({ "gym.me": "juan", "gym.voice": false }, { planes: [plan], sesiones: [ses(true)] });
     await page.waitForTimeout(300); await page.click("[data-continue]"); await page.click('[data-pl="done"]'); await page.waitForTimeout(200);
-    await page.click('[data-pl="close"]'); await page.waitForTimeout(200); await page.click('[data-hoy="drop"]'); await page.waitForTimeout(300);
+    await page.click('[data-pl="finish"]'); await page.waitForTimeout(100); await page.click('[data-pl="discard"]'); await page.waitForTimeout(300);
     const s = (await sesiones(page)).find(x => x.id === "run-juan-1");
     ok(s && s.enCurso && s.exercises.find(e => e.name === "Crunch")?.sets.length === 1, "descartar uno continuado lo deja a medias y con la serie nueva");
     ok((await local(page)) === null && await page.evaluate(() => !!document.querySelector("[data-continue]")), "sale del móvil y se puede continuar otra vez");

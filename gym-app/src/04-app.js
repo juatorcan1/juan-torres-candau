@@ -678,8 +678,9 @@ async function submit(){
     const col = db.collection("sesiones");
     if (draft.id) {
       const prev = real.find(s => s.id === draft.id);
-      // a guided workout saved half done keeps its workout and stays half done, so it can still be carried on
-      await col.doc(draft.id).set({ ...doc, createdAt: prev?.createdAt || Date.now(), ...(prev?.guia ? { guia: prev.guia } : {}), ...(prev?.enCurso ? { enCurso: true } : {}) });
+      // a guided workout keeps its workout (guia); saving it from the form finishes it (no enCurso), so a copy
+      // left open on the phone is the old one and leaves (dropStaleRun)
+      await col.doc(draft.id).set({ ...doc, createdAt: prev?.createdAt || Date.now(), ...(prev?.guia ? { guia: prev.guia } : {}) });
     } else {
       await col.doc().set({ ...doc, createdAt: Date.now() });
     }

@@ -678,7 +678,9 @@ async function submit(){
     const col = db.collection("sesiones");
     if (draft.id) {
       const prev = real.find(s => s.id === draft.id);
-      await col.doc(draft.id).set({ ...doc, createdAt: prev?.createdAt || Date.now() });
+      // a guided workout keeps its workout (guia); saving it from the form finishes it (no enCurso), so a copy
+      // left open on the phone is the old one and leaves (dropStaleRun)
+      await col.doc(draft.id).set({ ...doc, createdAt: prev?.createdAt || Date.now(), ...(prev?.guia ? { guia: prev.guia } : {}) });
     } else {
       await col.doc().set({ ...doc, createdAt: Date.now() });
     }

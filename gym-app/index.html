@@ -2297,7 +2297,9 @@ async function submit(){
     const col = db.collection("sesiones");
     if (draft.id) {
       const prev = real.find(s => s.id === draft.id);
-      await col.doc(draft.id).set({ ...doc, createdAt: prev?.createdAt || Date.now() });
+      // a guided workout keeps its workout (guia); saving it from the form finishes it (no enCurso), so a copy
+      // left open on the phone is the old one and leaves (dropStaleRun)
+      await col.doc(draft.id).set({ ...doc, createdAt: prev?.createdAt || Date.now(), ...(prev?.guia ? { guia: prev.guia } : {}) });
     } else {
       await col.doc().set({ ...doc, createdAt: Date.now() });
     }
@@ -3285,7 +3287,7 @@ document.addEventListener("click", async e => {
 /* plan screen */
 function renderPlan(){
   const v = $("#view-plan"), p = trainPlan(), o = trainPlan(OTHER[me]);
-  const dayRow = d => { const isToday = d.fecha === todayISO(), past = d.fecha < todayISO(), done = data().some(s => s.athlete === me && s.date === d.fecha);
+  const dayRow = d => { const isToday = d.fecha === todayISO(), past = d.fecha < todayISO(), done = real.some(s => s.athlete === me && s.date === d.fecha); // not the demo ones
     return `<div class="pday ${isToday ? "today" : ""} ${past ? "past" : ""}">
       <div class="pd-date"><b>${esc(d.dia.slice(0, 3))}</b><span>${parseISO(d.fecha).getDate()}</span></div>
       <div class="pd-body"><div><b>${d.actividad === "descanso" ? "Descanso" : esc(d.foco || SPORTS[d.actividad] || d.actividad)}</b>${d.duracion_min ? ` <span class="muted">· ${d.duracion_min} min</span>` : ""}${done ? ' <span class="pill ok">hecho</span>' : ""}</div><div class="muted" style="font-size:13px">${esc(d.detalle)}</div>${daySessionsHTML(d.fecha)}</div>
@@ -3860,12 +3862,27 @@ function dropStaleRun(){
 }
 // the workout itself goes with the session, so it can be carried on later (without last time's numbers)
 const guiaOf = w => JSON.parse(JSON.stringify(w, (k, v) => k === "prev" || k === "plan" || k === "reto" ? undefined : v));
-// discarding a workout that was carried on keeps what had been saved (and what you added): it is only closed
+// discarding a workout that was carried on keeps what had been saved (and what you added): it goes back to
+// the database as it is («sin terminar» while sets are left, so it can be carried on again) and only then
+// leaves the phone; if that write fails it stays on the phone (false). A new one is deleted.
 async function dropRunDoc(){
-  const r = run, sid = r && r.sid; if (!sid || dbState !== "ready") return;
+  const r = run, sid = r && r.sid; if (!sid) return true;
+  if (r.resumedAt) {
+    r.rev = (r.rev || 0) + 1;
+    return dbState === "ready" && !!(await queueWrite(() => writeRun(r, leftSets(r) <= 0)));
+  }
+  if (dbState !== "ready") return true;
   r.rev = (r.rev || 0) + 1;
-  if (r.resumedAt) await queueWrite(() => writeRun(r, true));
-  else await queueWrite(() => db.doc("sesiones/" + sid).delete()).catch(() => {});
+  await queueWrite(() => db.doc("sesiones/" + sid).delete()).catch(() => {});
+  return true;
+}
+// «Descartar» (player or Hoy): `after` runs once the workout can leave the phone, unless it was opened again
+// meanwhile (from Hoy: the player is open; from the player itself, `fromPlayer`)
+function discardRun(after, fromPlayer = false){
+  const r = run;
+  if (r && r.sid && r.resumedAt) {
+    dropRunDoc().then(ok => { if (!ok) { markUnsynced(r); if (r === run) saveRun(); toast("No se ha podido guardar lo que llevas: sigue en el móvil. Prueba otra vez con conexión"); return; } if (run === r && (fromPlayer || !playerOpen())) after(); });
+  } else { dropRunDoc(); after(); }
 }
 const dropAsk = () => run && run.resumedAt ? "¿Lo dejas aquí? Se queda guardado lo que llevas." : "¿Descartar este entreno? Se borra también lo que ya se había guardado de él.";
 
@@ -3988,7 +4005,7 @@ document.addEventListener("click", e => {
     else { run.nextCur = null; (run.skip ||= {})[keyOf(run.steps[run.i])] = true; advance(); saveRun(); renderPlayer(); } }
   else if (a === "finish") { run.edit = null; finishRun(); }
   else if (a === "save") saveRunSession();
-  else if (a === "discard") { if (run.sid && !confirm(dropAsk())) return; dropRunDoc(); closePlayer(true); }
+  else if (a === "discard") { if (run.sid && !confirm(dropAsk())) return; discardRun(() => closePlayer(true), true); }
   else if (a === "back") goBack();
   else if (a === "addset") addSetNow();
   else if (t.dataset.jump) jumpTo(t.dataset.jump);
@@ -4111,7 +4128,7 @@ function renderHoy(){
   }
   const { T } = (() => { const p = period; period = "semana"; const r = computeDuel(); period = p; return r; })();
   const pq = (() => { const p = period; period = "semana"; const r = piqueText(T); period = p; return r; })();
-  const pd = planDay(trainPlan()), nx = nextPlanDay(), doneToday = data().filter(s => s.athlete === me && s.date === todayISO());
+  const pd = planDay(trainPlan()), nx = nextPlanDay(), doneToday = real.filter(s => s.athlete === me && s.date === todayISO()); // real ones: the demo sessions never count as done
   const menu = todayMenu(), busy = chatBusy.coach;
   if (tab === "hoy") shownMenu = menu;
   const paused = run && run.athlete === me && run.phase !== "preview";
@@ -4181,7 +4198,7 @@ document.addEventListener("click", async e => {
   else if (t.dataset.hoy === "resume") showPlayer();
   else if (t.dataset.hoy === "drop") {
     if (!confirm(dropAsk())) return;
-    dropRunDoc(); run = null; store.del("gym.run"); renderHoy();
+    discardRun(() => { run = null; store.del("gym.run"); renderHoy(); });
   }
   else if (t.dataset.hoy === "savepart") { showPlayer(); finishRun(); }
   else if (t.dataset.hoy === "last") { const m = chatMsgs("coach").slice().reverse().find(x => x.entreno); if (m) openPlayer(m.entreno); }
@@ -5018,11 +5035,13 @@ function runFromSession(s){
     phase: "set", until: null, cur: null, rpe: s.rpe || null, extra: "", swapped: [], tuned: 0, date: s.date };
 }
 const leftSets = r => r.steps.length - Object.values(r.log).reduce((a, l) => a + l.length, 0);
-function continuable(s){ if (run && run.sid === s.id) return null; const r = runFromSession(s); return r && leftSets(r) > 0 ? r : null; }
+// only a session saved half done («sin terminar»): a finished one with sets skipped is not reopened (it would go
+// back to «sin terminar»); to add to it, «Editar»
+function continuable(s){ if (!s.enCurso || (run && run.sid === s.id)) return null; const r = runFromSession(s); return r && leftSets(r) > 0 ? r : null; }
 function continueSession(id){
   const s = real.find(x => x.id === id); if (!s) return;
   if (run && run.athlete === me && run.phase !== "preview" && run.sid !== id) { toast("Antes guarda o descarta el entreno que tienes a medias"); return; }
-  const r = runFromSession(s); if (!r) { toast("Ese entreno ya está completo"); return; }
+  const r = s.enCurso ? runFromSession(s) : null; if (!r) { toast("Ese entreno ya está terminado: para cambiarlo, «Editar»"); return; }
   run = r; run.resumedAt = Date.now(); run.lastAt = Date.now(); run.syncedAt = Date.now();
   // weights from your history, without counting this same session as "last time"
   const at = run.steps[run.i], items = run.w.bloques.flatMap(b => b.items);

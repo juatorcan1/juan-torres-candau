@@ -8,7 +8,10 @@ Eres el guardián de los datos de la app de gimnasio de Juan e Ignacio. Lee prim
 Proyecto de Supabase: `eqwhiguptakmuuihpjpu`. Solo miras las tablas `gym_*`; el resto del proyecto es de Senda.
 
 **Solo lees**, con una excepción: cuando te pidan la copia semanal, `select public.gym_copia_semanal()` (copia todo
-`gym_docs` en `gym_docs_copias` y devuelve cuántos documentos; comprueba que coincide con `count(*)` de `gym_docs`).
+`gym_docs` en `gym_docs_copias` y devuelve cuántos documentos; comprueba que coincide con `count(*)` de `gym_docs`),
+y también `select public.entreno_copia_semanal()` para «El entreno de Juan» (`entreno-app/`: copia `entreno_docs` en
+`entreno_docs_copias`; comprueba igual con `count(*)` de `entreno_docs`). De `entreno_*` solo haces esa copia:
+es la app de Juan solo, no se mezcla con el informe de Juan vs Ignacio.
 Nada más: nunca ejecutes INSERT, UPDATE, DELETE ni DDL. Si algo hay que arreglar, lo propones con el SQL
 exacto y quién tiene que dar el visto bueno (los datos de Ignacio, Ignacio).
 

@@ -1,12 +1,13 @@
 # Repositorio de Juan Torres Candau
 
-Dos apps web personales, cada una en su carpeta, que comparten el proyecto de Supabase `senda-memoria`
+Tres apps web personales, cada una en su carpeta, que comparten el proyecto de Supabase `senda-memoria`
 (id `eqwhiguptakmuuihpjpu`, plan Pro). Ese proyecto es también el de Senda (la empresa): **solo se tocan las
-tablas, funciones y Edge Functions con el prefijo de cada app** (`gym_*`, `cuentas_*`).
+tablas, funciones y Edge Functions con el prefijo de cada app** (`gym_*`, `entreno_*`, `cuentas_*`).
 
 | Carpeta | App | Web | Guía |
 |---|---|---|---|
 | `gym-app/` | Juan vs Ignacio (gimnasio) | https://juatorcan1.github.io/juan-torres-candau/ | `gym-app/CLAUDE.md` |
+| `entreno-app/` | El entreno de Juan (su gimnasio, solo suyo) | https://juatorcan1.github.io/juan-torres-candau/entreno/ | `entreno-app/CLAUDE.md` |
 | `cuentas-app/` | Las cuentas de Juan | https://juatorcan1.github.io/juan-torres-candau/cuentas/ | `cuentas-app/README.md` |
 
 ## Cómo se trabaja
@@ -17,7 +18,7 @@ tablas, funciones y Edge Functions con el prefijo de cada app** (`gym_*`, `cuent
    cómo se guardan las cuentas, `node cuentas-app/pruebas/guardado.mjs`.
 3. Revisión: el agente `revisor-datos` (`.claude/agents/`) revisa el diff antes de pedir la fusión, y el workflow
    «Comprobaciones» corre en cada pull request y antes de publicar (incluida la prueba del guardado).
-4. Al fusionar en `main`, `.github/workflows/gym-web.yml` construye las dos webs y las publica en `gh-pages`.
+4. Al fusionar en `main`, `.github/workflows/gym-web.yml` construye las tres webs y las publica en `gh-pages`.
 5. Cambios en la base de datos: siempre como fichero en `<app>/supabase/migrations/AAAAMMDDHHMMSS_nombre.sql`
    en el mismo pull request, y se aplican en Supabase (MCP `apply_migration`) solo cuando Juan da el visto bueno.
    Lo que está en Supabase y no en el repo es deuda: se trae al repo.
@@ -54,7 +55,7 @@ proveedores, abogado, etc.):
 ## Agentes de Claude Code (`.claude/agents/`)
 
 - `guardian-gym`: revisa que los datos del gimnasio estén bien guardados (sesiones a medias, días sin apuntar,
-  duplicados, números raros, historial, uso de Claude) y da un informe. Solo lee, salvo la copia semanal. Corre
+  duplicados, números raros, historial, uso de Claude) y da un informe. Solo lee, salvo la copia semanal (la de `gym_docs` y la de `entreno_docs`). Corre
   solo los lunes a las 7:53 (tarea programada «Guardián del gimnasio (lunes)»).
 - `guardian-cuentas`: lo mismo para «Las cuentas de Juan» (copias, historial, movimientos rotos o repetidos, tickets
   sin Drive, cuentas que no existen). Solo lee. Corre solo los lunes a las 7:47 (tarea programada «Guardián de las

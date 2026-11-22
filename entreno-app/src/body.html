@@ -1,0 +1,64 @@
+<div class="wrap">
+  <div class="brand">
+    <h1>El entreno<span class="vs">de</span>Juan</h1>
+    <div class="whoami" id="whoami"></div>
+  </div>
+
+  <div class="strip">
+    <div class="score" id="score"></div>
+  </div>
+
+  <main>
+    <section id="top-hoy" class="top">
+      <div id="view-hoy" class="leaf"></div>
+    </section>
+
+    <section id="top-entrenador" class="top" hidden>
+      <div class="subnav" role="tablist" aria-label="Entrenador">
+        <button role="tab" data-leaf="coach">Chat</button>
+        <button role="tab" data-leaf="plan">Plan</button>
+        <button role="tab" data-leaf="ejercicios">Músculos</button>
+      </div>
+      <div id="view-coach" class="leaf"></div>
+      <div id="view-plan" class="leaf" hidden></div>
+      <div id="view-ejercicios" class="leaf" hidden></div>
+    </section>
+
+    <section id="top-apuntar" class="top" hidden>
+      <div id="view-apuntar" class="leaf"></div>
+    </section>
+
+    <section id="top-dietista" class="top" hidden>
+      <div class="subnav" role="tablist" aria-label="Dietista">
+        <button role="tab" data-leaf="nutri">Chat</button>
+        <button role="tab" data-leaf="dieta">Menú</button>
+        <button role="tab" data-leaf="cuerpo">Peso y alcohol</button>
+      </div>
+      <div id="view-nutri" class="leaf"></div>
+      <div id="view-dieta" class="leaf" hidden></div>
+      <div id="view-cuerpo" class="leaf" hidden></div>
+    </section>
+
+    <section id="top-progreso" class="top" hidden>
+      <div class="subnav" role="tablist" aria-label="Progreso">
+        <button role="tab" data-leaf="resumen">Resumen</button>
+        <button role="tab" data-leaf="historial">Historial</button>
+        <button role="tab" data-leaf="records">Récords</button>
+      </div>
+      <div id="view-resumen" class="leaf"></div>
+      <div id="view-historial" class="leaf" hidden></div>
+      <div id="view-records" class="leaf" hidden></div>
+    </section>
+  </main>
+</div>
+
+<nav class="bnav" aria-label="Secciones">
+  <button type="button" data-top="hoy"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 5l8 6.5V20a1 1 0 0 1-1 1h-5v-6h-4v6H5a1 1 0 0 1-1-1z"/></svg><span>Hoy</span></button>
+  <button type="button" data-top="entrenador"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10v4M6 7v10M18 7v10M21 10v4M6 12h12"/></svg><span>Entrenador</span></button>
+  <button type="button" data-top="apuntar" class="plus" aria-label="Apuntar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+  <button type="button" data-top="dietista"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3v8a2 2 0 0 0 4 0V3M9 11v10M16 21V3c2.5 1.5 3.5 4 3.5 7s-1.5 4-3.5 4"/></svg><span>Dietista</span></button>
+  <button type="button" data-top="progreso"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h16M7 16v-5M12 16V7M17 16v-8"/></svg><span>Progreso</span></button>
+</nav>
+
+<div id="player" class="player" hidden></div>
+<div class="toast" id="toast" hidden></div>

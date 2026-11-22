@@ -55,7 +55,7 @@ proveedores, abogado, etc.):
 ## Agentes de Claude Code (`.claude/agents/`)
 
 - `guardian-gym`: revisa que los datos del gimnasio estén bien guardados (sesiones a medias, días sin apuntar,
-  duplicados, números raros, historial, uso de Claude) y da un informe. Solo lee, salvo la copia semanal. Corre
+  duplicados, números raros, historial, uso de Claude) y da un informe. Solo lee, salvo la copia semanal (la de `gym_docs` y la de `entreno_docs`). Corre
   solo los lunes a las 7:53 (tarea programada «Guardián del gimnasio (lunes)»).
 - `guardian-cuentas`: lo mismo para «Las cuentas de Juan» (copias, historial, movimientos rotos o repetidos, tickets
   sin Drive, cuentas que no existen). Solo lee. Corre solo los lunes a las 7:47 (tarea programada «Guardián de las

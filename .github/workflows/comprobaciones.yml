@@ -1,7 +1,7 @@
 name: Comprobaciones
 
 # Antes de fusionar (en cada pull request) y antes de publicar (lo llama gym-web.yml): se construyen las
-# cuatro webs (gimnasio y cuentas, en Artifact y en web) y se comprueba que su JavaScript se lee bien y que
+# seis webs (gimnasio, entreno de Juan y cuentas, en Artifact y en web) y se comprueba que su JavaScript se lee bien y que
 # arrancan en Chromium sin errores; que el entreno guiado del gimnasio no pierde series (gym-app/pruebas) y que las cuentas no pisan un mes guardado desde otro móvil (cuentas-app/pruebas). Sin filtro de rutas a propósito: si se marca como obligatoria en GitHub,
 # un pull request que no toque las apps tiene que poder pasarla igual.
 on:

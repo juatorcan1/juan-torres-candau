@@ -3,7 +3,7 @@
    Artifact. Here those resolve after login: `db` is the entreno_docs table (Row Level Security lets
    only Juan's user read or write it; the server fills `owner`) and `sample` calls the entreno-claude Edge Function. */
 const CFG = window.GYM_WEB;
-const sb = window.supabase.createClient(CFG.url, CFG.key, { auth: { persistSession: true, autoRefreshToken: true } });
+const sb = window.supabase.createClient(CFG.url, CFG.key, { auth: { persistSession: true, autoRefreshToken: true, storageKey: "entreno-auth" } });
 const LOGIN_EMAIL = "juan@gym.example.com";
 let resolveReady;
 const ready = new Promise(r => { resolveReady = r; });
@@ -102,7 +102,7 @@ function showLogin(msg = ""){
 }
 async function enter(session){
   const { data, error } = await sb.from("entreno_usuarios").select("athlete").eq("user_id", session.user.id).maybeSingle();
-  if (error || !data || !ATH[data.athlete]) { await sb.auth.signOut(); showLogin("Este usuario no tiene acceso."); return; }
+  if (error || !data || !ATH[data.athlete]) { await sb.auth.signOut({ scope: "local" }); showLogin("Este usuario no tiene acceso."); return; }
   me = "juan"; store.set("entreno.me", me);
   document.body.classList.remove("locked"); loginEl.innerHTML = "";
   renderAll(); resolveReady();
@@ -132,7 +132,7 @@ function openPassword(){
 }
 document.addEventListener("click", async e => {
   const t = e.target.closest("button"); if (!t) return;
-  if (t.id === "logout") { await sb.auth.signOut(); store.del("entreno.me"); location.reload(); }
+  if (t.id === "logout") { await sb.auth.signOut({ scope: "local" }); store.del("entreno.me"); location.reload(); }
   else if (t.id === "pw-open") openPassword();
   else if (t.id === "pw-close") $("#pw-panel")?.remove();
 });

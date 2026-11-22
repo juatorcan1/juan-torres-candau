@@ -25,15 +25,17 @@ jobs:
         run: |
           gym-app/build.sh
           gym-app/build-web.sh
+          entreno-app/build.sh
+          entreno-app/build-web.sh
           cuentas-app/build.sh
           cuentas-app/build-web.sh
       - name: Instalar Chromium y supabase-js (el mismo que piden las webs)
         run: |
-          SB=$(grep -oh 'supabase-js@[0-9.]*' gym-app/build-web.sh cuentas-app/build-web.sh | sort -uV | tail -1)
+          SB=$(grep -oh 'supabase-js@[0-9.]*' gym-app/build-web.sh entreno-app/build-web.sh cuentas-app/build-web.sh | sort -uV | tail -1)
           npm i --no-save --no-package-lock playwright@1.56.1 "@supabase/$SB"
           npx playwright install --with-deps chromium
       - name: Comprobar
-        run: node .github/comprobaciones/comprobar.mjs gym-app/index.html gym-app/web/index.html cuentas-app/index.html cuentas-app/web/index.html
+        run: node .github/comprobaciones/comprobar.mjs gym-app/index.html gym-app/web/index.html entreno-app/index.html entreno-app/web/index.html cuentas-app/index.html cuentas-app/web/index.html
       - name: El entreno guiado no pierde series
         run: node gym-app/pruebas/guardado.mjs
       - name: Las cuentas no pisan lo guardado desde otro móvil
@@ -50,3 +52,5 @@ jobs:
         run: node gym-app/pruebas/bolitas.mjs
       - name: Entreno guiado · abdominales al final
         run: node gym-app/pruebas/abdomen.mjs
+      - name: El entreno de Juan · todas sus pruebas
+        run: for t in entreno-app/pruebas/*.mjs; do echo "== $t"; node "$t" || exit 1; done

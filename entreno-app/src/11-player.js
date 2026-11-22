@@ -1,0 +1,667 @@
+/* ---------- guided workout player ----------
+   Walks through a workout set by set: the exercise drawing, the target and the challenge,
+   a rest countdown with vibration, a beep and a spoken cue, and saves the session at the end. */
+let run = store.get("entreno.run", null);
+let runTick = null, wakeLock = null, audioCtx = null;
+const playerOpen = () => !$("#player").hidden;
+const voiceOn = () => store.get("entreno.voice", true);
+
+// the items that count as "today you work": without warm-up and cool-down, unless that is all there is
+function mainItems(w){
+  const all = w.bloques.flatMap(b => b.items), core = w.bloques.filter(b => !/calentamiento|vuelta a la calma/i.test(b.nombre)).flatMap(b => b.items);
+  return core.length ? core : all;
+}
+// a block with "alterna" goes round its exercises set by set (A1, B1, A2, B2…): while one rests, the other works.
+// it.hasta: the sets left out of an alternating exercise you skipped; it.desde: the rounds an exercise swapped in
+// halfway starts after (its set 1 goes in round desde + 1, next to its partner's)
+function flatten(w){
+  const steps = [], upTo = it => it.hasta != null ? Math.min(it.hasta, it.series) : it.series, from = it => num(it.desde);
+  w.bloques.forEach((b, bi) => {
+    if (b.alterna) { const n = Math.max(0, ...b.items.map(it => from(it) + upTo(it))); for (let r = 1; r <= n; r++) b.items.forEach((it, ii) => { const s = r - from(it); if (s >= 1 && s <= upTo(it)) steps.push({ bi, ii, s }); }); }
+    else b.items.forEach((it, ii) => { for (let s = 1; s <= it.series; s++) steps.push({ bi, ii, s }); });
+  });
+  return steps;
+}
+// abs always at the end of the alternating work: the last pairs are the ones with abs, and inside its pair the
+// abdominal exercise goes last. An abdominal exercise in a pair with pairs without abs after it swaps places
+// with an exercise of the last of those (one that does not share muscles with its new partner, which stays first);
+// when every one clashes (a push day: all chest, shoulder or triceps) it leaves its pair for a last «Abdomen»
+// block, where the abs go round among themselves, and its partner goes on alone («Series seguidas»). Only before the first set (run.log is keyed by block and place).
+const ABS_MUS = ["abdomen", "oblicuos"];
+const isAbs = it => { const m = musclesOf(it).main; return m.length > 0 && m.every(k => ABS_MUS.includes(k)); };
+function absLast(w){
+  const isPair = b => b.alterna && b.items.length > 1 && !/calentamiento|vuelta a la calma/i.test(b.nombre);
+  const hasAbs = b => b.items.some(isAbs);
+  if (!w.bloques.some(b => isPair(b) && hasAbs(b))) return 0;
+  const before = JSON.stringify(w.bloques.map(b => b.items.map(it => it.ejercicio)));
+  const clash = (a, b) => { const x = musclesOf(a), y = musclesOf(b);
+    return x.main.some(k => y.main.includes(k) || y.help.includes(k)) || y.main.some(k => x.help.includes(k)); };
+  // where the work ends (before the cool-down): blocks of only abs and the «Abdomen» block go there
+  const endOfWork = () => w.bloques.reduce((a, b, i) => /vuelta a la calma/i.test(b.nombre) ? a : i + 1, 0);
+  // pairs of only abs: to the end of the work as they are
+  for (const b of w.bloques.filter(b => isPair(b) && b.items.every(isAbs))) {
+    w.bloques.splice(w.bloques.indexOf(b), 1); w.bloques.splice(endOfWork(), 0, b);
+  }
+  const pairs = w.bloques.filter(isPair), loose = [];
+  pairs.forEach((b, i) => {
+    for (let ii = 0; ii < b.items.length; ii++) {
+      const ab = b.items[ii]; if (!isAbs(ab) || b.items.every(isAbs)) continue;
+      const later = pairs.slice(i + 1).filter(p => !hasAbs(p)).reverse();
+      if (!later.length) continue; // already among the last pairs
+      const rest = b.items.filter(x => x !== ab);
+      let pick = null;
+      for (const p of later) { const c = p.items.find(x => !isAbs(x) && !rest.some(r => clash(r, x))); if (c) { pick = [p, c]; break; } }
+      if (pick) { const [p, c] = pick; p.items[p.items.indexOf(c)] = ab; b.items.splice(ii, 1); b.items.push(c); ii--; }
+      else { b.items.splice(ii, 1); ii--; loose.push(ab); }
+    }
+  });
+  // a pair left with one exercise is no longer a pair
+  for (const b of pairs) if (b.items.length < 2) { delete b.alterna; b.nombre = "Series seguidas"; }
+  if (loose.length) w.bloques.splice(endOfWork(), 0, { nombre: "Abdomen", ...(loose.length > 1 ? { alterna: true } : {}), items: loose });
+  // inside a pair, the abs last (stable: the rest keep their order)
+  for (const b of w.bloques) if (isPair(b)) b.items = [...b.items.filter(x => !isAbs(x)), ...b.items.filter(isAbs)];
+  return JSON.stringify(w.bloques.map(b => b.items.map(it => it.ejercicio))) === before ? 0 : 1;
+}
+const ALTERNA_CAMBIO_S = 30; // in an alternating block, from one exercise to the other: just the time to get to the next machine
+// the rest after a set: in an alternating block, short if another exercise of the block comes next, and the
+// exercise's own rest when its partner is finished or the block ends
+function restAfter(st, next){
+  const it = itemOf(st), b = run.w.bloques[st.bi];
+  if (b.alterna && next && next.bi === st.bi && next.ii !== st.ii) return Math.min(ALTERNA_CAMBIO_S, it.descanso_s || ALTERNA_CAMBIO_S);
+  return it.descanso_s || 0;
+}
+// the next step not done yet: with alternating blocks, a set already logged can come later in the order
+// (a workout continued, an exercise swapped halfway), and it is never asked for again. run.skip: the exercises
+// skipped with «Saltar ejercicio» (outside alternating blocks, which use it.hasta), never asked for again.
+// After the last step it starts again from the top: tapping a ring jumps to any exercise, so the sets left
+// behind come afterwards instead of being lost.
+const isDone = st => (run.log[keyOf(st)] || []).length >= st.s || !!(run.skip && run.skip[keyOf(st)]);
+// An exercise always goes on with its first set left: in a pair you entered by the partner (or jumped out of),
+// the step found can be its set 2 while its set 1 is still to do, and then it is that set 1 that comes
+function nextUndone(i){
+  const n = run.steps.length, first = j => { const st = run.steps[j], k = keyOf(st), d = (run.log[k] || []).length;
+    if (st.s === d + 1) return j; const m = run.steps.findIndex(x => keyOf(x) === k && x.s === d + 1); return m >= 0 ? m : j; };
+  for (let j = i + 1; j < n; j++) if (!isDone(run.steps[j])) return first(j);
+  for (let j = 0; j < Math.min(i, n); j++) if (!isDone(run.steps[j])) return first(j);
+  return n;
+}
+const alternating = st => !!(st && run.w.bloques[st.bi] && run.w.bloques[st.bi].alterna);
+const itemOf = (st) => run.w.bloques[st.bi].items[st.ii];
+const keyOf = (st) => st.bi + "." + st.ii;
+function saveRun(){ store.set("entreno.run", run); }
+const setsDone = r => Object.values(r.log).reduce((a, l) => a + l.length, 0);
+// opts.date: logging a past day you trained but did not record (no rests, saved on that date)
+async function openPlayer(w, opts = {}){
+  if (!me) { toast("Elige primero quién eres"); return; }
+  // a workout with sets already logged is never replaced on the phone: it goes to the database as it is first
+  if (run && run.athlete === me && run.phase !== "preview" && setsDone(run)) {
+    if (!confirm(`Tienes «${run.w.titulo}» a medias (${setsDone(run)} series). Se guarda tal cual, como «sin terminar», y empiezas el nuevo. ¿Seguimos?`)) { showPlayer(); return; }
+    if (!(await parkRun())) { if (!playerOpen()) toast("No se ha podido guardar el entreno a medias: continúalo o prueba otra vez con conexión"); return; }
+  }
+  const { w: ww, swapped } = autoSwap(w);
+  const absMoved = absLast(ww);
+  applyExtras(ww);
+  const tuned = tuneFromHistory(ww);
+  swap = null; fixOpen = false;
+  const forDate = opts.date && opts.date < todayISO() ? opts.date : null;
+  run = { w: ww, steps: flatten(ww), i: 0, phase: "preview", startedAt: null, until: null, log: {}, cur: null, athlete: me, rpe: null, extra: "", swapped, tuned, absMoved,
+    ...(forDate ? { forDate, forMin: num(opts.minutes) || null } : {}) };
+  saveRun(); showPlayer();
+}
+/* weights start from what you actually lifted last time on that exercise, set by set: each set is
+   compared with the same set last time. Reached the target reps → KG_STEP more; fell short → same weight
+   and one rep more. it.prev keeps last time's sets and it.plan today's target for every set. */
+const KG_STEP = 1; // kilos de uno en uno: lo que sube de una vez a otra y lo que mueven − / +
+// "subirPeso": "yo" in the profile: the app never raises the weight, it starts each set where you left it
+const raisesOwnWeight = who => profileOf(who).subirPeso === "yo";
+function tuneFromHistory(w){
+  let n = 0;
+  for (const b of w.bloques) for (const it of b.items) {
+    if (it.modo !== "reps") continue;
+    const { last } = bestFor(me, it.ejercicio); if (!last || !last.sets.length) continue;
+    const top = Math.max(...last.sets.map(x => num(x.kg)));
+    if (!top) continue; // bodyweight: nothing to carry over
+    const step = KG_STEP, mine = raisesOwnWeight(me);
+    it.prev = { date: last.date, sets: last.sets.map(x => ({ kg: num(x.kg), reps: num(x.reps) })) };
+    it.plan = Array.from({ length: it.series }, (_, i) => {
+      const p = it.prev.sets[Math.min(i, it.prev.sets.length - 1)];
+      if (mine) return { kg: p.kg, reps: num(it.reps) };
+      return num(p.reps) >= num(it.reps) ? { kg: p.kg + step, reps: num(it.reps) } : { kg: p.kg, reps: Math.min(num(it.reps), num(p.reps) + 1) };
+    });
+    const before = `La última vez (${relDay(last.date)}): ${it.prev.sets.map(x => `${fmt(x.kg, 2)}×${x.reps}`).join(" · ")}.`;
+    it.reto = mine ? `${before} Hoy empiezas con los mismos kilos: súbelos tú cuando te veas.` : `${before} Hoy: ${it.plan.map(x => `${fmt(x.kg, 2)}×${x.reps}`).join(" · ")}.`;
+    n++;
+    it.kg = it.plan[0].kg;
+  }
+  return n;
+}
+// a workout left open hours ago does not take over the screen: Hoy shows it and parkOldRun saves it
+const runIdle = r => Date.now() - (r.lastAt || r.startedAt || 0) > 6 * 3600000;
+function resumePlayer(){ if (run && run.athlete === me && run.phase !== "preview" && !runIdle(run)) showPlayer(); }
+function showPlayer(){
+  $("#player").hidden = false; document.body.classList.add("playing");
+  renderPlayer(); keepAwake(true);
+}
+function closePlayer(discard){
+  swap = null;
+  if (discard) { run = null; store.del("entreno.run"); }
+  $("#player").hidden = true; $("#player").innerHTML = ""; document.body.classList.remove("playing");
+  clearInterval(runTick); runTick = null; keepAwake(false);
+  if (tab === "hoy") renderHoy();
+}
+async function keepAwake(on){
+  try {
+    if (on && !wakeLock && navigator.wakeLock) { wakeLock = await navigator.wakeLock.request("screen"); wakeLock.addEventListener?.("release", () => { wakeLock = null; }); }
+    if (!on && wakeLock) { await wakeLock.release(); wakeLock = null; }
+  } catch { wakeLock = null; }
+}
+document.addEventListener("visibilitychange", () => { if (!document.hidden && playerOpen()) keepAwake(true); });
+
+/* cues */
+function beep(){
+  try {
+    audioCtx ||= new (window.AudioContext || window.webkitAudioContext)();
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.frequency.value = 880; g.gain.setValueAtTime(0.25, audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
+    o.connect(g); g.connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime + 0.5);
+  } catch {}
+}
+function say(text){
+  if (!voiceOn()) return;
+  try { const u = new SpeechSynthesisUtterance(text); u.lang = "es-ES"; u.rate = 1.05; speechSynthesis.cancel(); speechSynthesis.speak(u); } catch {}
+}
+function buzz(){ try { navigator.vibrate?.([220, 120, 220]); } catch {} }
+const target = it => it.modo === "reps" ? `${it.reps} reps${it.kg ? ` × ${fmt(it.kg, 2)} kg` : ""}` : it.modo === "tiempo" ? `${it.segundos} s` : `${it.metros} m`;
+// what set s (1, 2…) of an item asks for: its own target when the weights come from last time
+const planned = (it, s) => { const p = it.plan && it.plan[s - 1]; return { reps: p ? p.reps : it.reps, kg: p ? p.kg : it.kg, secs: it.segundos, meters: it.metros }; };
+/* last time next to today, set by set: what you did in each set then and what you do (or did) now,
+   with an arrow when you beat it */
+function prevHTML(st, cur){
+  const it = itemOf(st), s = st.s;
+  if (it.modo !== "reps" || !me) return "";
+  const last = it.prev || bestFor(me, it.ejercicio).last; if (!last || !last.sets.length) return "";
+  const done = run.log[keyOf(st)] || [];
+  const n = Math.max(it.series, last.sets.length), d = parseISO(last.date);
+  const cell = x => x ? `${fmt(x.kg, 2)}<small>×${x.reps}</small>` : "–";
+  const cmp = (a, b) => !a || !b ? "" : a.kg > b.kg || (a.kg === b.kg && a.reps > b.reps) ? "up" : a.kg === b.kg && a.reps === b.reps ? "eq" : "down";
+  const cols = Array.from({ length: n }, (_, i) => {
+    const was = last.sets[i], did = done[i] ? { kg: num(done[i].kg), reps: num(done[i].reps) } : null, plan = i < it.series ? planned(it, i + 1) : null;
+    const c = did ? cmp(did, was) : "";
+    const inner = `<span class="pv-s">S${i + 1}</span><span class="pv-was">${cell(was)}</span><span class="pv-today ${did ? "did " + c : ""}">${did ? cell(did) + (c === "up" ? " ▲" : c === "down" ? " ▼" : "") : plan ? cell(plan) : "–"}</span>`;
+    // a set done today: tapping it opens it to correct it (editSet)
+    const open = did && i !== s - 1 && run.phase !== "work";
+    return open ? `<button type="button" class="pv-col pv-b" data-reopen="${keyOf(st)}:${i + 1}" aria-label="Corregir la serie ${i + 1} de ${esc(it.ejercicio)}">${inner}</button>`
+      : `<div class="pv-col ${i === s - 1 ? "now" : ""}">${inner}</div>`;
+  }).join("");
+  return `<div class="pl-prev" role="table" aria-label="Series de la última vez y de hoy">
+    <div class="pv-col pv-head"><span class="pv-s"></span><span class="pv-was">${esc(DIA[d.getDay()])} ${d.getDate()}</span><span class="pv-today">Hoy</span></div>${cols}</div>`;
+}
+const mmssS = s => { const t = Math.max(0, Math.ceil(s)); return `${Math.floor(t / 60)}:${pad(t % 60)}`; };
+
+/* rendering */
+/* the whole workout as a row of small rings, one per exercise, that fill up set by set: 2/3 means
+   two of its three sets done, so you can see at a glance how much is left. Tapping a ring goes straight to
+   that exercise (jumpTo), to go back and forth between exercises in one tap */
+const TRACK_ICO = {
+  reps: `<path d="M5 9v6M8 7v10M16 7v10M19 9v6M8 12h8"/>`,
+  tiempo: `<circle cx="12" cy="13" r="6.5"/><path d="M12 13V9.5M10 4h4"/>`,
+  distancia: `<path d="M4 10q2-2.5 4 0t4 0 4 0 4 0M4 15.5q2-2.5 4 0t4 0 4 0 4 0"/>`
+};
+function trackHTML(nowKey){
+  const w = run.w, C = 106.8; let n = 0, nowN = 0;
+  const cells = w.bloques.map((b, bi) => b.items.map((it, ii) => {
+    const k = bi + "." + ii, done = Math.min((run.log[k] || []).length, it.series), now = k === nowKey; n++; if (now) nowN = n;
+    // skipped with «Saltar ejercicio» (or cut short in a pair): tapping it brings it back
+    const past = !now && done < it.series && (!!(run.skip && run.skip[k]) || (it.hasta != null && done >= it.hasta));
+    const cls = now ? "now" : done >= it.series ? "full" : past ? "skip" : "";
+    return `<li class="tk ${cls}" ${now ? 'aria-current="step"' : ""}><button type="button" class="tk-b" data-jump="${k}" ${run.phase === "work" ? "disabled" : ""} aria-label="${esc(it.ejercicio)}: ${done} de ${it.series} series${past ? ", saltado" : ""}${now ? "" : ". Ir a este ejercicio"}">
+      <svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="17" class="tk-t"/><circle cx="20" cy="20" r="17" class="tk-v" style="stroke-dasharray:${C};stroke-dashoffset:${C * (1 - done / (it.series || 1))}"/><g transform="translate(8 8)" class="tk-i">${TRACK_ICO[it.modo] || TRACK_ICO.reps}</g></svg>
+      <span>${done}/${it.series}</span></button></li>`;
+  }).join("")).join(`<li class="tk-sep" aria-hidden="true"></li>`);
+  return `<div class="pl-track"><div class="eyebrow">Ejercicio ${nowN} de ${n}</div><ol class="tk-row" id="pl-track">${cells}</ol></div>`;
+}
+function stepLabel(st){ const it = itemOf(st); return `${it.ejercicio} · serie ${st.s} de ${it.series}`; }
+function spokenStep(st){ const it = itemOf(st), m = musNames(musclesOf(it).main); return `${m ? m + ". " : ""}${it.ejercicio}, serie ${st.s} de ${it.series}`; }
+function renderPlayer(){
+  const el = $("#player"); if (!run) { closePlayer(); return; }
+  const w = run.w, st = run.steps[run.i], it = st && itemOf(st), total = run.steps.length;
+  const doneN = Object.values(run.log).reduce((a, l) => a + l.length, 0);
+  const head = `<div class="pl-head">
+    <button type="button" class="btn sm ghost" data-pl="close" aria-label="Cerrar">✕</button>
+    <div class="pl-title"><b>${esc(w.titulo)}</b><span class="muted">${run.startedAt ? `<span id="pl-elapsed">${mmssS((Date.now() - run.startedAt) / 1000)}</span> · ` : ""}${doneN}/${total} series</span></div>
+    <button type="button" class="btn sm ghost" data-pl="voice" aria-pressed="${voiceOn()}" aria-label="Voz del entrenador">${voiceOn() ? "🔊" : "🔇"}</button>
+  </div><div class="pl-bar"><i style="width:${total ? doneN / total * 100 : 0}%"></i></div>`;
+  let body = "";
+  if (run.phase === "preview") {
+    body = `<div class="pl-body">
+      ${w.objetivo ? `<p class="pl-goal">${esc(w.objetivo)}</p>` : ""}
+      ${(() => { const all = mainItems(w).map(musclesOf), lv = levelsFor(all); const main = MUSCLE_ORDER.filter(k => lv[k] === 2);
+        return main.length ? `<div class="pl-today"><div class="eyebrow">Hoy trabajas</div><div class="mus-title" style="font-size:24px">${esc(musNames(main))}</div>${bodyMap(lv, { cls: "small" })}<div class="mus-legend"><span><i style="background:var(--muscle)"></i>principal</span><span><i style="background:var(--mus-help)"></i>ayuda</span></div></div>` : ""; })()}
+      ${run.forDate ? `<div class="banner">Apuntas el entreno del <b>${esc(DIA[parseISO(run.forDate).getDay()])} ${parseISO(run.forDate).getDate()}</b>. Pon en cada serie lo que hiciste y pulsa «Serie hecha»: sin descansos. Lo que no hiciste, «Saltar ejercicio».</div>` : ""}
+      ${run.absMoved ? `<p class="note">Abdominales al final del entreno, en las últimas parejas.</p>` : ""}
+      ${run.tuned ? `<p class="note">Pesos según lo que levantaste la última vez en ${run.tuned} ejercicio${run.tuned > 1 ? "s" : ""}.</p>` : ""}
+      ${run.swapped && run.swapped.length ? `<p class="note">Cambiado porque no te gusta: ${run.swapped.map(([a, b]) => `${esc(a)} → <b>${esc(b)}</b>`).join(", ")}.</p>` : ""}
+      ${w.bloques.map((b, bi) => `<div class="pl-block"><div class="eyebrow">${esc(b.nombre)}${b.alterna && b.items.length > 1 ? " · alternando, serie a serie" : ""}</div>${b.items.map((x, ii) => `<div class="pl-item">
+        ${figMini(x.ejercicio)}
+        <div>${musclesOf(x).main.length ? `<div class="mus-chip">${esc(musNames(musclesOf(x).main))}</div>` : ""}<b>${esc(x.ejercicio)}</b><div class="muted" style="font-size:13px">${x.series} × ${target(x)} · descanso ${x.descanso_s} s</div>${x.reto ? `<div class="reto">${esc(x.reto)}</div>` : ""}${gripTag(x.ejercicio)}${noteHTML(x.ejercicio, { small: true, add: false })}</div>
+        <button type="button" class="btn sm ghost" data-swap-item="${bi}.${ii}" aria-label="Cambiar ${esc(x.ejercicio)}">Cambiar</button></div>`).join("")}</div>`).join("")}
+      ${w.nota ? `<p class="note">${esc(w.nota)}</p>` : ""}
+    </div>
+    <div class="pl-foot"><button type="button" class="btn primary big" data-pl="start">Empezar</button></div>`;
+  } else if (run.phase === "done") {
+    body = summaryHTML();
+  } else {
+    const next = run.steps[nextUndone(run.i)];
+    const cur = run.cur || planned(it, st.s);
+    run.cur = cur;
+    const mine = it.modo === "reps" ? bestFor(me, it.ejercicio).b : null;
+    const resting = run.phase === "rest", working = run.phase === "work";
+    const paused = run.pausedLeft != null, secsLeft = paused ? run.pausedLeft / 1000 : run.until ? (run.until - Date.now()) / 1000 : 0, span = resting ? (run.restSpan || it.descanso_s || 1) : (it.segundos || 1);
+    const newEx = resting && next && keyOf(next) !== keyOf(st); // the rest before a different exercise: time to set up the machine
+    const mu = musclesOf(it);
+    // while resting, the top of the screen already shows what comes next (the new exercise, or the next set)
+    const dSt = resting && next ? next : st, dIt = itemOf(dSt), dMu = musclesOf(dIt), dCur = resting && next ? run.nextCur : cur;
+    body = `<div class="pl-body center${resting ? " resting" + (newEx || !next ? " newex" : "") : ""}">
+      ${trackHTML(keyOf(dSt))}
+      <div class="eyebrow">${esc(w.bloques[dSt.bi].nombre)} · ${resting && next ? "a continuación" : "trabajas"}</div>
+      <h2 class="mus-title">${esc(musNames(dMu.main) || dIt.ejercicio)}</h2>
+      <div class="pl-how">${GUIDE[dIt.ejercicio] ? `<button type="button" class="pl-fig small figbtn" data-figzoom="${esc(dIt.ejercicio)}" aria-label="Ver en grande cómo se hace ${esc(dIt.ejercicio)}">${figMarkup(dIt.ejercicio)}</button>` : ""}<div><div class="muted" style="font-size:12px">cómo</div><b>${esc(dIt.ejercicio)}</b><div class="pl-set">Serie <b>${dSt.s}</b> de ${dIt.series} · <b>${target({ ...dIt, ...(dCur && dIt.modo === "reps" ? { reps: dCur.reps, kg: dCur.kg } : {}) })}</b></div></div></div>
+      ${prevHTML(dSt, dCur)}
+      ${gripHTML(dIt.ejercicio)}
+      ${noteHTML(dIt.ejercicio)}
+      ${resting || working ? `<div class="ring ${resting ? "rest" : "work"}">
+          <svg viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="52" class="rt"/><circle cx="60" cy="60" r="52" class="rv" id="pl-ring" style="stroke-dasharray:326.7;stroke-dashoffset:${326.7 * (1 - Math.max(0, secsLeft) / span)}"/></svg>
+          <div class="ring-txt"><span id="pl-count">${mmssS(secsLeft)}</span><small>${paused ? "en pausa" : resting ? "descanso" : "¡dale!"}</small></div></div>
+          ${resting ? `<div class="pl-next">${!next ? "Última serie hecha: <b>a terminar</b>" : newEx && alternating(st) && next.bi === st.bi ? `Cambia a <b>${esc(itemOf(next).ejercicio)}</b> y pulsa «Estoy listo».` : newEx ? `Acabaste <b>${esc(it.ejercicio)}</b>. Prepara la máquina y pulsa «Estoy listo».` : `Siguiente: <b>serie ${next.s} de ${itemOf(next).series}</b>`}</div>${restEdit(st, next)}` : ""}`
+        : `<div class="pl-map">${bodyMap(levelsFor([mu]))}</div>
+          ${it.indicacion ? `<div class="pl-cue">${esc(it.indicacion)}</div>` : ""}
+          ${it.reto && !it.prev ? `<div class="reto big">${esc(it.reto)}</div>` : ""}
+          ${mine ? `<div class="pl-best"><span><i class="dot ${me}"></i> Tu mejor: <b>${fmt(mine.kg, 2)} kg × ${mine.reps}</b></span></div>` : ""}
+          ${steppersFor(it, cur, "cur")}`}
+    </div>
+    <div class="pl-foot">
+      ${resting ? `<button type="button" class="btn ${paused ? "primary" : ""}" data-pl="pause">${paused ? "▶ Seguir" : "❚❚ Pausar"}</button><button type="button" class="btn primary big" data-pl="skip">${newEx ? "Estoy listo" : "Saltar descanso"}</button>`
+        : working ? `<button type="button" class="btn ${paused ? "primary" : ""}" data-pl="pause">${paused ? "▶ Seguir" : "❚❚ Pausar"}</button><button type="button" class="btn primary big" data-pl="workdone">Hecho</button>`
+        : it.modo === "tiempo" ? `<button type="button" class="btn primary big" data-pl="work">Empezar ${it.segundos} s</button>`
+        : `<button type="button" class="btn primary big" data-pl="done">Serie hecha</button>`}
+      <div class="pl-aux">${resting || run.i > 0 ? `<button type="button" class="linkbtn" data-pl="back">◀ Anterior</button>` : ""}${resting ? `<button type="button" class="linkbtn" data-pl="plus">+30 s</button>` : ""}<button type="button" class="linkbtn" data-pl="addset">+ Serie</button><button type="button" class="linkbtn" data-pl="skipex">Saltar ejercicio</button>${working ? "" : resting ? (next ? `<button type="button" class="linkbtn" data-swap-item="${next.bi}.${next.ii}">Cambiar el siguiente</button>` : "") : `<button type="button" class="linkbtn" data-swap-item="${st.bi}.${st.ii}">Cambiar ejercicio</button>`}<button type="button" class="linkbtn" data-pl="finish">Terminar y guardar</button></div>
+    </div>`;
+  }
+  el.innerHTML = `<div class="pl-wrap">${head}${body}</div>${swapSheetHTML()}`;
+  mountFigs();
+  // keep the current exercise in view in the row of rings
+  requestAnimationFrame(() => { const tr = $("#pl-track"), tn = tr && tr.querySelector(".now");
+    if (tn) tr.scrollLeft = tn.offsetLeft - (tr.clientWidth - tn.offsetWidth) / 2; });
+  clearInterval(runTick); runTick = null;
+  if (run.phase === "rest" || run.phase === "work" || (run.startedAt && run.phase !== "done")) runTick = setInterval(tickPlayer, 250);
+}
+function renderPlayerSoft(){ if (run && run.phase === "done") renderPlayer(); }
+// the number can be tapped and typed, or moved with − / +; tgt says what it edits:
+// "cur" the set on screen, "next" the next set (during the rest), "last" the set just done
+function stepper(k, label, v, stepv, tgt = "cur"){
+  return `<div class="stepper"><span>${label}</span><div><button type="button" data-step="${k}" data-tgt="${tgt}" data-d="${-stepv}" aria-label="Menos ${label}">−</button><input class="stepin" id="pl-${tgt}-${k}" data-stepin="${k}" data-tgt="${tgt}" type="text" inputmode="decimal" value="${fmt(num(v), 2)}" aria-label="${label}"><button type="button" data-step="${k}" data-tgt="${tgt}" data-d="${stepv}" aria-label="Más ${label}">+</button></div></div>`;
+}
+function steppersFor(it, v, tgt, cls = ""){
+  if (!v) return "";
+  return it.modo === "reps" ? `<div class="steppers ${cls}">${stepper("reps", "Reps", v.reps, 1, tgt)}${stepper("kg", "Kg", v.kg, KG_STEP, tgt)}</div>`
+    : it.modo === "distancia" ? `<div class="steppers ${cls}">${stepper("meters", "Metros", v.meters, 25, tgt)}</div>` : "";
+}
+const lastSum = (it, l) => it.modo === "reps" ? `${fmt(l.reps)} reps${l.kg ? " × " + fmt(l.kg, 2) + " kg" : ""}` : fmt(l.meters) + " m";
+function refreshLastSum(){ const el = $("#pl-last-sum"), l = lastLog(); if (el && l) el.textContent = lastSum(itemOf(run.steps[run.i]), l); }
+// the set just logged: the last one, or the one just corrected (run.lastIdx, set by logSet)
+const lastLog = () => { const st = run.steps[run.i], l = st && run.log[keyOf(st)]; return l && l.length ? l[run.lastIdx != null && l[run.lastIdx] ? run.lastIdx : l.length - 1] : null; };
+const stepTarget = tgt => tgt === "next" ? run.nextCur : tgt === "last" ? lastLog() : run.cur;
+// during the rest: fix what you just did, and set the weight for the next set
+function restEdit(st, next){
+  const it = itemOf(st), last = lastLog(), ni = next && itemOf(next);
+  const fixLast = it.modo !== "tiempo" && last ? `<details class="pl-edit"><summary>Acabas de hacer <b id="pl-last-sum">${lastSum(it, last)}</b> · corregir</summary>${steppersFor(it, last, "last", "sm")}</details>` : "";
+  const setNext = ni && ni.modo !== "tiempo" && run.nextCur ? `<div class="pl-edit"><div class="eyebrow">Siguiente serie${keyOf(next) !== keyOf(st) ? ` · ${esc(ni.ejercicio)}` : ""}</div>${steppersFor(ni, run.nextCur, "next", "sm")}</div>` : "";
+  return setNext + fixLast;
+}
+function tickPlayer(){
+  if (!run) return;
+  const e = $("#pl-elapsed"); if (e && run.startedAt) e.textContent = mmssS((Date.now() - run.startedAt) / 1000);
+  if (run.phase !== "rest" && run.phase !== "work") return;
+  if (run.pausedLeft != null) return;
+  const it = itemOf(run.steps[run.i]), left = (run.until - Date.now()) / 1000, span = run.phase === "rest" ? (run.restSpan || it.descanso_s || 1) : (it.segundos || 1);
+  const c = $("#pl-count"); if (c) c.textContent = mmssS(left);
+  const r = $("#pl-ring"); if (r) r.style.strokeDashoffset = 326.7 * (1 - Math.max(0, left) / span);
+  if (run.phase === "work" && Math.ceil(left) === 3 && !run._w3) { run._w3 = true; beep(); }
+  if (left <= 0) { if (run.phase === "rest") endRest(); else logSet(); }
+}
+
+/* flow */
+function logSet(){
+  const st = run.steps[run.i], it = itemOf(st), c = run.cur || {};
+  run.lastAt = Date.now();
+  const set = { reps: num(c.reps), kg: num(c.kg), secs: it.modo === "tiempo" ? it.segundos : null, meters: it.modo === "distancia" ? num(c.meters) : null }, l = (run.log[keyOf(st)] ||= []);
+  // a set reopened with «◀ Anterior» is corrected where it is; any other one is added
+  const ed = run.edit; run.edit = null;
+  if (ed && ed.k === keyOf(st) && l[ed.idx]) { l[ed.idx] = set; run.lastIdx = ed.idx; } else { l.push(set); run.lastIdx = l.length - 1; }
+  run._w3 = false;
+  const next = run.steps[nextUndone(run.i)];
+  if (!next) { finishRun(); return; }
+  run.pausedLeft = null;
+  const ni = itemOf(next);
+  // the next set of the same exercise keeps what you just did, unless it has its own target from last time
+  // (alternating: what you did in its previous set, a few steps back)
+  // after correcting an earlier set: the set before the next one, not the corrected one
+  const ln = run.log[keyOf(next)] || [];
+  const prevSet = ed ? (ln[next.s - 2] || ln.slice(-1)[0]) : keyOf(next) === keyOf(st) ? c : ln.slice(-1)[0];
+  run.nextCur = prevSet && !ni.plan ? { reps: num(prevSet.reps), kg: num(prevSet.kg), meters: prevSet.meters } : (({ reps, kg, meters }) => ({ reps, kg, meters }))(planned(ni, next.s));
+  const rest = restAfter(st, next);
+  if (rest > 0 && !run.forDate) { run.phase = "rest"; run.restSpan = rest; run.until = Date.now() + rest * 1000; say(`Descanso. Siguiente: ${spokenStep(next)}`); }
+  else advance();
+  saveRun(); renderPlayer(); syncRun();
+}
+function endRest(){ buzz(); beep(); advance(); const st = run.steps[run.i]; if (st) say(`${spokenStep(st)}. ${target({ ...itemOf(st), ...(run.cur || {}) })}`); saveRun(); renderPlayer(); }
+function advance(){ goStep(nextUndone(run.i)); }
+function goStep(j){
+  run.i = j; run.until = null; run.pausedLeft = null;
+  const st = run.steps[run.i]; if (!st) { finishRun(); return; }
+  // without numbers set for it in the rest: what you did in this exercise's previous set (unless it has a target from last time)
+  const it = itemOf(st), lg = (run.log[keyOf(st)] || []).slice(-1)[0];
+  const last = run.nextCur || (lg && !it.plan ? lg : null);
+  const def = planned(it, st.s);
+  run.cur = { reps: last ? last.reps : def.reps, kg: last ? last.kg : def.kg, secs: it.segundos, meters: last && last.meters != null ? last.meters : it.metros };
+  run.nextCur = null;
+  run.phase = "set";
+}
+// left half done and saved later: the workout ended with the last set, not now
+const idleEnd = (r = run) => r.lastAt && Date.now() - r.lastAt > 20 * 60000 ? r.lastAt : Date.now();
+function finishRun(){ run.phase = "done"; run.until = null; setTimeout(syncRun, 0);
+  run.endedAt = idleEnd(); say("Entreno terminado. ¡Buen trabajo!"); saveRun(); renderPlayer(); }
+
+/* the workout goes to the database set by set (sesiones/<sid>, marked enCurso), so nothing is lost if
+   the phone dies, the page is closed or you forget to press save; saving at the end updates the same one.
+   Without connection the sets stay on the phone (run.unsynced) and go up as soon as it is back: with the
+   connection, when the app comes to the front, or every 30 s. Returns whether the database has it all. */
+function markUnsynced(r){
+  if (r.unsynced) return;
+  r.unsynced = true; if (r === run) saveRun();
+  toast("Sin conexión: lo que apuntas se queda en el móvil y se sube en cuanto vuelva");
+}
+// the writes of the workout go one after another, so an older one never lands after a newer one
+let writes = Promise.resolve();
+function queueWrite(fn){ const p = writes.then(fn); writes = p.catch(() => {}); return p; }
+// changed somewhere else since this phone last wrote it (another phone, the form, the plan)
+function changedElsewhere(r){ const s = r.sid && real.find(x => x.id === r.sid); return s && num(s.updatedAt) > num(r.syncedAt) + 1000 ? s : null; }
+const setsIn = s => (s.exercises || []).reduce((a, e) => a + (e.sets || []).length, 0);
+// r.rev counts the changes made on this phone and r.syncedRev the last one the database has
+function syncRun(){
+  const r = run;
+  if (!r || !me || r.athlete !== me || !setsDone(r)) return Promise.resolve(true);
+  r.rev = (r.rev || 0) + 1;
+  return queueWrite(() => writeRun(r));
+}
+async function writeRun(r, final = false){
+  const rev = r.rev || 0;
+  if (!final && num(r.syncedRev) >= rev) return true; // a write after it in the queue already took it
+  if (dbState !== "ready" || !db) { markUnsynced(r); return false; }
+  const other = changedElsewhere(r);
+  if (other) {
+    // never written over: with as much there as here, this copy is the old one; otherwise it stays on the phone
+    if (setsIn(other) >= setsDone(r)) { if (run === r && !playerOpen()) { run = null; store.del("entreno.run"); } return true; }
+    if (!r.conflict) { r.conflict = true; if (r === run) saveRun(); toast("Este entreno se ha cambiado en otro móvil: lo de aquí no se sube para no pisarlo"); }
+    return false;
+  }
+  if (!r.sid) r.sid = `run-${me}-${r.startedAt || Date.now()}`;
+  const doc = runSession(r), now = Date.now();
+  try {
+    await db.doc("sesiones/" + r.sid).set(final ? { ...doc, guia: guiaOf(r.w), createdAt: r.startedAt || now, updatedAt: now }
+      : { ...doc, notes: doc.notes + " · sin terminar", enCurso: true, guia: guiaOf(r.w), createdAt: r.startedAt || now, updatedAt: now });
+  } catch { markUnsynced(r); return false; }
+  r.syncedAt = now; r.syncedRev = Math.max(num(r.syncedRev), rev);
+  if (r.unsynced && r.syncedRev >= (r.rev || 0)) { r.unsynced = false; toast("Subido lo que apuntaste sin conexión"); }
+  if (r === run) saveRun();
+  return true;
+}
+function retrySync(){ if (run && run.unsynced && run.athlete === me) syncRun(); }
+window.addEventListener("online", retrySync);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) retrySync(); });
+setInterval(retrySync, 30000);
+/* a workout half done is never thrown away by starting another one, nor left on the phone for days: it goes
+   to the database as it is («sin terminar», to carry on from the plan, or finished if it was) and leaves the
+   phone. If it was carried on meanwhile (Continuar, another set) it stays: it is the workout in use. */
+async function parkRun(){
+  const r = run;
+  if (!r || r.athlete !== me || r.phase === "preview" || !setsDone(r)) return true;
+  const rev = r.rev = (r.rev || 0) + 1;
+  if (!(await queueWrite(() => writeRun(r, r.phase === "done")))) return false;
+  if (run !== r) return true;
+  if (playerOpen() || r.rev !== rev) return false;
+  run = null; store.del("entreno.run");
+  return true;
+}
+// called with every snapshot of the sessions: a workout left open more than 6 hours ago is parked
+let parking = false;
+async function parkOldRun(){
+  if (parking || !run || run.athlete !== me || run.phase === "preview" || playerOpen() || !runIdle(run) || !setsDone(run)) return;
+  parking = true;
+  const when = relDay(toISO(new Date(run.lastAt || run.startedAt))), done = run.phase === "done";
+  try {
+    if (!(await parkRun()) || run) return;
+    toast(`El entreno de ${when} que quedó abierto ya está guardado${done ? "" : " como «sin terminar»: lo continúas desde el plan"}`);
+    if (tab === "hoy") renderHoy();
+  }
+  finally { parking = false; }
+}
+/* a workout left open on this phone whose session was finished or edited somewhere else (the form, the
+   plan, another device) is the old copy: drop it instead of writing it over the newer one */
+function dropStaleRun(){
+  if (!run || !run.sid || run.athlete !== me || playerOpen()) return;
+  const s = real.find(x => x.id === run.sid);
+  if (s && !s.enCurso && num(s.updatedAt) > num(run.syncedAt) + 1000) { run = null; store.del("entreno.run"); }
+}
+// the workout itself goes with the session, so it can be carried on later (without last time's numbers)
+const guiaOf = w => JSON.parse(JSON.stringify(w, (k, v) => k === "prev" || k === "plan" || k === "reto" ? undefined : v));
+// discarding a workout that was carried on keeps what had been saved (and what you added): it goes back to
+// the database as it is («sin terminar» while sets are left, so it can be carried on again) and only then
+// leaves the phone; if that write fails it stays on the phone (false). A new one is deleted.
+async function dropRunDoc(){
+  const r = run, sid = r && r.sid; if (!sid) return true;
+  if (r.resumedAt) {
+    r.rev = (r.rev || 0) + 1;
+    return dbState === "ready" && !!(await queueWrite(() => writeRun(r, leftSets(r) <= 0)));
+  }
+  if (dbState !== "ready") return true;
+  r.rev = (r.rev || 0) + 1;
+  await queueWrite(() => db.doc("sesiones/" + sid).delete()).catch(() => {});
+  return true;
+}
+// «Descartar» (player or Hoy): `after` runs once the workout can leave the phone, unless it was opened again
+// meanwhile (from Hoy: the player is open; from the player itself, `fromPlayer`)
+function discardRun(after, fromPlayer = false){
+  const r = run;
+  if (r && r.sid && r.resumedAt) {
+    dropRunDoc().then(ok => { if (!ok) { markUnsynced(r); if (r === run) saveRun(); toast("No se ha podido guardar lo que llevas: sigue en el móvil. Prueba otra vez con conexión"); return; } if (run === r && (fromPlayer || !playerOpen())) after(); });
+  } else { dropRunDoc(); after(); }
+}
+const dropAsk = () => run && run.resumedAt ? "¿Lo dejas aquí? Se queda guardado lo que llevas." : "¿Descartar este entreno? Se borra también lo que ya se había guardado de él.";
+
+/* summary and saving */
+function runSession(r = run){
+  // a workout carried on later counts the minutes saved before plus the ones since it was resumed
+  const span = from => Math.round(((r.endedAt || idleEnd(r)) - (from || Date.now())) / 60000);
+  const w = r.w, ex = [], mins = r.forDate && r.forMin ? r.forMin
+    : Math.min(240, Math.max(1, r.resumedAt ? num(r.prevMin) + span(r.resumedAt) : span(r.startedAt)));
+  let meters = 0;
+  w.bloques.forEach((b, bi) => b.items.forEach((it, ii) => {
+    const l = r.log[bi + "." + ii]; if (!l || !l.length) return;
+    if (it.modo === "distancia") { meters += l.reduce((a, x) => a + num(x.meters), 0); return; }
+    if (it.modo === "tiempo") { ex.push(clean({ name: it.ejercicio, group: CATALOG[it.ejercicio] || "", notes: `${l.length} × ${it.segundos} s`, sets: l.map(() => ({ reps: 1, kg: 0 })) })); return; }
+    ex.push(clean({ name: it.ejercicio, group: CATALOG[it.ejercicio] || "", equip: num(l[0].kg) ? "" : "Peso corporal", sets: l.map(x => clean({ reps: x.reps, kg: x.kg, rest: it.descanso_s || null })) }));
+  }));
+  const sport = w.tipo === "natacion" ? "natacion" : w.tipo === "cinta" || w.tipo === "bici" ? w.tipo : w.tipo === "otro" ? "otro" : "gym";
+  const doc = clean({ athlete: me, date: r.forDate || (r.startedAt ? toISO(new Date(r.startedAt)) : todayISO()), time: `${pad(new Date(r.startedAt || Date.now()).getHours())}:${pad(new Date(r.startedAt || Date.now()).getMinutes())}`,
+    sport, minutes: mins, rpe: r.rpe, notes: `${w.titulo} (entreno guiado)`, source: "entrenador" });
+  if (sport === "gym" && ex.length) doc.exercises = ex;
+  if (sport === "gym" && !ex.length) { doc.sport = "otro"; doc.activity = w.titulo; }
+  if (sport === "natacion") Object.assign(doc, clean({ meters: meters || null, style: w.bloques.flatMap(b => b.items).find(i => i.modo === "distancia")?.ejercicio }));
+  if (sport === "cinta" || sport === "bici" || sport === "otro") { const km = num(r.extra); if (km) doc.km = km; if (sport === "otro") doc.activity = w.titulo; }
+  return doc;
+}
+function prList(doc){
+  const out = [];
+  for (const e of doc.exercises || []) {
+    const b = bestFor(me, e.name).b, top = (e.sets || []).reduce((m, x) => !m || x.kg > m.kg || (x.kg === m.kg && x.reps > m.reps) ? x : m, null);
+    if (top && top.reps && (!b || top.kg > b.kg || (top.kg === b.kg && top.reps > b.reps))) out.push(`${e.name}: ${top.kg ? fmt(top.kg, 2) + " kg × " : ""}${top.reps}${b ? ` (antes ${b.kg ? fmt(b.kg, 2) + " × " : ""}${b.reps})` : ""}`);
+  }
+  return out;
+}
+function summaryHTML(){
+  const doc = runSession(), g = doc.exercises ? gymStats(doc) : null, prs = prList(doc);
+  const needKm = doc.sport === "cinta" || doc.sport === "bici";
+  return `<div class="pl-body">
+    <div class="pl-done"><div class="eyebrow">${(() => { const d = Object.values(run.log).reduce((a, l) => a + l.length, 0); return d < run.steps.length ? `Guardas lo que has hecho: ${d} de ${run.steps.length} series` : "Entreno terminado"; })()}</div><h2>${prs.length ? "¡Récord!" : "¡Hecho!"}</h2>
+      <div class="kv"><div><dt>Tiempo</dt><dd>${doc.minutes} min</dd></div>${g ? `<div><dt>Series</dt><dd>${g.sets}</dd></div><div><dt>Volumen</dt><dd>${fmt(g.vol)} kg</dd></div>` : ""}${doc.meters ? `<div><dt>Nadado</dt><dd>${fmt(doc.meters)} m</dd></div>` : ""}</div>
+      ${prs.length ? `<div class="prs">${prs.map(p => `<div>🏆 ${esc(p)}</div>`).join("")}</div>` : ""}
+      ${(() => { const done = run.w.bloques.flatMap((b, bi) => b.items.filter((it, ii) => (run.log[bi + "." + ii] || []).length)).map(musclesOf); return done.length ? `<div class="eyebrow">Has trabajado</div>${bodyMap(levelsFor(done), { cls: "small" })}` : ""; })()}
+    </div>
+    ${fixSetsHTML()}
+    <div class="f"><label>¿Cuánto te ha costado? <small>RPE 1–10</small></label><div class="chips">${[5, 6, 7, 8, 9, 10].map(n => `<button type="button" data-rpe="${n}" aria-pressed="${run.rpe === n}">${n}</button>`).join("")}</div></div>
+    ${needKm ? `<div class="f"><label for="pl-km">Distancia total <small>km</small></label><input id="pl-km" type="number" inputmode="decimal" step="0.1" value="${esc(run.extra)}"></div>` : ""}
+  </div>
+  <div class="pl-foot"><button type="button" class="btn primary big" data-pl="save" ${dbState === "ready" ? "" : "disabled"}>Guardar entreno</button>
+    <div class="pl-aux"><button type="button" class="linkbtn" data-pl="discard">Descartar</button></div></div>`;
+}
+async function saveRunSession(){
+  const r = run, doc = runSession(r);
+  r.rev = (r.rev || 0) + 1;
+  if (!(await queueWrite(() => writeRun(r, true)))) { if (!r.conflict) toast("No se ha podido guardar. Revisa la conexión."); return; }
+  const prs = prList(doc);
+  if (run === r) closePlayer(true);
+  toast(prs.length ? `Guardado. ¡${prs.length} récord${prs.length > 1 ? "s" : ""}!` : "Entreno guardado");
+}
+/* one step back: in the rest it reopens the set you just logged, in a set it goes to the previous one; a set
+   that was done comes back with what you logged, to correct it. It stays in the log meanwhile (run.edit says
+   which one is open) and «Serie hecha» writes it over in its place: leaving it any other way (a ring, «Saltar
+   ejercicio», «Terminar», closing, the phone dying) keeps it as it was. */
+function goBack(){
+  try { speechSynthesis.cancel(); } catch {}
+  let st = run.steps[run.i];
+  if (run.phase !== "rest") {
+    // back to the previous step that was logged or is still to do (not the sets of a skipped exercise)
+    const got = x => (run.log[keyOf(x)] || []).length;
+    let j = run.i - 1; while (j >= 0 && got(run.steps[j]) < run.steps[j].s && isDone(run.steps[j])) j--;
+    if (j < 0) return;
+    run.i = j; st = run.steps[j];
+    // a step left behind (after a ring) goes to that exercise's first set left
+    if (got(st) < st.s) { const m = run.steps.findIndex(x => keyOf(x) === keyOf(st) && x.s === got(st) + 1); if (m >= 0) { run.i = m; st = run.steps[m]; } }
+  }
+  const it = itemOf(st), l = run.log[keyOf(st)] || [], x = l.length >= st.s ? l[st.s - 1] : null, def = planned(it, st.s);
+  run.edit = x ? { k: keyOf(st), idx: st.s - 1 } : null;
+  run.cur = x ? { ...def, reps: x.reps, kg: x.kg, meters: x.meters != null ? x.meters : def.meters } : def;
+  run.phase = "set"; run.until = null; run.pausedLeft = null; run.nextCur = null;
+  saveRun(); renderPlayer();
+  toast(`${it.ejercicio} · serie ${st.s}${x ? ": corrige y pulsa «Serie hecha»" : ""}`);
+}
+// the summary lets you fix any set before saving
+let fixOpen = false;
+function fixSetsHTML(){
+  const rows = run.w.bloques.flatMap((b, bi) => b.items.map((it, ii) => [it, bi + "." + ii])).filter(([it, k]) => it.modo === "reps" && (run.log[k] || []).length);
+  if (!rows.length) return "";
+  return `<details class="pl-fix" ${fixOpen ? "open" : ""}><summary>Revisa y corrige las series</summary>${rows.map(([it, k]) => `<div class="fix-ex"><b>${esc(it.ejercicio)}</b><div class="fix-sets">${run.log[k].map((x, i) => `<span class="fix-set"><small>S${i + 1}</small><input class="stepin" data-fix="${k}:${i}:reps" inputmode="numeric" value="${fmt(num(x.reps))}" aria-label="${esc(it.ejercicio)}, serie ${i + 1}, repeticiones"><small>×</small><input class="stepin" data-fix="${k}:${i}:kg" inputmode="decimal" value="${fmt(num(x.kg), 2)}" aria-label="${esc(it.ejercicio)}, serie ${i + 1}, kilos"><small>kg</small></span>`).join("")}
+      <button type="button" class="btn sm ghost" data-addset="${k}" aria-label="Añadir una serie de ${esc(it.ejercicio)}">+ Serie</button></div>${alwaysHTML(it, run.log[k].length)}</div>`).join("")}</details>`;
+}
+document.addEventListener("change", e => {
+  const f = e.target.dataset && e.target.dataset.fix; if (!f || !run) return;
+  const [k, i, field] = f.split(":"), x = run.log[k] && run.log[k][+i]; if (!x) return;
+  // no re-render here: change also fires on blur, when the next tap may already be on its way
+  x[field] = Math.max(0, num(e.target.value)); e.target.value = fmt(x[field], 2); fixOpen = true; saveRun(); syncRun();
+});
+
+/* controls */
+document.addEventListener("click", e => {
+  const t = e.target.closest("#player button"); if (!t || !run) return;
+  const a = t.dataset.pl;
+  if (t.dataset.step) {
+    const k = t.dataset.step, tgt = t.dataset.tgt || "cur", obj = stepTarget(tgt); if (!obj) return;
+    obj[k] = Math.max(0, Math.round((num(obj[k]) + num(t.dataset.d)) * 100) / 100);
+    const o = $(`#pl-${tgt}-${k}`); if (o) o.value = fmt(obj[k], 2); if (tgt === "last") refreshLastSum(); saveRun(); return;
+  }
+  if (t.dataset.rpe) { run.rpe = +t.dataset.rpe; saveRun(); renderPlayer(); return; }
+  if (a === "close") { if (run.phase === "preview") closePlayer(true); else { syncRun(); closePlayer(false); toast("Entreno en pausa: ya está guardado lo que llevas. En Hoy lo continúas"); } }
+  else if (a === "voice") { store.set("entreno.voice", !voiceOn()); renderPlayer(); }
+  else if (a === "start") { run.startedAt = Date.now(); advanceFromStart(); beep(); say(`Empezamos. ${spokenStep(run.steps[0])}. ${target(itemOf(run.steps[0]))}`); saveRun(); renderPlayer(); }
+  else if (a === "done" || a === "workdone") logSet();
+  else if (a === "work") { run.phase = "work"; run.pausedLeft = null; run.until = Date.now() + itemOf(run.steps[run.i]).segundos * 1000; beep(); saveRun(); renderPlayer(); }
+  else if (a === "plus") { if (run.pausedLeft != null) run.pausedLeft += 30000; else run.until += 30000; saveRun(); renderPlayer(); }
+  else if (a === "pause") {
+    if (run.pausedLeft == null) { run.pausedLeft = Math.max(0, run.until - Date.now()); try { speechSynthesis.cancel(); } catch {} }
+    else { run.until = Date.now() + run.pausedLeft; run.pausedLeft = null; }
+    saveRun(); renderPlayer();
+  }
+  else if (a === "skip") endRest();
+  else if (a === "skipex") { run.edit = null;
+    if (alternating(run.steps[run.i])) skipAlternating();
+    else { run.nextCur = null; (run.skip ||= {})[keyOf(run.steps[run.i])] = true; advance(); saveRun(); renderPlayer(); } }
+  else if (a === "finish") { run.edit = null; finishRun(); }
+  else if (a === "save") saveRunSession();
+  else if (a === "discard") { if (run.sid && !confirm(dropAsk())) return; discardRun(() => closePlayer(true), true); }
+  else if (a === "back") goBack();
+  else if (a === "addset") addSetNow();
+  else if (t.dataset.jump) jumpTo(t.dataset.jump);
+  else if (t.dataset.reopen) { const [k, n] = t.dataset.reopen.split(":"), it = run.w.bloques[+k.split(".")[0]].items[+k.split(".")[1]];
+    if (editSet(k, +n)) toast(`${it.ejercicio} · serie ${n}: corrígela y pulsa «Serie hecha»`); }
+});
+/* a tap on a ring of the row goes straight to that exercise, at its first set left: in a set it leaves the one
+   on screen for later, in the rest it ends the rest. Nothing logged changes, and the sets left behind come
+   afterwards. A skipped exercise comes back; one with all its sets done reopens to correct it or add a set. */
+function jumpTo(k){
+  if (!run || (run.phase !== "set" && run.phase !== "rest")) return;
+  const [bi, ii] = k.split(".").map(Number), it = run.w.bloques[bi] && run.w.bloques[bi].items[ii]; if (!it) return;
+  const done = (run.log[k] || []).length, cur = run.steps[run.i];
+  if (run.phase === "set" && cur && keyOf(cur) === k) return;
+  if (done >= it.series) { reopenDone(k); return; }
+  run.edit = null;
+  // in the rest, the numbers set for the next set stay if that is where you go
+  const next = run.phase === "rest" ? run.steps[nextUndone(run.i)] : null;
+  if (!(next && keyOf(next) === k && next.s === done + 1)) run.nextCur = null;
+  if (run.skip) delete run.skip[k];
+  let changed = false;
+  if (it.hasta != null && done >= it.hasta) { delete it.hasta; run.steps = flatten(run.w); changed = true; }
+  const j = run.steps.findIndex(x => keyOf(x) === k && x.s === done + 1); if (j < 0) return;
+  try { speechSynthesis.cancel(); } catch {}
+  goStep(j); saveRun(); renderPlayer(); if (changed) syncRun();
+  const st = run.steps[run.i]; if (st) say(`${spokenStep(st)}. ${target({ ...itemOf(st), ...(run.cur || {}) })}`);
+}
+// an exercise with all its sets done comes back on its last set, with what you logged, to correct it («Serie
+// hecha»), go to the ones before («◀ Anterior») or do one more («+ Serie» goes straight to the new set). It stays
+// in the log meanwhile (run.edit, as with «◀ Anterior»); leaving it any other way keeps it as it was.
+function reopenDone(k){
+  const [bi, ii] = k.split(".").map(Number), it = run.w.bloques[bi].items[ii], l = run.log[k] || [];
+  if (run.skip) delete run.skip[k];
+  if (editSet(k, Math.min(l.length, it.series))) toast(`${it.ejercicio} · serie ${Math.min(l.length, it.series)}: corrígela, «◀ Anterior» para las de antes o «+ Serie» para otra`);
+}
+// set s of exercise k, already logged, opened to correct it: «Serie hecha» writes it in its place (run.edit), and
+// then the workout goes on with what is left. Also from the «Hoy» row of the table of sets (data-reopen).
+function editSet(k, s){
+  if (!run || (run.phase !== "set" && run.phase !== "rest")) return false;
+  const [bi, ii] = k.split(".").map(Number), it = run.w.bloques[bi] && run.w.bloques[bi].items[ii], l = run.log[k] || [];
+  if (!it) return false;
+  const j = run.steps.findIndex(x => keyOf(x) === k && x.s === s); if (j < 0 || !l[s - 1]) return false;
+  try { speechSynthesis.cancel(); } catch {}
+  const x = l[s - 1], def = planned(it, s);
+  run.i = j; run.edit = { k, idx: s - 1 };
+  run.cur = { ...def, reps: x.reps, kg: x.kg, meters: x.meters != null ? x.meters : def.meters };
+  run.phase = "set"; run.until = null; run.pausedLeft = null; run.nextCur = null;
+  saveRun(); renderPlayer();
+  return true;
+}
+// skipping an exercise of an alternating block: its sets left come out, the other exercises of the block go on
+function skipAlternating(){
+  // what stays is what is logged (in the rest, the set just done; a set reopened with «◀ Anterior» too)
+  const st = run.steps[run.i], k = keyOf(st), it = itemOf(st), keep = (run.log[k] || []).length;
+  it.hasta = keep; run.nextCur = null;
+  const at = run.steps.slice(0, run.i).filter(x => keyOf(x) !== k || x.s <= keep).length;
+  run.steps = flatten(run.w); run.i = run.phase === "rest" ? at : at - 1;
+  advance(); saveRun(); renderPlayer(); syncRun();
+}
+function advanceFromStart(){ run.i = -1; advance(); }
+document.addEventListener("input", e => {
+  if (!run) return;
+  if (e.target.id === "pl-km") { run.extra = e.target.value; saveRun(); }
+  else if (e.target.dataset && e.target.dataset.stepin) { const obj = stepTarget(e.target.dataset.tgt); if (obj) { obj[e.target.dataset.stepin] = Math.max(0, num(e.target.value)); if (e.target.dataset.tgt === "last") refreshLastSum(); saveRun(); } }
+});
+document.addEventListener("focusin", e => { if (e.target.classList && e.target.classList.contains("stepin")) e.target.select(); });

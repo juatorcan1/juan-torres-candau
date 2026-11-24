@@ -284,7 +284,10 @@ function renderPlayer(){
         : working ? `<button type="button" class="btn ${paused ? "primary" : ""}" data-pl="pause">${paused ? "▶ Seguir" : "❚❚ Pausar"}</button><button type="button" class="btn primary big" data-pl="workdone">Hecho</button>`
         : it.modo === "tiempo" ? `<button type="button" class="btn primary big" data-pl="work">Empezar ${it.segundos} s</button>`
         : `<button type="button" class="btn primary big" data-pl="done">Serie hecha</button>`}
-      <div class="pl-aux">${resting || run.i > 0 ? `<button type="button" class="linkbtn" data-pl="back">◀ Anterior</button>` : ""}${resting ? `<button type="button" class="linkbtn" data-pl="plus">+30 s</button>` : ""}<button type="button" class="linkbtn" data-pl="addset">+ Serie</button><button type="button" class="linkbtn" data-pl="skipex">Saltar ejercicio</button>${working ? "" : resting ? (next ? `<button type="button" class="linkbtn" data-swap-item="${next.bi}.${next.ii}">Cambiar el siguiente</button>` : "") : `<button type="button" class="linkbtn" data-swap-item="${st.bi}.${st.ii}">Cambiar ejercicio</button>`}<button type="button" class="linkbtn" data-pl="finish">Terminar y guardar</button></div>
+      <div class="pl-aux">${resting || run.i > 0 ? `<button type="button" class="linkbtn" data-pl="back">◀ Anterior</button>` : ""}${resting ? `<button type="button" class="linkbtn" data-pl="plus">+30 s</button>` : ""}${(() => { const ed = run.phase === "set" && run.edit && run.edit.k === keyOf(st), plus = `<button type="button" class="linkbtn" data-pl="addset" aria-label="Una serie más de ${esc(it.ejercicio)}">+</button>`;
+        // «− Serie +»: one set less (an open set: that one is deleted) or one more; with a single set, just «+ Serie»
+        return working || !(ed || it.series > 1) ? `<button type="button" class="linkbtn" data-pl="addset">+ Serie</button>`
+          : `<span class="pl-sets" role="group" aria-label="Series de ${esc(it.ejercicio)}"><button type="button" class="linkbtn" data-pl="subset" aria-label="${ed ? `Borrar esta serie de ${esc(it.ejercicio)}` : `Una serie menos de ${esc(it.ejercicio)}`}">−</button><span>Serie</span>${plus}</span>`; })()}<button type="button" class="linkbtn" data-pl="skipex">Saltar ejercicio</button>${working ? "" : resting ? (next ? `<button type="button" class="linkbtn" data-swap-item="${next.bi}.${next.ii}">Cambiar el siguiente</button>` : "") : `<button type="button" class="linkbtn" data-swap-item="${st.bi}.${st.ii}">Cambiar ejercicio</button>`}<button type="button" class="linkbtn" data-pl="finish">Terminar y guardar</button></div>
     </div>`;
   }
   el.innerHTML = `<div class="pl-wrap">${head}${body}</div>${swapSheetHTML()}`;
@@ -561,7 +564,7 @@ let fixOpen = false;
 function fixSetsHTML(){
   const rows = run.w.bloques.flatMap((b, bi) => b.items.map((it, ii) => [it, bi + "." + ii])).filter(([it, k]) => it.modo === "reps" && (run.log[k] || []).length);
   if (!rows.length) return "";
-  return `<details class="pl-fix" ${fixOpen ? "open" : ""}><summary>Revisa y corrige las series</summary>${rows.map(([it, k]) => `<div class="fix-ex"><b>${esc(it.ejercicio)}</b><div class="fix-sets">${run.log[k].map((x, i) => `<span class="fix-set"><small>S${i + 1}</small><input class="stepin" data-fix="${k}:${i}:reps" inputmode="numeric" value="${fmt(num(x.reps))}" aria-label="${esc(it.ejercicio)}, serie ${i + 1}, repeticiones"><small>×</small><input class="stepin" data-fix="${k}:${i}:kg" inputmode="decimal" value="${fmt(num(x.kg), 2)}" aria-label="${esc(it.ejercicio)}, serie ${i + 1}, kilos"><small>kg</small></span>`).join("")}
+  return `<details class="pl-fix" ${fixOpen ? "open" : ""}><summary>Revisa y corrige las series</summary>${rows.map(([it, k]) => `<div class="fix-ex"><b>${esc(it.ejercicio)}</b><div class="fix-sets">${run.log[k].map((x, i) => `<span class="fix-set"><small>S${i + 1}</small><input class="stepin" data-fix="${k}:${i}:reps" inputmode="numeric" value="${fmt(num(x.reps))}" aria-label="${esc(it.ejercicio)}, serie ${i + 1}, repeticiones"><small>×</small><input class="stepin" data-fix="${k}:${i}:kg" inputmode="decimal" value="${fmt(num(x.kg), 2)}" aria-label="${esc(it.ejercicio)}, serie ${i + 1}, kilos"><small>kg</small><button type="button" class="x" data-delset="${k}:${i}" aria-label="Borrar la serie ${i + 1} de ${esc(it.ejercicio)}">×</button></span>`).join("")}
       <button type="button" class="btn sm ghost" data-addset="${k}" aria-label="Añadir una serie de ${esc(it.ejercicio)}">+ Serie</button></div>${alwaysHTML(it, run.log[k].length)}</div>`).join("")}</details>`;
 }
 document.addEventListener("change", e => {
@@ -601,9 +604,10 @@ document.addEventListener("click", e => {
   else if (a === "discard") { if (run.sid && !confirm(dropAsk())) return; discardRun(() => closePlayer(true), true); }
   else if (a === "back") goBack();
   else if (a === "addset") addSetNow();
+  else if (a === "subset") removeSetNow();
   else if (t.dataset.jump) jumpTo(t.dataset.jump);
   else if (t.dataset.reopen) { const [k, n] = t.dataset.reopen.split(":"), it = run.w.bloques[+k.split(".")[0]].items[+k.split(".")[1]];
-    if (editSet(k, +n)) toast(`${it.ejercicio} · serie ${n}: corrígela y pulsa «Serie hecha»`); }
+    if (editSet(k, +n)) toast(`${it.ejercicio} · serie ${n}: corrígela y pulsa «Serie hecha», o «−» para borrarla`); }
 });
 /* a tap on a ring of the row goes straight to that exercise, at its first set left: in a set it leaves the one
    on screen for later, in the rest it ends the rest. Nothing logged changes, and the sets left behind come
@@ -632,7 +636,7 @@ function jumpTo(k){
 function reopenDone(k){
   const [bi, ii] = k.split(".").map(Number), it = run.w.bloques[bi].items[ii], l = run.log[k] || [];
   if (run.skip) delete run.skip[k];
-  if (editSet(k, Math.min(l.length, it.series))) toast(`${it.ejercicio} · serie ${Math.min(l.length, it.series)}: corrígela, «◀ Anterior» para las de antes o «+ Serie» para otra`);
+  if (editSet(k, Math.min(l.length, it.series))) toast(`${it.ejercicio} · serie ${Math.min(l.length, it.series)}: corrígela, «◀ Anterior» para las de antes, «+» para otra o «−» para borrarla`);
 }
 // set s of exercise k, already logged, opened to correct it: «Serie hecha» writes it in its place (run.edit), and
 // then the workout goes on with what is left. Also from the «Hoy» row of the table of sets (data-reopen).

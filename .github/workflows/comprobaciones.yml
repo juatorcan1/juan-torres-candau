@@ -52,5 +52,7 @@ jobs:
         run: node gym-app/pruebas/bolitas.mjs
       - name: Entreno guiado · abdominales al final
         run: node gym-app/pruebas/abdomen.mjs
+      - name: Entreno guiado · quitar series
+        run: node gym-app/pruebas/quitar-series.mjs
       - name: El entreno de Juan · todas sus pruebas
         run: for t in entreno-app/pruebas/*.mjs; do echo "== $t"; node "$t" || exit 1; done

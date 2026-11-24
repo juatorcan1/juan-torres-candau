@@ -51,10 +51,70 @@ function addSetNow(){
   saveRun(); renderPlayer(); syncRun();
   toast(`${it.ejercicio}: ahora ${it.series} series`);
 }
+/* ---------- one set less ----------
+   The «−» of «− Serie +» takes a set off the exercise on screen (in the rest: the one you just did). With sets still to do,
+   one of those goes and nothing logged changes; with all of them done, the last one logged is deleted, after
+   asking. A set opened to correct it (run.edit: its ring, «◀ Anterior», the table) is the one deleted
+   (the «−» says «Borrar esta serie»). In the summary, the × of each set deletes that one. An exercise never goes below one
+   set, and the only set logged of the whole workout is never deleted here (that is «Descartar»): the session
+   in the database always gets the change, because syncRun only writes a workout with sets. */
+const setText = (it, x) => it.modo === "reps" ? `${fmt(num(x.reps))} × ${fmt(num(x.kg), 2)} kg` : it.modo === "distancia" ? `${fmt(num(x.meters))} m` : `${it.segundos} s`;
+// the numbers for the set after the rest, as logSet sets them
+function nextCurFor(st, next){
+  const ni = itemOf(next), ln = run.log[keyOf(next)] || [], prev = keyOf(next) === keyOf(st) ? lastLog() : ln.slice(-1)[0];
+  return prev && !ni.plan ? { reps: num(prev.reps), kg: num(prev.kg), meters: prev.meters } : (({ reps, kg, meters }) => ({ reps, kg, meters }))(planned(ni, next.s));
+}
+const stepAt = (bi, ii, s) => run.steps.findIndex(x => x.bi === bi && x.ii === ii && x.s === s);
+function removeSetNow(){
+  const st = run.steps[run.i]; if (!st || run.phase === "work") return;
+  const k = keyOf(st), it = itemOf(st), l = run.log[k] || [];
+  if (run.phase === "set" && run.edit && run.edit.k === k && l[run.edit.idx]) { deleteLogged(k, run.edit.idx); return; }
+  if (it.series <= 1) { toast(`${it.ejercicio} ya tiene una sola serie: si no la vas a hacer, «Saltar ejercicio»`); return; }
+  if (l.length >= it.series) { deleteLogged(k, l.length - 1); return; }
+  // a set still to do: the last one of the exercise goes, nothing logged changes
+  const was = run.steps[nextUndone(run.i)], wasK = was ? keyOf(was) + ":" + was.s : "";
+  it.series--; if (it.hasta != null && it.hasta > it.series) it.hasta = it.series;
+  run.steps = flatten(run.w);
+  const j = stepAt(st.bi, st.ii, st.s);
+  if (j >= 0) {
+    run.i = j;
+    // in the rest, what comes next may have been the set taken off
+    if (run.phase === "rest") { const n = run.steps[nextUndone(run.i)]; if ((n ? keyOf(n) + ":" + n.s : "") !== wasK) run.nextCur = n ? nextCurFor(st, n) : null; }
+  } else {
+    // the set on screen was the one taken off: the exercise is finished, on to what is left
+    run.i = stepAt(st.bi, st.ii, it.series); run.nextCur = null; advance();
+  }
+  saveRun(); renderPlayer(); syncRun();
+  toast(`${it.ejercicio}: ahora ${it.series} serie${it.series > 1 ? "s" : ""}`);
+}
+// deletes set idx of exercise k from what is logged (player or summary)
+function deleteLogged(k, idx){
+  const [bi, ii] = k.split(".").map(Number), it = run.w.bloques[bi] && run.w.bloques[bi].items[ii], l = run.log[k];
+  if (!it || !l || !l[idx]) return false;
+  if (setsDone(run) <= 1) { toast("Es la única serie que llevas: si no quieres guardar el entreno, «Terminar y guardar» y luego «Descartar»"); return false; }
+  if (!confirm(`¿Borrar la serie ${idx + 1} de ${it.ejercicio} (${setText(it, l[idx])})?`)) return false;
+  const allDone = l.length >= it.series;
+  l.splice(idx, 1);
+  // one logged too many: the exercise has one set less; with sets still to do, the deleted one is to do again
+  if (allDone) { it.series = Math.max(1, l.length); if (it.hasta != null && it.hasta > it.series) it.hasta = it.series; }
+  run.edit = null; run.lastIdx = null;
+  run.steps = flatten(run.w);
+  if (run.phase !== "done") {
+    run.nextCur = null;
+    const j = stepAt(bi, ii, l.length + 1);
+    if (j >= 0) goStep(j); // its first set left
+    else { run.i = stepAt(bi, ii, l.length); advance(); }
+  }
+  fixOpen = run.phase === "done";
+  saveRun(); renderPlayer(); syncRun();
+  toast(`Borrada la serie ${idx + 1} de ${it.ejercicio}`);
+  return true;
+}
 document.addEventListener("click", e => {
-  const t = e.target.closest("button[data-addset],button[data-always]"); if (!t || !run) return;
+  const t = e.target.closest("button[data-addset],button[data-always],button[data-delset]"); if (!t || !run) return;
   e.preventDefault(); e.stopPropagation();
   if (t.dataset.always) { fixOpen = true; saveExtra(t.dataset.always, +t.dataset.n); return; }
+  if (t.dataset.delset) { const [k, i] = t.dataset.delset.split(":"); deleteLogged(k, +i); return; }
   const k = t.dataset.addset, l = run.log[k]; if (!l || !l.length) return;
   const [bi, ii] = k.split(".").map(Number), it = run.w.bloques[bi].items[ii];
   l.push({ ...l[l.length - 1] }); it.series = Math.max(it.series, l.length); run.steps = flatten(run.w);

@@ -284,7 +284,10 @@ function renderPlayer(){
         : working ? `<button type="button" class="btn ${paused ? "primary" : ""}" data-pl="pause">${paused ? "▶ Seguir" : "❚❚ Pausar"}</button><button type="button" class="btn primary big" data-pl="workdone">Hecho</button>`
         : it.modo === "tiempo" ? `<button type="button" class="btn primary big" data-pl="work">Empezar ${it.segundos} s</button>`
         : `<button type="button" class="btn primary big" data-pl="done">Serie hecha</button>`}
-      <div class="pl-aux">${resting || run.i > 0 ? `<button type="button" class="linkbtn" data-pl="back">◀ Anterior</button>` : ""}${resting ? `<button type="button" class="linkbtn" data-pl="plus">+30 s</button>` : ""}<button type="button" class="linkbtn" data-pl="addset">+ Serie</button><button type="button" class="linkbtn" data-pl="skipex">Saltar ejercicio</button>${working ? "" : resting ? (next ? `<button type="button" class="linkbtn" data-swap-item="${next.bi}.${next.ii}">Cambiar el siguiente</button>` : "") : `<button type="button" class="linkbtn" data-swap-item="${st.bi}.${st.ii}">Cambiar ejercicio</button>`}<button type="button" class="linkbtn" data-pl="finish">Terminar y guardar</button></div>
+      <div class="pl-aux">${resting || run.i > 0 ? `<button type="button" class="linkbtn" data-pl="back">◀ Anterior</button>` : ""}${resting ? `<button type="button" class="linkbtn" data-pl="plus">+30 s</button>` : ""}${(() => { const ed = run.phase === "set" && run.edit && run.edit.k === keyOf(st), plus = `<button type="button" class="linkbtn" data-pl="addset" aria-label="Una serie más de ${esc(it.ejercicio)}">+</button>`;
+        // «− Serie +»: one set less (an open set: that one is deleted) or one more; with a single set, just «+ Serie»
+        return working || !(ed || it.series > 1) ? `<button type="button" class="linkbtn" data-pl="addset">+ Serie</button>`
+          : `<span class="pl-sets" role="group" aria-label="Series de ${esc(it.ejercicio)}"><button type="button" class="linkbtn" data-pl="subset" aria-label="${ed ? `Borrar esta serie de ${esc(it.ejercicio)}` : `Una serie menos de ${esc(it.ejercicio)}`}">−</button><span>Serie</span>${plus}</span>`; })()}<button type="button" class="linkbtn" data-pl="skipex">Saltar ejercicio</button>${working ? "" : resting ? (next ? `<button type="button" class="linkbtn" data-swap-item="${next.bi}.${next.ii}">Cambiar el siguiente</button>` : "") : `<button type="button" class="linkbtn" data-swap-item="${st.bi}.${st.ii}">Cambiar ejercicio</button>`}<button type="button" class="linkbtn" data-pl="finish">Terminar y guardar</button></div>
     </div>`;
   }
   el.innerHTML = `<div class="pl-wrap">${head}${body}</div>${swapSheetHTML()}`;
@@ -384,8 +387,11 @@ function markUnsynced(r){
 // the writes of the workout go one after another, so an older one never lands after a newer one
 let writes = Promise.resolve();
 function queueWrite(fn){ const p = writes.then(fn); writes = p.catch(() => {}); return p; }
-// changed somewhere else since this phone last wrote it (another phone, the form, the plan)
-function changedElsewhere(r){ const s = r.sid && real.find(x => x.id === r.sid); return s && num(s.updatedAt) > num(r.syncedAt) + 1000 ? s : null; }
+// changed somewhere else since this phone last wrote it (another phone, the form, the plan). r.tries: the
+// updatedAt of this phone's writes since the last one confirmed; one that reached the database but whose answer
+// was lost (bad signal) carries one of them, so it is this phone's own copy, not a change made elsewhere
+function changedElsewhere(r){ const s = r.sid && real.find(x => x.id === r.sid);
+  return s && num(s.updatedAt) > num(r.syncedAt) + 1000 && !(r.tries || []).includes(num(s.updatedAt)) ? s : null; }
 const setsIn = s => (s.exercises || []).reduce((a, e) => a + (e.sets || []).length, 0);
 // r.rev counts the changes made on this phone and r.syncedRev the last one the database has
 function syncRun(){
@@ -401,17 +407,20 @@ async function writeRun(r, final = false){
   const other = changedElsewhere(r);
   if (other) {
     // never written over: with as much there as here, this copy is the old one; otherwise it stays on the phone
-    if (setsIn(other) >= setsDone(r)) { if (run === r && !playerOpen()) { run = null; store.del("entreno.run"); } return true; }
+    // a set deleted on this phone and not written yet (r.delRev): fewer sets here is not the old copy, so it is
+    // never dropped silently; it stays on the phone with the warning
+    if (setsIn(other) >= setsDone(r) && !(num(r.delRev) > num(r.syncedRev))) { if (run === r && !playerOpen()) { run = null; store.del("entreno.run"); } return true; }
     if (!r.conflict) { r.conflict = true; if (r === run) saveRun(); toast("Este entreno se ha cambiado en otro móvil: lo de aquí no se sube para no pisarlo"); }
     return false;
   }
   if (!r.sid) r.sid = `run-${me}-${r.startedAt || Date.now()}`;
   const doc = runSession(r), now = Date.now();
+  (r.tries ||= []).push(now); if (r.tries.length > 200) r.tries.shift(); if (r === run) saveRun();
   try {
     await db.doc("sesiones/" + r.sid).set(final ? { ...doc, guia: guiaOf(r.w), createdAt: r.startedAt || now, updatedAt: now }
       : { ...doc, notes: doc.notes + " · sin terminar", enCurso: true, guia: guiaOf(r.w), createdAt: r.startedAt || now, updatedAt: now });
   } catch { markUnsynced(r); return false; }
-  r.syncedAt = now; r.syncedRev = Math.max(num(r.syncedRev), rev);
+  r.syncedAt = now; r.syncedRev = Math.max(num(r.syncedRev), rev); r.tries = [];
   if (r.unsynced && r.syncedRev >= (r.rev || 0)) { r.unsynced = false; toast("Subido lo que apuntaste sin conexión"); }
   if (r === run) saveRun();
   return true;
@@ -561,7 +570,7 @@ let fixOpen = false;
 function fixSetsHTML(){
   const rows = run.w.bloques.flatMap((b, bi) => b.items.map((it, ii) => [it, bi + "." + ii])).filter(([it, k]) => it.modo === "reps" && (run.log[k] || []).length);
   if (!rows.length) return "";
-  return `<details class="pl-fix" ${fixOpen ? "open" : ""}><summary>Revisa y corrige las series</summary>${rows.map(([it, k]) => `<div class="fix-ex"><b>${esc(it.ejercicio)}</b><div class="fix-sets">${run.log[k].map((x, i) => `<span class="fix-set"><small>S${i + 1}</small><input class="stepin" data-fix="${k}:${i}:reps" inputmode="numeric" value="${fmt(num(x.reps))}" aria-label="${esc(it.ejercicio)}, serie ${i + 1}, repeticiones"><small>×</small><input class="stepin" data-fix="${k}:${i}:kg" inputmode="decimal" value="${fmt(num(x.kg), 2)}" aria-label="${esc(it.ejercicio)}, serie ${i + 1}, kilos"><small>kg</small></span>`).join("")}
+  return `<details class="pl-fix" ${fixOpen ? "open" : ""}><summary>Revisa y corrige las series</summary>${rows.map(([it, k]) => `<div class="fix-ex"><b>${esc(it.ejercicio)}</b><div class="fix-sets">${run.log[k].map((x, i) => `<span class="fix-set"><small>S${i + 1}</small><input class="stepin" data-fix="${k}:${i}:reps" inputmode="numeric" value="${fmt(num(x.reps))}" aria-label="${esc(it.ejercicio)}, serie ${i + 1}, repeticiones"><small>×</small><input class="stepin" data-fix="${k}:${i}:kg" inputmode="decimal" value="${fmt(num(x.kg), 2)}" aria-label="${esc(it.ejercicio)}, serie ${i + 1}, kilos"><small>kg</small><button type="button" class="x" data-delset="${k}:${i}" aria-label="Borrar la serie ${i + 1} de ${esc(it.ejercicio)}">×</button></span>`).join("")}
       <button type="button" class="btn sm ghost" data-addset="${k}" aria-label="Añadir una serie de ${esc(it.ejercicio)}">+ Serie</button></div>${alwaysHTML(it, run.log[k].length)}</div>`).join("")}</details>`;
 }
 document.addEventListener("change", e => {
@@ -601,9 +610,10 @@ document.addEventListener("click", e => {
   else if (a === "discard") { if (run.sid && !confirm(dropAsk())) return; discardRun(() => closePlayer(true), true); }
   else if (a === "back") goBack();
   else if (a === "addset") addSetNow();
+  else if (a === "subset") removeSetNow();
   else if (t.dataset.jump) jumpTo(t.dataset.jump);
   else if (t.dataset.reopen) { const [k, n] = t.dataset.reopen.split(":"), it = run.w.bloques[+k.split(".")[0]].items[+k.split(".")[1]];
-    if (editSet(k, +n)) toast(`${it.ejercicio} · serie ${n}: corrígela y pulsa «Serie hecha»`); }
+    if (editSet(k, +n)) toast(`${it.ejercicio} · serie ${n}: corrígela y pulsa «Serie hecha», o «−» para borrarla`); }
 });
 /* a tap on a ring of the row goes straight to that exercise, at its first set left: in a set it leaves the one
    on screen for later, in the rest it ends the rest. Nothing logged changes, and the sets left behind come
@@ -632,7 +642,7 @@ function jumpTo(k){
 function reopenDone(k){
   const [bi, ii] = k.split(".").map(Number), it = run.w.bloques[bi].items[ii], l = run.log[k] || [];
   if (run.skip) delete run.skip[k];
-  if (editSet(k, Math.min(l.length, it.series))) toast(`${it.ejercicio} · serie ${Math.min(l.length, it.series)}: corrígela, «◀ Anterior» para las de antes o «+ Serie» para otra`);
+  if (editSet(k, Math.min(l.length, it.series))) toast(`${it.ejercicio} · serie ${Math.min(l.length, it.series)}: corrígela, «◀ Anterior» para las de antes, «+» para otra o «−» para borrarla`);
 }
 // set s of exercise k, already logged, opened to correct it: «Serie hecha» writes it in its place (run.edit), and
 // then the workout goes on with what is left. Also from the «Hoy» row of the table of sets (data-reopen).

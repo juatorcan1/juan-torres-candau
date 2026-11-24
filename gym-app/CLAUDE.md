@@ -41,7 +41,9 @@ borrado. `gym_docs_copia_20261020`: copia de todo `gym_docs` justo antes de acti
    cada 30 s (`retrySync`). Se avisa una vez al quedarse sin conexión y otra al subirlo.
 3. **Nunca se pisa** una versión cambiada en otro sitio después de la última escritura de este móvil
    (`changedElsewhere`): si allí hay tantas series o más, la copia del móvil es la vieja y se deja; si hay menos,
-   lo del móvil no se sube y se avisa.
+   lo del móvil no se sube y se avisa. Una subida que llegó pero cuya respuesta se perdió (mala cobertura) no cuenta
+   como «cambiada en otro sitio»: lleva el `updatedAt` de uno de los intentos del móvil (`run.tries`). Y un entreno
+   con una serie borrada aún sin subir (`run.delRev`) nunca se tira por tener menos series: se avisa.
 4. «Guardar entreno» escribe la versión final (sin `enCurso`) en el mismo id, también por la cola.
 5. Nunca se tira un entreno con series apuntadas: empezar otro lo guarda antes tal cual (`parkRun`), y uno
    olvidado hace más de 6 h se guarda solo al abrir la app (`parkOldRun`). Si mientras tanto se continúa, se queda.
@@ -66,6 +68,10 @@ Si tocas cómo se ordenan los abdominales (`absLast` en `src/11-player.js`: al e
 abdomen pasan a las últimas parejas y, dentro de su pareja, al último sitio; si al cambiarlos todo choca, salen a un
 bloque «Abdomen» al final y su compañero queda en «Series seguidas»; el Entrenador también lo tiene en sus reglas):
 `node pruebas/abdomen.mjs`.
+Si tocas cómo se quitan series (`src/22-series.js`: el «−» de «− Serie +» quita una de las que quedan sin tocar lo
+apuntado, o borra la última apuntada si están todas, o la serie abierta con `run.edit`; la × del resumen borra esa
+serie; nunca menos de una serie por ejercicio ni se borra la única serie del entreno, que es «Descartar»):
+`node pruebas/quitar-series.mjs`.
 
 Los agentes de la app (Entrenador y Dietista) llaman a Claude por `supabase/functions/gym-claude` (modelo en
 `MODEL`). Si cambias esa función, despliégala en Supabase con el mismo código que queda en el repo.

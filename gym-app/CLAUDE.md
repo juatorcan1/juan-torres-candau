@@ -41,7 +41,9 @@ borrado. `gym_docs_copia_20261020`: copia de todo `gym_docs` justo antes de acti
    cada 30 s (`retrySync`). Se avisa una vez al quedarse sin conexión y otra al subirlo.
 3. **Nunca se pisa** una versión cambiada en otro sitio después de la última escritura de este móvil
    (`changedElsewhere`): si allí hay tantas series o más, la copia del móvil es la vieja y se deja; si hay menos,
-   lo del móvil no se sube y se avisa.
+   lo del móvil no se sube y se avisa. Una subida que llegó pero cuya respuesta se perdió (mala cobertura) no cuenta
+   como «cambiada en otro sitio»: lleva el `updatedAt` de uno de los intentos del móvil (`run.tries`). Y un entreno
+   con una serie borrada aún sin subir (`run.delRev`) nunca se tira por tener menos series: se avisa.
 4. «Guardar entreno» escribe la versión final (sin `enCurso`) en el mismo id, también por la cola.
 5. Nunca se tira un entreno con series apuntadas: empezar otro lo guarda antes tal cual (`parkRun`), y uno
    olvidado hace más de 6 h se guarda solo al abrir la app (`parkOldRun`). Si mientras tanto se continúa, se queda.

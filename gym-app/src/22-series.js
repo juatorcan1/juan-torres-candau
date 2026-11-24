@@ -70,7 +70,8 @@ function removeSetNow(){
   const k = keyOf(st), it = itemOf(st), l = run.log[k] || [];
   if (run.phase === "set" && run.edit && run.edit.k === k && l[run.edit.idx]) { deleteLogged(k, run.edit.idx); return; }
   if (it.series <= 1) { toast(`${it.ejercicio} ya tiene una sola serie: si no la vas a hacer, «Saltar ejercicio»`); return; }
-  if (l.length >= it.series) { deleteLogged(k, l.length - 1); return; }
+  // all done: the set just logged (in the rest, the one just corrected can be an earlier one), or the last one
+  if (l.length >= it.series) { deleteLogged(k, run.phase === "rest" && run.lastIdx != null && l[run.lastIdx] ? run.lastIdx : l.length - 1); return; }
   // a set still to do: the last one of the exercise goes, nothing logged changes
   const was = run.steps[nextUndone(run.i)], wasK = was ? keyOf(was) + ":" + was.s : "";
   it.series--; if (it.hasta != null && it.hasta > it.series) it.hasta = it.series;
@@ -98,6 +99,7 @@ function deleteLogged(k, idx){
   // one logged too many: the exercise has one set less; with sets still to do, the deleted one is to do again
   if (allDone) { it.series = Math.max(1, l.length); if (it.hasta != null && it.hasta > it.series) it.hasta = it.series; }
   run.edit = null; run.lastIdx = null;
+  run.delRev = (run.rev || 0) + 1; // the rev syncRun gives this change: until the database has it, see writeRun
   run.steps = flatten(run.w);
   if (run.phase !== "done") {
     run.nextCur = null;

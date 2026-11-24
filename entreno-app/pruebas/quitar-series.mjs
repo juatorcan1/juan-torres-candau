@@ -21,19 +21,20 @@ function mock(seed){
   const cols = {}; for (const [c, docs] of Object.entries(seed)) cols[c] = new Map(docs.map(d => [d.id, d]));
   window.__cols = cols;
   const snap = c => ({ docs: [...(cols[c] || new Map()).values()].map(d => ({ id: d.id, data: () => d })) });
-  const ref = (c, id) => ({ id, async set(o){ (cols[c] ||= new Map()).set(id, { ...o, id }); }, async delete(){ cols[c]?.delete(id); } });
+  const ref = (c, id) => ({ id, async set(o){ (cols[c] ||= new Map()).set(id, { ...o, id }); if (window.__pierde) { window.__pierde = false; throw new Error("sin respuesta"); } }, async delete(){ cols[c]?.delete(id); } });
   const db = { collection: c => ({ doc: id => ref(c, id || "x"), onSnapshot(n){ setTimeout(() => n(snap(c)), 50); return () => {}; } }), doc: p => { const [c, i] = p.split("/"); return ref(c, i); } };
   window.claude = { use: n => Promise.resolve(n === "db" ? db : null) };
 }
 const browser = await pw.chromium.launch(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {});
 let fallos = 0; const ok = (c, m) => { console.log((c ? "✓ " : "✗ ") + m); if (!c) fallos++; };
-async function nueva(entreno, previas = []){
+async function nueva(entreno, previas = [], enMovil = null){
   const p = await browser.newPage({ viewport: { width: 360, height: 640 } }); p.errs = []; p.dialogs = 0; p.on("pageerror", e => p.errs.push(e.message));
   p.on("dialog", d => { p.dialogs++; d.accept(); });
   await p.route("**/*", r => r.request().url().startsWith("file:") ? r.continue() : r.abort());
   const sesiones = [{ id: "a", athlete: "juan", date: ayer, sport: "gym", exercises: [{ name: "Sentadilla", sets: [{ reps: 10, kg: 40 }] }] }, ...previas];
-  await p.addInitScript(([seed, src]) => { localStorage.setItem("entreno.me", '"juan"'); localStorage.setItem("entreno.voice", "false"); eval("(" + src + ")")(seed); }, [{ planes: [planDe(entreno)], sesiones }, mock.toString()]);
-  await p.goto(APP); await p.waitForTimeout(500); await p.click(`[data-plan-open="${hoy}"]`); await p.click('[data-pl="start"]'); await p.waitForTimeout(100);
+  await p.addInitScript(([seed, src, run]) => { localStorage.setItem("entreno.me", '"juan"'); localStorage.setItem("entreno.voice", "false"); eval("(" + src + ")")(seed); if (run) localStorage.setItem("entreno.run", run); }, [{ planes: [planDe(entreno)], sesiones }, mock.toString(), enMovil]);
+  await p.goto(APP); await p.waitForTimeout(500);
+  if (!enMovil) { await p.click(`[data-plan-open="${hoy}"]`); await p.click('[data-pl="start"]'); await p.waitForTimeout(100); }
   return p;
 }
 const est = p => p.evaluate(() => { const run = JSON.parse(localStorage.getItem("entreno.run")), st = run.steps[run.i];
@@ -106,6 +107,38 @@ ok(await enBase(p) === "Remo con barra:40/42, Jalón al pecho:35", `la base de d
 await clic(p, '[data-pl="save"]'); await p.waitForTimeout(400);
 const fin = await p.evaluate(() => { const s = [...window.__cols.sesiones.values()].find(z => z.id !== "a" && z.id !== "b"); return { en: !!s.enCurso, ex: s.exercises.map(e => e.name + ":" + e.sets.map(z => z.kg).join("/")).join(", ") }; });
 ok(!fin.en && fin.ex === "Remo con barra:40/42, Jalón al pecho:35", `se guarda terminado y sin ella (${fin.ex})`);
+ok(!p.errs.length, `sin errores ${p.errs.join(" | ")}`); await p.close();
+
+// en el descanso tras corregir una serie anterior, el «−» borra esa (la que acabas de hacer), no la última
+p = await nueva(gym);
+for (const v of [40, 41, 42]) { await kg(p, v); await hecha(p); }
+await clic(p, '[data-jump="0.0"]'); await clic(p, '[data-pl="back"]'); await clic(p, '[data-pl="back"]'); // remo 1 abierta
+await kg(p, 39); await clic(p, '[data-pl="done"]'); x = await est(p);
+ok(x.fase === "rest" && kgs(x.log, "0.0") === "39/41/42", `remo 1 corregida a 39, en el descanso (${x.fase}, ${kgs(x.log, "0.0")})`);
+let pregunta = ""; p.removeAllListeners("dialog"); p.on("dialog", d => { pregunta = d.message(); d.accept(); });
+await clic(p, '[data-pl="subset"]'); x = await est(p);
+ok(/serie 1 /.test(pregunta) && kgs(x.log, "0.0") === "41/42", `pregunta por la serie 1 y borra esa (${pregunta}; queda ${kgs(x.log, "0.0")})`);
+ok(!p.errs.length, `sin errores ${p.errs.join(" | ")}`); await p.close();
+
+// mala cobertura: una subida llega a la base de datos pero al móvil no le llega la respuesta. Al volver a abrir la
+// app y borrar una serie, el borrado se sube y se guarda (esa copia de la base de datos es la suya, no de otro móvil)
+p = await nueva(gym);
+await kg(p, 40); await hecha(p); await kg(p, 41); await hecha(p);
+await p.waitForTimeout(1300); await p.evaluate(() => { window.__pierde = true; });
+await kg(p, 42); await clic(p, '[data-pl="done"]'); await p.waitForTimeout(300);
+const movil = await p.evaluate(() => localStorage.getItem("entreno.run")), base = await p.evaluate(() => [...window.__cols.sesiones.values()].find(z => z.id !== "a"));
+ok(JSON.parse(movil).unsynced && base.exercises[0].sets.length === 3, `la serie 3 llegó a la base de datos, pero el móvil cree que no (${base.exercises[0].sets.length} series allí)`);
+await p.close();
+// (más de 1 s después de la última subida confirmada: la base de datos parece «más nueva» que lo del móvil)
+p = await nueva(gym, [base], movil); await p.waitForTimeout(400);
+if (!(await p.evaluate(() => !document.querySelector("#player").hidden))) await clic(p, "[data-continue], [data-resume]");
+x = await est(p);
+ok(x && kgs(x.log, "0.0") === "40/41/42", `al abrir la app, el entreno sigue en el móvil (${x && kgs(x.log, "0.0")})`);
+await clic(p, '[data-pl="finish"]'); await p.waitForTimeout(150);
+await p.evaluate(() => document.querySelector(".pl-fix").setAttribute("open", ""));
+await clic(p, '[data-delset="0.0:2"]'); await clic(p, '[data-pl="save"]'); await p.waitForTimeout(500);
+const fin2 = await p.evaluate(() => { const s = [...window.__cols.sesiones.values()].find(z => z.id !== "a"); return { en: !!s.enCurso, ex: s.exercises.map(e => e.name + ":" + e.sets.map(z => z.kg).join("/")).join(", ") }; });
+ok(!fin2.en && fin2.ex === "Remo con barra:40/41", `se guarda terminado y sin la serie borrada (${fin2.ex}${fin2.en ? ", sin terminar" : ""})`);
 ok(!p.errs.length, `sin errores ${p.errs.join(" | ")}`); await p.close();
 
 // la única serie del entreno no se borra (para eso, «Descartar»)

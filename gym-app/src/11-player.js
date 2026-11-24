@@ -387,8 +387,11 @@ function markUnsynced(r){
 // the writes of the workout go one after another, so an older one never lands after a newer one
 let writes = Promise.resolve();
 function queueWrite(fn){ const p = writes.then(fn); writes = p.catch(() => {}); return p; }
-// changed somewhere else since this phone last wrote it (another phone, the form, the plan)
-function changedElsewhere(r){ const s = r.sid && real.find(x => x.id === r.sid); return s && num(s.updatedAt) > num(r.syncedAt) + 1000 ? s : null; }
+// changed somewhere else since this phone last wrote it (another phone, the form, the plan). r.tries: the
+// updatedAt of this phone's writes since the last one confirmed; one that reached the database but whose answer
+// was lost (bad signal) carries one of them, so it is this phone's own copy, not a change made elsewhere
+function changedElsewhere(r){ const s = r.sid && real.find(x => x.id === r.sid);
+  return s && num(s.updatedAt) > num(r.syncedAt) + 1000 && !(r.tries || []).includes(num(s.updatedAt)) ? s : null; }
 const setsIn = s => (s.exercises || []).reduce((a, e) => a + (e.sets || []).length, 0);
 // r.rev counts the changes made on this phone and r.syncedRev the last one the database has
 function syncRun(){
@@ -404,17 +407,20 @@ async function writeRun(r, final = false){
   const other = changedElsewhere(r);
   if (other) {
     // never written over: with as much there as here, this copy is the old one; otherwise it stays on the phone
-    if (setsIn(other) >= setsDone(r)) { if (run === r && !playerOpen()) { run = null; store.del("gym.run"); } return true; }
+    // a set deleted on this phone and not written yet (r.delRev): fewer sets here is not the old copy, so it is
+    // never dropped silently; it stays on the phone with the warning
+    if (setsIn(other) >= setsDone(r) && !(num(r.delRev) > num(r.syncedRev))) { if (run === r && !playerOpen()) { run = null; store.del("gym.run"); } return true; }
     if (!r.conflict) { r.conflict = true; if (r === run) saveRun(); toast("Este entreno se ha cambiado en otro móvil: lo de aquí no se sube para no pisarlo"); }
     return false;
   }
   if (!r.sid) r.sid = `run-${me}-${r.startedAt || Date.now()}`;
   const doc = runSession(r), now = Date.now();
+  (r.tries ||= []).push(now); if (r.tries.length > 200) r.tries.shift(); if (r === run) saveRun();
   try {
     await db.doc("sesiones/" + r.sid).set(final ? { ...doc, guia: guiaOf(r.w), createdAt: r.startedAt || now, updatedAt: now }
       : { ...doc, notes: doc.notes + " · sin terminar", enCurso: true, guia: guiaOf(r.w), createdAt: r.startedAt || now, updatedAt: now });
   } catch { markUnsynced(r); return false; }
-  r.syncedAt = now; r.syncedRev = Math.max(num(r.syncedRev), rev);
+  r.syncedAt = now; r.syncedRev = Math.max(num(r.syncedRev), rev); r.tries = [];
   if (r.unsynced && r.syncedRev >= (r.rev || 0)) { r.unsynced = false; toast("Subido lo que apuntaste sin conexión"); }
   if (r === run) saveRun();
   return true;
